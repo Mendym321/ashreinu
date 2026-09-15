@@ -7,58 +7,80 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --ink: #12121f; --ink-mid: #44445a; --ink-light: #9090aa;
-    --gold: #c49a2a; --gold-dim: #7a600f;
-    --bg: #f5f3ee; --surface: #ffffff; --border: #e2dfd7;
-    --blue: #2255cc; --radius: 5px;
-  }
-  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#12121f;--ink-mid:#44445a;--ink-light:#9090aa;
+  --gold:#c49a2a;--gold-dim:#7a600f;--gold-bg:#fdf8ee;
+  --bg:#f5f3ee;--surface:#fff;--border:#e2dfd7;
+  --blue:#1a4fcc;--radius:6px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
 
-  header { background: var(--ink); padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; }
-  header h1 { font-family: 'Frank Ruhl Libre', serif; font-weight: 300; font-size: 22px; color: #e8dfc0; }
-  .badge { font-size: 11px; padding: 2px 9px; border-radius: 20px; background: #2a2a40; color: #7070a0; margin-left: 10px; text-transform: uppercase; letter-spacing: .06em; }
-  #gstat { font-size: 12px; color: #5555aa; }
+/* ── Header ── */
+header{background:var(--ink);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+header h1{font-family:'Frank Ruhl Libre',serif;font-weight:300;font-size:22px;color:#e8dfc0}
+.badge{font-size:11px;padding:2px 9px;border-radius:20px;background:#2a2a40;color:#7070a0;margin-left:10px;text-transform:uppercase;letter-spacing:.06em}
+#gstat{font-size:12px;color:#5555aa}
 
-  .wrap { padding: 20px 28px 60px; max-width: 780px; }
-  .srow { display: flex; gap: 8px; margin-bottom: 12px; }
-  input[type=text] { flex: 1; font-family: inherit; font-size: 15px; padding: 11px 15px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink); outline: none; }
-  input[type=text]:focus { border-color: var(--gold); }
-  input[type=text]::placeholder { color: var(--ink-light); }
-  button { font-family: inherit; font-size: 14px; font-weight: 600; padding: 11px 20px; background: var(--gold); color: #fff; border: none; border-radius: var(--radius); cursor: pointer; white-space: nowrap; }
-  button:hover { background: var(--gold-dim); }
-  button:disabled { background: var(--border); color: var(--ink-light); cursor: default; }
+/* ── Search area ── */
+.wrap{padding:20px 28px 80px;max-width:800px;margin:0 auto}
+.srow{display:flex;gap:8px;margin-bottom:12px}
+input[type=text]{flex:1;font-family:inherit;font-size:15px;padding:11px 15px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);outline:none;transition:border-color .15s}
+input[type=text]:focus{border-color:var(--gold)}
+input[type=text]::placeholder{color:var(--ink-light)}
+button.primary{font-family:inherit;font-size:14px;font-weight:600;padding:11px 20px;background:var(--gold);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;white-space:nowrap;transition:background .15s}
+button.primary:hover{background:var(--gold-dim)}
+button.primary:disabled{background:var(--border);color:var(--ink-light);cursor:default}
 
-  .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; font-size: 12px; color: var(--ink-light); }
-  select { font-family: inherit; font-size: 13px; padding: 6px 10px; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--ink); cursor: pointer; outline: none; }
-  select:focus { border-color: var(--gold); }
+/* ── Filters ── */
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;font-size:12px;color:var(--ink-light)}
+select{font-family:inherit;font-size:13px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);cursor:pointer;outline:none}
+select:focus{border-color:var(--gold)}
 
-  .prog-wrap { margin-bottom: 16px; display: none; }
-  .prog-bg { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .prog-fill { height: 100%; background: var(--gold); border-radius: 3px; transition: width .3s ease; width: 0; }
-  .prog-txt { font-size: 12px; color: var(--ink-light); margin-top: 5px; }
+/* ── Progress ── */
+.prog{display:none;margin-bottom:16px}
+.prog-bg{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .3s ease;width:0}
+.prog-txt{font-size:12px;color:var(--ink-light);margin-top:5px}
 
-  #rmeta { font-size: 13px; color: var(--ink-light); margin-bottom: 12px; min-height: 18px; }
+/* ── Results ── */
+#rmeta{font-size:13px;color:var(--ink-light);margin-bottom:12px;min-height:18px}
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; transition: border-color .15s; }
-  .card:hover { border-color: var(--gold); }
-  .ctop { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
-  .cname { font-family: 'Frank Ruhl Libre', serif; font-size: 17px; color: var(--ink); text-decoration: none; line-height: 1.3; }
-  .cname:hover { color: var(--gold-dim); }
-  .pill { font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; flex-shrink: 0; }
-  .ps { background: #e8f0fe; color: #1a56cc; }
-  .pm { background: #fce8ff; color: #7a1aaa; }
-  .pf { background: #e8fce8; color: #1a7a1a; }
-  .pn { background: #fff3e0; color: #b06000; }
-  .po { background: #f0f0f0; color: #555; }
-  .cpar { font-size: 12px; color: var(--ink-light); margin-bottom: 3px; }
-  .cmeta { display: flex; gap: 12px; font-size: 12px; color: var(--ink-light); flex-wrap: wrap; }
-  .olink { color: var(--blue); text-decoration: none; font-weight: 500; }
-  .olink:hover { text-decoration: underline; }
+/* ── Result card ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;transition:border-color .15s}
+.card:hover{border-color:var(--gold)}
+.card-main{padding:14px 16px;cursor:pointer}
+.ctop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px}
+.cname{font-family:'Frank Ruhl Libre',serif;font-size:17px;color:var(--ink);line-height:1.3;text-decoration:none;display:block}
+.cname:hover{color:var(--gold-dim)}
+.pill{font-size:11px;padding:2px 9px;border-radius:20px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;flex-shrink:0}
+.ps{background:#e8f0fe;color:#1a56cc}
+.pm{background:#fce8ff;color:#7a1aaa}
+.pf{background:#e8fce8;color:#1a7a1a}
+.pn{background:#fff3e0;color:#b06000}
+.po{background:#f0f0f0;color:#555}
+.cpar{font-size:12px;color:var(--ink-light);margin-bottom:4px}
+.cpar span{color:var(--ink-mid)}
+.cmeta{display:flex;gap:12px;font-size:12px;color:var(--ink-light);flex-wrap:wrap;align-items:center}
+.play-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--gold);background:var(--gold-bg);border:1px solid #e8d898;border-radius:20px;padding:3px 10px;cursor:pointer;transition:background .15s;user-select:none}
+.play-btn:hover{background:#f5ecc0}
+.olink{color:var(--blue);text-decoration:none;font-weight:500;font-size:12px}
+.olink:hover{text-decoration:underline}
 
-  .empty { color: var(--ink-light); font-size: 14px; line-height: 1.8; padding: 40px 0; }
-  .empty strong { color: var(--ink-mid); }
+/* ── Audio player panel ── */
+.player-panel{display:none;background:var(--gold-bg);border-top:1px solid #e8d898;padding:14px 16px}
+.player-panel.open{display:block}
+.player-title{font-size:13px;font-weight:500;color:var(--ink-mid);margin-bottom:8px}
+audio{width:100%;height:36px;outline:none;border-radius:4px}
+audio::-webkit-media-controls-panel{background:#fdf5dc}
+
+/* ── Empty state ── */
+.empty{color:var(--ink-light);font-size:14px;line-height:1.9;padding:36px 0}
+.empty strong{color:var(--ink-mid)}
+
+/* ── Loading skeleton ── */
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skeleton{background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:800px 100%;animation:shimmer 1.4s infinite;border-radius:4px;height:14px;margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -72,8 +94,8 @@
 
 <div class="wrap">
   <div class="srow">
-    <input type="text" id="q" placeholder="Search farbrengens and sichos…" />
-    <button id="sbtn" onclick="go()">Load & Search</button>
+    <input type="text" id="q" placeholder="Search farbrengens and sichos…" autocomplete="off" />
+    <button class="primary" id="sbtn" onclick="go()">Load & Search</button>
   </div>
   <div class="filters">
     <span>Type:</span>
@@ -84,9 +106,9 @@
       <option value="farbrengen">Farbrengen</option>
       <option value="niggun">Niggun</option>
     </select>
-    <span style="margin-left:6px">Hebrew Year:</span>
+    <span style="margin-left:4px">Year:</span>
     <select id="yf" onchange="if(indexed)search()"><option value="">All</option></select>
-    <span style="margin-left:6px">Month:</span>
+    <span style="margin-left:4px">Month:</span>
     <select id="mf" onchange="if(indexed)search()">
       <option value="">All</option>
       <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
@@ -96,7 +118,7 @@
     </select>
   </div>
 
-  <div class="prog-wrap" id="prog">
+  <div class="prog" id="prog">
     <div class="prog-bg"><div class="prog-fill" id="pf"></div></div>
     <div class="prog-txt" id="pt"></div>
   </div>
@@ -104,19 +126,18 @@
   <div id="rmeta"></div>
   <div id="res">
     <div class="empty">
-      Press <strong>Load & Search</strong> to index the full Ashreinu archive.<br>
-      Fetches all farbrengens and their sichos via a server-side proxy — no CORS issues.<br>
-      First load takes 2–4 minutes. After that, all searches are instant.
+      Press <strong>Load & Search</strong> to index the Ashreinu archive.<br>
+      All API calls run server-side — no browser restrictions.<br>
+      First load: ~2 minutes. After that, all searches are instant.
     </div>
   </div>
 </div>
 
 <script>
-// ── All API calls go through our own proxy, not Ashreinu directly ──
-// This runs server-side on Vercel, so CORS doesn't apply.
-async function apiFetch(path) {
+// ── API — all calls go through our Vercel proxy (server-side, no CORS) ──
+async function api(path) {
   try {
-    const r = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`);
+    const r = await fetch('/api/proxy?path=' + encodeURIComponent(path));
     if (!r.ok) return null;
     return await r.json();
   } catch { return null; }
@@ -126,161 +147,210 @@ async function apiFetch(path) {
 function dur(ms) {
   if (!ms) return '';
   const s = Math.round(ms / 1000);
-  return `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
 }
 function dstr(dates) {
   if (!dates?.length) return '';
   const d = dates[0];
-  const h = d.hebrew_day ? `${d.hebrew_day} ${d.hebrew_month_name} ${d.hebrew_year}` : '';
+  const h = d.hebrew_day ? d.hebrew_day+' '+d.hebrew_month_name+' '+d.hebrew_year : '';
   const s = d.secular_year
-    ? new Date(d.secular_year, (d.secular_month||1)-1, d.secular_day||1)
-        .toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })
+    ? new Date(d.secular_year,(d.secular_month||1)-1,d.secular_day||1)
+        .toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})
     : '';
-  return [h, s].filter(Boolean).join(' · ');
+  return [h,s].filter(Boolean).join(' · ');
 }
 function pillCls(t) {
-  const l = (t||'').toLowerCase();
-  if (l.includes('sicha'))   return 'ps';
-  if (l.includes('maamar'))  return 'pm';
-  if (t === 'Farbrengen')    return 'pf';
-  if (l.includes('niggun'))  return 'pn';
+  const l=(t||'').toLowerCase();
+  if(l.includes('sicha'))  return 'ps';
+  if(l.includes('maamar')) return 'pm';
+  if(t==='Farbrengen')     return 'pf';
+  if(l.includes('niggun')) return 'pn';
   return 'po';
 }
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function lnk(ev) {
-  return (ev.parent_id || ev._pid)
-    ? `https://ashreinu.app/player?parentEvent=${ev.parent_id||ev._pid}&event=${ev.id}`
-    : `https://ashreinu.app/player?parentEvent=${ev.id}`;
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function lnk(ev){
+  return (ev.parent_id||ev._pid)
+    ? 'https://ashreinu.app/player?parentEvent='+(ev.parent_id||ev._pid)+'&event='+ev.id
+    : 'https://ashreinu.app/player?parentEvent='+ev.id;
 }
-function prog(pct, msg) {
-  document.getElementById('pf').style.width = Math.min(pct,100) + '%';
-  document.getElementById('pt').textContent = msg;
+function getAudioUrl(ev) {
+  return ev.audio_recordings?.[0]?.assets?.[0]?.uri || null;
 }
-function gstat(s) { document.getElementById('gstat').textContent = s; }
+function prog(pct,msg){
+  document.getElementById('pf').style.width=Math.min(pct,100)+'%';
+  document.getElementById('pt').textContent=msg;
+}
+function gstat(s){document.getElementById('gstat').textContent=s}
 
 // ── State ──
-let events = [], indexed = false, loading = false;
+let events=[], indexed=false, loading=false;
+let activePlayer=null; // currently open player panel
 
-// ── Build index ──
+// ── Build index (scan event IDs 1–14000 via proxy) ──
 async function buildIndex() {
-  if (indexed || loading) return;
-  loading = true;
-  document.getElementById('prog').style.display = 'block';
-  document.getElementById('sbtn').disabled = true;
+  if (indexed||loading) return;
+  loading=true;
+  document.getElementById('prog').style.display='block';
+  document.getElementById('sbtn').disabled=true;
   gstat('Building index…');
 
-  // Scan event IDs 1–14000, parallel chunks of 20
-  // Keep only parent farbrengens (parent_id === null) and their sub_events
-  const TOTAL = 14000, CHUNK = 20;
-  let coll = [], found = 0;
+  const TOTAL=14000, CHUNK=20;
+  let coll=[], found=0;
 
-  for (let start = 1; start <= TOTAL; start += CHUNK) {
-    const batch = [];
-    for (let id = start; id < Math.min(start + CHUNK, TOTAL + 1); id++) batch.push(id);
+  for (let start=1; start<=TOTAL; start+=CHUNK) {
+    const batch=[];
+    for (let id=start; id<Math.min(start+CHUNK,TOTAL+1); id++) batch.push(id);
 
     const results = await Promise.all(batch.map(async id => {
-      const j = await apiFetch(`/event/${id}`);
-      return j?.data || j || null;
+      const j = await api('/event/'+id);
+      return j?.data||j||null;
     }));
 
     results.forEach(ev => {
       if (!ev?.id) return;
-      if (ev.parent_id !== null && ev.parent_id !== undefined) return; // skip sub-events
+      if (ev.parent_id!==null && ev.parent_id!==undefined) return;
       found++;
-      if (!coll.find(x => x.id === ev.id)) coll.push(ev);
-      (ev.sub_events || []).forEach(se => {
-        if (!coll.find(x => x.id === se.id)) {
-          se._pname = ev.name;
-          se._pid   = ev.id;
+      if (!coll.find(x=>x.id===ev.id)) coll.push(ev);
+      (ev.sub_events||[]).forEach(se => {
+        if (!coll.find(x=>x.id===se.id)) {
+          se._pname=ev.name; se._pid=ev.id;
           coll.push(se);
         }
       });
     });
 
-    prog(
-      Math.round((start / TOTAL) * 100),
-      `Scanned ${start}–${Math.min(start+CHUNK-1,TOTAL)} of ${TOTAL} · ${found} farbrengens · ${coll.length} events`
-    );
+    prog(Math.round(start/TOTAL*100),
+      'Scanning '+start+'–'+Math.min(start+CHUNK-1,TOTAL)+' of '+TOTAL+
+      ' · '+found+' farbrengens · '+coll.length+' events total');
   }
 
-  // Populate year dropdown
-  const yrs = [...new Set(
-    coll.flatMap(e => e.dates || []).filter(d => d.hebrew_year).map(d => d.hebrew_year)
-  )].sort((a,b) => b-a);
-  const ys = document.getElementById('yf');
-  yrs.forEach(y => { const o = document.createElement('option'); o.value = y; o.textContent = y; ys.appendChild(o); });
+  // Populate year filter
+  const yrs=[...new Set(coll.flatMap(e=>e.dates||[]).filter(d=>d.hebrew_year).map(d=>d.hebrew_year))].sort((a,b)=>b-a);
+  const ys=document.getElementById('yf');
+  yrs.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o)});
 
-  events = coll;
-  indexed = true;
-  loading = false;
-  document.getElementById('sbtn').disabled = false;
-  document.getElementById('prog').style.display = 'none';
-  gstat(`${coll.length} events indexed`);
+  events=coll;
+  indexed=true;
+  loading=false;
+  document.getElementById('sbtn').disabled=false;
+  document.getElementById('prog').style.display='none';
+  gstat(coll.length+' events indexed');
 }
 
 // ── Search ──
 function search() {
-  const q   = document.getElementById('q').value.trim().toLowerCase();
-  const tf  = document.getElementById('tf').value.toLowerCase();
-  const yf  = document.getElementById('yf').value;
-  const mf  = document.getElementById('mf').value.toLowerCase();
+  const q  =document.getElementById('q').value.trim().toLowerCase();
+  const tf =document.getElementById('tf').value.toLowerCase();
+  const yf =document.getElementById('yf').value;
+  const mf =document.getElementById('mf').value.toLowerCase();
 
-  let hits = events.filter(e => {
-    const name = (e.name || '').toLowerCase();
-    const type = (e.type || '').toLowerCase();
-    const pn   = (e._pname || e.parent?.name || '').toLowerCase();
-    const textOk = !q || name.includes(q) || pn.includes(q);
-    let typeOk = true;
-    if      (tf === 'sicha')       typeOk = type.includes('sicha');
-    else if (tf === 'maamar')      typeOk = type.includes('maamar');
-    else if (tf === 'farbrengen')  typeOk = type === 'farbrengen';
-    else if (tf === 'niggun')      typeOk = type.includes('niggun');
-    const yearOk  = !yf || (e.dates||[]).some(d => String(d.hebrew_year) === yf);
-    const monthOk = !mf || (e.dates||[]).some(d => (d.hebrew_month_name||'').toLowerCase().includes(mf));
-    return textOk && typeOk && yearOk && monthOk;
+  let hits=events.filter(e=>{
+    const name=(e.name||'').toLowerCase();
+    const type=(e.type||'').toLowerCase();
+    const pn  =(e._pname||e.parent?.name||'').toLowerCase();
+    const textOk=!q||name.includes(q)||pn.includes(q);
+    let typeOk=true;
+    if      (tf==='sicha')      typeOk=type.includes('sicha');
+    else if (tf==='maamar')     typeOk=type.includes('maamar');
+    else if (tf==='farbrengen') typeOk=type==='farbrengen';
+    else if (tf==='niggun')     typeOk=type.includes('niggun');
+    const yk=!yf||(e.dates||[]).some(d=>String(d.hebrew_year)===yf);
+    const mk=!mf||(e.dates||[]).some(d=>(d.hebrew_month_name||'').toLowerCase().includes(mf));
+    return textOk&&typeOk&&yk&&mk;
   });
 
-  hits.sort((a, b) => {
-    if (q) {
-      const as = (a.name||'').toLowerCase().startsWith(q) ? 0 : 1;
-      const bs = (b.name||'').toLowerCase().startsWith(q) ? 0 : 1;
-      if (as !== bs) return as - bs;
+  hits.sort((a,b)=>{
+    if(q){
+      const as=(a.name||'').toLowerCase().startsWith(q)?0:1;
+      const bs=(b.name||'').toLowerCase().startsWith(q)?0:1;
+      if(as!==bs) return as-bs;
     }
-    return (b.dates?.[0]?.secular_year||0) - (a.dates?.[0]?.secular_year||0);
+    return (b.dates?.[0]?.secular_year||0)-(a.dates?.[0]?.secular_year||0);
   });
 
-  const shown = hits.slice(0, 200);
-  document.getElementById('rmeta').textContent = hits.length
-    ? `${hits.length} result${hits.length!==1?'s':''}${hits.length>200?' (first 200)':''}${q?` for "${q}"`:''}` 
-    : `No results${q?` for "${q}"`:''}.`;
+  const shown=hits.slice(0,200);
+  document.getElementById('rmeta').textContent=hits.length
+    ? hits.length+' result'+(hits.length!==1?'s':'')+(hits.length>200?' (first 200)':'')+(q?' for "'+q+'"':'')
+    : 'No results'+(q?' for "'+q+'"':'')+'.';
 
-  document.getElementById('res').innerHTML = shown.length
-    ? shown.map(ev => {
-        const pn  = ev._pname || ev.parent?.name || '';
-        const d   = ev.audio_recordings_duration || ev.audio_recordings?.[0]?.duration;
-        const lbl = (ev.type||'').replace('Farbrengen – ','');
-        return `<div class="card">
-          <div class="ctop">
-            <a class="cname" href="${lnk(ev)}" target="_blank">${esc(ev.name||'(untitled)')}</a>
-            ${lbl ? `<span class="pill ${pillCls(ev.type)}">${esc(lbl)}</span>` : ''}
-          </div>
-          ${pn ? `<div class="cpar">In: ${esc(pn)}</div>` : ''}
-          <div class="cmeta">
-            ${dstr(ev.dates) ? `<span>${esc(dstr(ev.dates))}</span>` : ''}
-            ${d ? `<span>· ${dur(d)}</span>` : ''}
-            <a class="olink" href="${lnk(ev)}" target="_blank">Open in Ashreinu →</a>
-          </div>
-        </div>`;
-      }).join('')
-    : '<div class="empty">No matches.</div>';
+  renderCards(shown);
+}
+
+// ── Render result cards ──
+function renderCards(items) {
+  const el=document.getElementById('res');
+  if (!items.length) { el.innerHTML='<div class="empty">No matches.</div>'; return; }
+
+  el.innerHTML=items.map(ev=>{
+    const pn =ev._pname||ev.parent?.name||'';
+    const d  =ev.audio_recordings_duration||ev.audio_recordings?.[0]?.duration;
+    const lbl=(ev.type||'').replace('Farbrengen – ','');
+    const audioUrl=getAudioUrl(ev);
+    const cardId='card-'+ev.id;
+
+    return '<div class="card" id="'+cardId+'">'+
+      '<div class="card-main">'+
+        '<div class="ctop">'+
+          '<a class="cname" href="'+lnk(ev)+'" target="_blank">'+esc(ev.name||'(untitled)')+'</a>'+
+          (lbl?'<span class="pill '+pillCls(ev.type)+'">'+esc(lbl)+'</span>':'')+
+        '</div>'+
+        (pn?'<div class="cpar">In: <span>'+esc(pn)+'</span></div>':'')+
+        '<div class="cmeta">'+
+          (dstr(ev.dates)?'<span>'+esc(dstr(ev.dates))+'</span>':'')+
+          (d?'<span>· '+dur(d)+'</span>':'')+
+          (audioUrl?'<span class="play-btn" onclick="togglePlayer(\''+cardId+'\',\''+audioUrl+'\',\''+esc(ev.name||'')+'\')">▶ Play</span>':'')+
+          '<a class="olink" href="'+lnk(ev)+'" target="_blank">Open in Ashreinu →</a>'+
+        '</div>'+
+      '</div>'+
+      '<div class="player-panel" id="player-'+cardId+'">'+
+        '<div class="player-title" id="ptitle-'+cardId+'"></div>'+
+        '<audio id="audio-'+cardId+'" controls preload="none" style="width:100%"></audio>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── Toggle inline audio player ──
+function togglePlayer(cardId, audioUrl, title) {
+  const panel=document.getElementById('player-'+cardId);
+  const audio=document.getElementById('audio-'+cardId);
+  const ptitle=document.getElementById('ptitle-'+cardId);
+  const btn=document.querySelector('#'+cardId+' .play-btn');
+
+  const isOpen=panel.classList.contains('open');
+
+  // Close any currently open player
+  if (activePlayer && activePlayer!==cardId) {
+    const prev=document.getElementById('player-'+activePlayer);
+    const prevAudio=document.getElementById('audio-'+activePlayer);
+    const prevBtn=document.querySelector('#'+activePlayer+' .play-btn');
+    if (prev) prev.classList.remove('open');
+    if (prevAudio) { prevAudio.pause(); prevAudio.src=''; }
+    if (prevBtn) prevBtn.textContent='▶ Play';
+  }
+
+  if (isOpen) {
+    panel.classList.remove('open');
+    audio.pause();
+    audio.src='';
+    if (btn) btn.textContent='▶ Play';
+    activePlayer=null;
+  } else {
+    panel.classList.add('open');
+    ptitle.textContent=title;
+    audio.src=audioUrl;
+    audio.play().catch(()=>{});
+    if (btn) btn.textContent='■ Close';
+    activePlayer=cardId;
+  }
 }
 
 async function go() {
-  if (!indexed && !loading) { await buildIndex(); if (indexed) search(); }
+  if (!indexed&&!loading) { await buildIndex(); if(indexed) search(); }
   else if (indexed) search();
 }
 
-document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
 </script>
 </body>
 </html>
