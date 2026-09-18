@@ -25,6 +25,7 @@ button:disabled{background:#ddd;color:#999}
 <p class="sub">Paste a Google Drive file ID (the Bilti Mugah PDF). Transcribes every page, then attempts to split into individual sichos.</p>
 
 <input type="text" id="fileId" placeholder="e.g. 1-wO9wj8XOPphqMtZqAxY93FDGTLo51-N" />
+<input type="text" id="startPage" placeholder="Start from page (default 1)" style="max-width:200px" />
 <button id="go" onclick="run()">Transcribe</button>
 <button id="segBtn" onclick="doSegment()" disabled>Split into sichos</button>
 
@@ -43,12 +44,16 @@ let fullText = '';
 async function run() {
   const id = document.getElementById('fileId').value.trim();
   if (!id) return alert('Paste a file ID first');
+  const startFrom = parseInt(document.getElementById('startPage').value, 10) || 1;
 
   document.getElementById('go').disabled = true;
   document.getElementById('segBtn').disabled = true;
-  document.getElementById('transcript').value = '';
-  document.getElementById('segments').innerHTML = '';
-  fullText = '';
+  if (startFrom === 1) {
+    document.getElementById('transcript').value = '';
+    document.getElementById('segments').innerHTML = '';
+    window.pagesSoFar = [];
+  }
+  window.pagesSoFar = window.pagesSoFar || [];
 
   log('Getting page count...');
   const infoRes = await fetch('/api/pdf-info?id=' + id);
@@ -56,29 +61,35 @@ async function run() {
   if (info.error) { log('Error: ' + info.error); document.getElementById('go').disabled = false; return; }
 
   const total = info.totalPages;
-  log('Found ' + total + ' pages. Transcribing...');
+  log('Found ' + total + ' pages. Transcribing from page ' + startFrom + '...');
 
-  let pages = [];
-  for (let p = 1; p <= total; p++) {
+  const transcriptBox = document.getElementById('transcript');
+  for (let p = startFrom; p <= total; p++) {
     log('Transcribing page ' + p + ' of ' + total + '...');
     try {
       const r = await fetch('/api/transcribe-page?id=' + id + '&page=' + p);
       const j = await r.json();
       if (j.error) {
-        log('  ! page ' + p + ' failed: ' + j.error);
+        log('  ! page ' + p + ' failed: ' + j.error + ' — you can resume from page ' + p + ' using the "Start from page" box');
+        break;
       } else {
-        pages.push(j.text);
+        window.pagesSoFar.push(j.text);
         log('  -> ' + j.text.length + ' chars');
+        fullText = window.pagesSoFar.join('\n\n--- page break ---\n\n');
+        transcriptBox.value = fullText;
+        transcriptBox.scrollTop = transcriptBox.scrollHeight;
       }
     } catch (e) {
-      log('  ! page ' + p + ' error: ' + e.message);
+      log('  ! page ' + p + ' error: ' + e.message + ' — you can resume from page ' + p + ' using the "Start from page" box');
+      break;
     }
     document.getElementById('fill').style.width = (p/total*100) + '%';
   }
 
-  fullText = pages.join('\n\n--- page break ---\n\n');
-  document.getElementById('transcript').value = fullText;
-  log('DONE. Total transcript: ' + fullText.length + ' characters.');
+  log('Stopped. Total transcript so far: ' + fullText.length + ' characters.');
+  document.getElementById('go').disabled = false;
+  document.getElementById('segBtn').disabled = false;
+}
   document.getElementById('go').disabled = false;
   document.getElementById('segBtn').disabled = false;
 }
@@ -103,8 +114,10 @@ async function doSegment() {
     }
 
     log('Found ' + j.count + ' sichos.');
-    document.getElementById('segments').innerHTML = j.segments.map(s =>
-      '<div class="seg"><h4>' + esc(s.marker) + ' — ' + esc(s.titleEn) + '</h4><div class="txt">' + esc(s.text) + '</div></div>'
+    document.getElementById('segments').innerHTML = j.segments.map((s, i) =>
+      '<div class="seg"><h4>Sicha ' + (i+1) + ' — ' + esc(s.titleEn) + '</h4>'
+      + (s.warning ? '<div style="color:#b00;font-size:12px;margin-bottom:6px">' + esc(s.warning) + ' (looked for: "' + esc(s.firstWords) + '")</div>' : '')
+      + '<div class="txt">' + esc(s.text || '(not found)') + '</div></div>'
     ).join('');
   } catch (e) {
     log('Segmentation failed: ' + e.message);
