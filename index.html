@@ -5,113 +5,229 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ashreinu Search</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --ink:#12121f;--ink-mid:#44445a;--ink-light:#9090aa;
-  --gold:#c49a2a;--gold-dim:#7a600f;--gold-bg:#fdf8ee;
-  --bg:#f5f3ee;--surface:#fff;--border:#e2dfd7;
-  --blue:#1a4fcc;--radius:6px;
+  --ink:#0e0e18;--ink-mid:#4a4a5c;--ink-light:#8888a0;--ink-faint:#c4c4d2;
+  --gold:#b8912a;--gold-dim:#8a6c1e;
+  --bg:#faf9f6;--surface:#fff;--border:#e8e5de;--border-soft:#f0eee8;
+  --blue:#1a4fcc;--radius:10px;
+  --sicha:#2f5fd6;--maamar:#8a2fb8;--farb:#1f8a4f;--niggun:#c07a1a;
 }
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:88px}
 
-header{background:var(--ink);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-header h1{font-family:'Frank Ruhl Libre',serif;font-weight:300;font-size:22px;color:#e8dfc0}
-.badge{font-size:11px;padding:2px 9px;border-radius:20px;background:#2a2a40;color:#7070a0;margin-left:10px;text-transform:uppercase;letter-spacing:.06em}
-#gstat{font-size:12px;color:#5555aa}
+/* ── Header ── */
+header{background:var(--ink);padding:22px 28px 18px;position:sticky;top:0;z-index:20}
+.header-inner{max-width:760px;margin:0 auto}
+.wordmark{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
+.wordmark h1{font-family:'Frank Ruhl Libre',serif;font-weight:400;font-size:21px;color:#f0e6c8;letter-spacing:0.01em}
+.wordmark span{font-size:10px;color:#6a6a8a;text-transform:uppercase;letter-spacing:0.12em;font-weight:600}
 
-.wrap{padding:20px 28px 80px;max-width:800px;margin:0 auto}
-.srow{display:flex;gap:8px;margin-bottom:12px}
-input[type=text],input[type=number]{flex:1;font-family:inherit;font-size:15px;padding:11px 15px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);outline:none;transition:border-color .15s}
-input:focus{border-color:var(--gold)}
-input::placeholder{color:var(--ink-light)}
-button.primary{font-family:inherit;font-size:14px;font-weight:600;padding:11px 20px;background:var(--gold);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;white-space:nowrap;transition:background .15s}
-button.primary:hover{background:var(--gold-dim)}
+.search-box{position:relative}
+.search-box input{
+  width:100%;font-family:inherit;font-size:16px;padding:13px 44px 13px 16px;
+  border:none;border-radius:8px;background:#1c1c2e;color:#f0eee8;outline:none;
+  transition:background .15s;
+}
+.search-box input::placeholder{color:#6a6a85}
+.search-box input:focus{background:#22223a}
+.search-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#6a6a85;pointer-events:none}
+.search-icon svg{width:18px;height:18px;display:block}
+.search-icon.loading svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;font-size:12px;color:var(--ink-light)}
-select,.yr-input{font-family:inherit;font-size:13px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);cursor:pointer;outline:none}
-.yr-input{width:80px;cursor:text}
-select:focus,.yr-input:focus{border-color:var(--gold)}
+/* ── Filter chips ── */
+.chips{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.chip{
+  font-family:inherit;font-size:12.5px;font-weight:500;padding:6px 13px;
+  border-radius:20px;border:1px solid transparent;background:#1c1c2e;color:#a0a0b8;
+  cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none;
+}
+.chip:hover{background:#26263e}
+.chip.active{background:var(--gold);color:#1a1408;font-weight:600}
+.chip-sep{width:1px;height:16px;background:#33334a;margin:0 4px}
+.year-chip{display:flex;align-items:center;gap:6px;background:#1c1c2e;border-radius:20px;padding:4px 6px 4px 13px}
+.year-chip input{
+  width:56px;background:none;border:none;color:#f0eee8;font-family:inherit;font-size:12.5px;
+  outline:none;padding:2px 0;
+}
+.year-chip input::placeholder{color:#6a6a85}
+.year-chip button{
+  background:#33334a;border:none;color:#a0a0b8;border-radius:14px;width:22px;height:22px;
+  font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.year-chip button:hover{background:#44445e}
 
-#rmeta{font-size:13px;color:var(--ink-light);margin-bottom:12px;min-height:18px}
+/* ── Body ── */
+.wrap{max-width:760px;margin:0 auto;padding:22px 28px}
+#rmeta{font-size:13px;color:var(--ink-light);margin-bottom:14px;min-height:18px;display:flex;align-items:center;gap:6px}
 
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;transition:border-color .15s}
-.card:hover{border-color:var(--gold)}
-.card-main{padding:14px 16px}
-.ctop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px}
-.cname{font-family:'Frank Ruhl Libre',serif;font-size:17px;color:var(--ink);line-height:1.3;text-decoration:none;display:block}
+/* ── Landing state ── */
+.landing{padding:60px 8px 20px;text-align:center}
+.landing-icon{font-size:36px;margin-bottom:14px;opacity:.5}
+.landing h2{font-family:'Frank Ruhl Libre',serif;font-weight:400;font-size:22px;color:var(--ink-mid);margin-bottom:8px}
+.landing p{font-size:14px;color:var(--ink-light);max-width:380px;margin:0 auto;line-height:1.7}
+.landing-examples{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+.example-pill{
+  font-size:12.5px;padding:7px 14px;border-radius:20px;background:var(--surface);
+  border:1px solid var(--border);color:var(--ink-mid);cursor:pointer;transition:all .15s;
+}
+.example-pill:hover{border-color:var(--gold);color:var(--gold-dim)}
+
+/* ── Skeleton ── */
+.skel-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:16px;margin-bottom:8px}
+.skel-line{height:12px;border-radius:4px;background:linear-gradient(90deg,#eee 25%,#f4f3f0 50%,#eee 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skel-line.title{width:60%;height:16px;margin-bottom:10px}
+.skel-line.meta{width:35%}
+
+/* ── Result cards ── */
+.results-list{display:flex;flex-direction:column;gap:2px}
+.card{
+  background:var(--surface);border:1px solid transparent;border-bottom:1px solid var(--border-soft);
+  padding:14px 4px;transition:background .12s;cursor:default;
+}
+.card:hover{background:#f5f4f0}
+.card.playing{background:#fbf6e8}
+.ctop{display:flex;align-items:flex-start;gap:10px}
+.type-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:8px}
+.dot-sicha{background:var(--sicha)}
+.dot-maamar{background:var(--maamar)}
+.dot-farb{background:var(--farb)}
+.dot-niggun{background:var(--niggun)}
+.dot-other{background:var(--ink-faint)}
+
+.card-body{flex:1;min-width:0}
+.card-toprow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.cname{
+  font-family:'Frank Ruhl Libre',serif;font-size:16.5px;font-weight:400;color:var(--ink);
+  text-decoration:none;line-height:1.35;display:block;
+}
 .cname:hover{color:var(--gold-dim)}
-.pill{font-size:11px;padding:2px 9px;border-radius:20px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;flex-shrink:0}
-.ps{background:#e8f0fe;color:#1a56cc}
-.pm{background:#fce8ff;color:#7a1aaa}
-.pf{background:#e8fce8;color:#1a7a1a}
-.pn{background:#fff3e0;color:#b06000}
-.po{background:#f0f0f0;color:#555}
-.cpar{font-size:12px;color:var(--ink-light);margin-bottom:4px}
+.ctype-label{font-size:10.5px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.06em;font-weight:600;flex-shrink:0;white-space:nowrap;margin-top:2px}
+
+.cpar{font-size:12.5px;color:var(--ink-light);margin-top:2px}
 .cpar span{color:var(--ink-mid)}
-.cmeta{display:flex;gap:12px;font-size:12px;color:var(--ink-light);flex-wrap:wrap;align-items:center}
-.play-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--gold);background:var(--gold-bg);border:1px solid #e8d898;border-radius:20px;padding:3px 10px;cursor:pointer;transition:background .15s;user-select:none;white-space:nowrap}
-.play-btn:hover{background:#f5ecc0}
-.play-btn.active{background:#f0e0a0;color:var(--gold-dim)}
+
+.cmeta-row{display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap}
+.cmeta-item{font-size:12px;color:var(--ink-light);display:flex;align-items:center;gap:5px}
+
+.play-toggle{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  color:var(--gold-dim);cursor:pointer;user-select:none;padding:4px 0;
+}
+.play-toggle svg{width:13px;height:13px;flex-shrink:0}
+.play-toggle:hover{color:var(--gold)}
+
 .olink{color:var(--blue);text-decoration:none;font-weight:500;font-size:12px}
 .olink:hover{text-decoration:underline}
 
-.player-panel{display:none;background:var(--gold-bg);border-top:1px solid #e8d898;padding:14px 16px}
-.player-panel.open{display:block}
-.player-title{font-size:13px;font-weight:500;color:var(--ink-mid);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{color:var(--ink-light);font-size:14px;line-height:1.9;padding:50px 0;text-align:center}
 
-.empty{color:var(--ink-light);font-size:14px;line-height:1.9;padding:36px 0}
-.empty strong{color:var(--ink-mid)}
-.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
-@keyframes spin{to{transform:rotate(360deg)}}
+/* ── Persistent bottom player ── */
+.player-bar{
+  position:fixed;bottom:0;left:0;right:0;background:var(--ink);border-top:1px solid #2a2a3e;
+  padding:12px 20px;display:none;align-items:center;gap:14px;z-index:30;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.15);
+}
+.player-bar.open{display:flex}
+.player-play-btn{
+  width:36px;height:36px;border-radius:50%;background:var(--gold);border:none;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;
+}
+.player-play-btn:hover{background:#cba33a}
+.player-play-btn svg{width:15px;height:15px;fill:#1a1408}
+.player-info{flex:1;min-width:0}
+.player-title{font-family:'Frank Ruhl Libre',serif;font-size:14px;color:#f0eee8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.player-progress-row{display:flex;align-items:center;gap:8px}
+.player-time{font-size:10.5px;color:#8a8aa0;font-variant-numeric:tabular-nums;flex-shrink:0;width:34px}
+.player-scrubber{flex:1;height:3px;background:#33334a;border-radius:2px;position:relative;cursor:pointer}
+.player-scrubber-fill{height:100%;background:var(--gold);border-radius:2px;width:0%;pointer-events:none}
+.player-close{width:28px;height:28px;border-radius:50%;background:none;border:none;color:#6a6a85;cursor:pointer;flex-shrink:0;font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s}
+.player-close:hover{color:#f0eee8}
+
+@media (max-width:520px){
+  header{padding:18px 18px 14px}
+  .wrap{padding:18px 18px}
+  .cname{font-size:15.5px}
+}
 </style>
 </head>
 <body>
 
 <header>
-  <div style="display:flex;align-items:baseline">
-    <h1>Ashreinu</h1><span class="badge">Search</span>
+  <div class="header-inner">
+    <div class="wordmark">
+      <h1>Ashreinu</h1><span>Search</span>
+    </div>
+    <div class="search-box">
+      <input type="text" id="q" placeholder="Search farbrengens, sichos, ma'amarim…" autocomplete="off" />
+      <div class="search-icon" id="searchIcon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+    </div>
+    <div class="chips">
+      <button class="chip active" data-type="" onclick="setType('',this)">All</button>
+      <button class="chip" data-type="sicha" onclick="setType('sicha',this)">Sicha</button>
+      <button class="chip" data-type="maamar" onclick="setType('maamar',this)">Ma'amar</button>
+      <button class="chip" data-type="farbrengen" onclick="setType('farbrengen',this)">Farbrengen</button>
+      <button class="chip" data-type="niggun" onclick="setType('niggun',this)">Niggun</button>
+      <div class="chip-sep"></div>
+      <div class="year-chip">
+        <input type="number" id="yf" placeholder="Year" oninput="debouncedSearch()" />
+      </div>
+      <select id="mf" onchange="search()" class="chip" style="appearance:none;-webkit-appearance:none;padding-right:24px">
+        <option value="">Month</option>
+        <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
+        <option>Tevet</option><option>Shevat</option><option>Adar</option>
+        <option>Nissan</option><option>Iyar</option><option>Sivan</option>
+        <option>Tammuz</option><option>Av</option><option>Elul</option>
+      </select>
+    </div>
   </div>
-  <span id="gstat"></span>
 </header>
 
 <div class="wrap">
-  <div class="srow">
-    <input type="text" id="q" placeholder="Search farbrengens and sichos…" autocomplete="off" />
-    <button class="primary" onclick="search()">Search</button>
-  </div>
-  <div class="filters">
-    <span>Type:</span>
-    <select id="tf" onchange="search()">
-      <option value="">All</option>
-      <option value="sicha">Sicha</option>
-      <option value="maamar">Ma'amar</option>
-      <option value="farbrengen">Farbrengen</option>
-      <option value="niggun">Niggun</option>
-    </select>
-    <span style="margin-left:4px">Hebrew Year:</span>
-    <input type="number" class="yr-input" id="yf" placeholder="e.g. 5711" onkeydown="if(event.key==='Enter')search()" />
-    <span style="margin-left:4px">Month:</span>
-    <select id="mf" onchange="search()">
-      <option value="">All</option>
-      <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
-      <option>Tevet</option><option>Shevat</option><option>Adar</option>
-      <option>Nissan</option><option>Iyar</option><option>Sivan</option>
-      <option>Tammuz</option><option>Av</option><option>Elul</option>
-    </select>
-  </div>
-
   <div id="rmeta"></div>
   <div id="res">
-    <div class="empty">
-      Type a title, or set filters, and press <strong>Search</strong>.<br>
-      Results come straight from the database — instant, no scanning.
+    <div class="landing">
+      <div class="landing-icon">◈</div>
+      <h2>Search the Ashreinu archive</h2>
+      <p>Every farbrengen, sicha, and ma'amar — searchable by title, filterable by type, year, and month.</p>
+      <div class="landing-examples">
+        <span class="example-pill" onclick="quickSearch('Yud Shevat')">Yud Shevat</span>
+        <span class="example-pill" onclick="quickSearch('Sicha 1')">Sicha 1</span>
+        <span class="example-pill" onclick="quickSearch('Rosh Hashana')">Rosh Hashana</span>
+        <span class="example-pill" onclick="quickSearch('Simchas Torah')">Simchas Torah</span>
+      </div>
     </div>
   </div>
 </div>
 
+<div class="player-bar" id="playerBar">
+  <button class="player-play-btn" id="playerBtn" onclick="togglePlayPause()">
+    <svg id="playerIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+  </button>
+  <div class="player-info">
+    <div class="player-title" id="playerTitle"></div>
+    <div class="player-progress-row">
+      <span class="player-time" id="playerCur">0:00</span>
+      <div class="player-scrubber" id="playerScrub" onclick="seekTo(event)">
+        <div class="player-scrubber-fill" id="playerFill"></div>
+      </div>
+      <span class="player-time" id="playerDur">0:00</span>
+    </div>
+  </div>
+  <button class="player-close" onclick="closePlayer()">✕</button>
+</div>
+<audio id="audioEl"></audio>
+
 <script>
+let currentType = '';
+let debounceTimer = null;
+
 function getAudioUrl(row) {
   if (!row.audio_uri) return null;
   const opusUri = row.audio_uri.replace(/\.mp3$/i, '.opus');
@@ -130,13 +246,16 @@ function dstr(row) {
     : '';
   return [h,s].filter(Boolean).join(' · ');
 }
-function pillCls(t) {
+function typeDot(t) {
   const l=(t||'').toLowerCase();
-  if(l.includes('sicha'))  return 'ps';
-  if(l.includes('maamar')) return 'pm';
-  if(t==='Farbrengen')     return 'pf';
-  if(l.includes('niggun')) return 'pn';
-  return 'po';
+  if(l.includes('sicha'))  return 'dot-sicha';
+  if(l.includes('maamar')) return 'dot-maamar';
+  if(t==='Farbrengen')     return 'dot-farb';
+  if(l.includes('niggun')) return 'dot-niggun';
+  return 'dot-other';
+}
+function typeLabel(t) {
+  return (t||'').replace('Farbrengen – ','').replace(' to Group','');
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function lnk(row) {
@@ -144,111 +263,177 @@ function lnk(row) {
   return 'https://ashreinu.app/player?parentEvent='+parentId+'&event='+row.id;
 }
 
-let activeCardId=null;
-let searchToken=0;
+function setType(t, el) {
+  currentType = t;
+  document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  search();
+}
+function quickSearch(term) {
+  document.getElementById('q').value = term;
+  search();
+}
+function debouncedSearch() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(search, 350);
+}
 
+let searchToken = 0;
 async function search() {
   const q  = document.getElementById('q').value.trim();
-  const tf = document.getElementById('tf').value;
   const yf = document.getElementById('yf').value;
   const mf = document.getElementById('mf').value;
 
+  if (!q && !currentType && !yf && !mf) {
+    showLanding();
+    return;
+  }
+
   const myToken = ++searchToken;
-  document.getElementById('rmeta').innerHTML = '<span class="spinner"></span>Searching…';
+  document.getElementById('searchIcon').classList.add('loading');
+  showSkeletons();
 
   const params = new URLSearchParams();
   if (q) params.set('q', q);
-  if (tf) params.set('type', tf);
+  if (currentType) params.set('type', currentType);
   if (yf) params.set('year', yf);
   if (mf) params.set('month', mf);
 
   try {
     const r = await fetch('/api/search?' + params.toString());
     const j = await r.json();
-    if (myToken !== searchToken) return; // a newer search superseded this one
+    if (myToken !== searchToken) return;
+    document.getElementById('searchIcon').classList.remove('loading');
 
     if (j.error) {
       document.getElementById('rmeta').textContent = 'Error: ' + j.error;
+      document.getElementById('res').innerHTML = '';
       return;
     }
 
     const results = j.results || [];
     document.getElementById('rmeta').textContent =
       results.length + ' result' + (results.length !== 1 ? 's' : '') +
-      (results.length >= 200 ? ' (showing first 200)' : '') +
+      (results.length >= 200 ? ' (first 200)' : '') +
       (q ? ' for "' + q + '"' : '');
 
     renderCards(results);
   } catch (e) {
+    document.getElementById('searchIcon').classList.remove('loading');
     document.getElementById('rmeta').textContent = 'Search failed: ' + e.message;
   }
 }
 
+function showLanding() {
+  document.getElementById('rmeta').textContent = '';
+  document.getElementById('res').innerHTML = document.querySelector('.landing')
+    ? document.getElementById('res').innerHTML
+    : '';
+  document.getElementById('res').innerHTML =
+    '<div class="landing"><div class="landing-icon">◈</div>'
+    +'<h2>Search the Ashreinu archive</h2>'
+    +'<p>Every farbrengen, sicha, and ma\'amar — searchable by title, filterable by type, year, and month.</p>'
+    +'<div class="landing-examples">'
+    +'<span class="example-pill" onclick="quickSearch(\'Yud Shevat\')">Yud Shevat</span>'
+    +'<span class="example-pill" onclick="quickSearch(\'Sicha 1\')">Sicha 1</span>'
+    +'<span class="example-pill" onclick="quickSearch(\'Rosh Hashana\')">Rosh Hashana</span>'
+    +'<span class="example-pill" onclick="quickSearch(\'Simchas Torah\')">Simchas Torah</span>'
+    +'</div></div>';
+}
+
+function showSkeletons() {
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    html += '<div class="skel-card"><div class="skel-line title"></div><div class="skel-line meta"></div></div>';
+  }
+  document.getElementById('res').innerHTML = html;
+}
+
 function renderCards(items) {
   const el = document.getElementById('res');
-  if (!items.length) { el.innerHTML = '<div class="empty">No matches.</div>'; return; }
+  if (!items.length) { el.innerHTML = '<div class="empty">No matches found.</div>'; return; }
 
-  el.innerHTML = items.map(row => {
+  el.innerHTML = '<div class="results-list">' + items.map(row => {
     const d = row.duration_ms;
-    const lbl = (row.type||'').replace('Farbrengen – ','');
+    const lbl = typeLabel(row.type);
     const audioUrl = getAudioUrl(row);
-    const cid = 'c'+row.id;
+    const rid = String(row.id);
     const link = lnk(row);
 
-    return '<div class="card" id="'+cid+'">'
-      +'<div class="card-main">'
-        +'<div class="ctop">'
-          +'<a class="cname" href="'+link+'" target="_blank">'+esc(row.name||'(untitled)')+'</a>'
-          +(lbl?'<span class="pill '+pillCls(row.type)+'">'+esc(lbl)+'</span>':'')
+    return '<div class="card" id="card-'+rid+'">'
+      +'<div class="ctop">'
+        +'<div class="type-dot '+typeDot(row.type)+'"></div>'
+        +'<div class="card-body">'
+          +'<div class="card-toprow">'
+            +'<a class="cname" href="'+link+'" target="_blank">'+esc(row.name||'(untitled)')+'</a>'
+            +(lbl?'<span class="ctype-label">'+esc(lbl)+'</span>':'')
+          +'</div>'
+          +(row.parent_name?'<div class="cpar">In <span>'+esc(row.parent_name)+'</span></div>':'')
+          +'<div class="cmeta-row">'
+            +(dstr(row)?'<span class="cmeta-item">'+esc(dstr(row))+'</span>':'')
+            +(d?'<span class="cmeta-item">'+dur(d)+'</span>':'')
+            +(audioUrl?'<span class="play-toggle" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+esc(row.name||'').replace(/'/g,"\\'")+'\')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Play</span>':'')
+            +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu →</a>'
+          +'</div>'
         +'</div>'
-        +(row.parent_name?'<div class="cpar">In: <span>'+esc(row.parent_name)+'</span></div>':'')
-        +'<div class="cmeta">'
-          +(dstr(row)?'<span>'+esc(dstr(row))+'</span>':'')
-          +(d?'<span>· '+dur(d)+'</span>':'')
-          +(audioUrl?'<span class="play-btn" id="btn-'+cid+'" onclick="togglePlayer(\''+cid+'\',\''+audioUrl+'\',\''+esc(row.name||'')+'\')">▶ Play</span>':'')
-          +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu →</a>'
-        +'</div>'
-      +'</div>'
-      +'<div class="player-panel" id="panel-'+cid+'">'
-        +'<div class="player-title" id="ptitle-'+cid+'"></div>'
-        +'<audio id="audio-'+cid+'" controls preload="none" style="width:100%" type="audio/ogg; codecs=opus"></audio>'
       +'</div>'
     +'</div>';
-  }).join('');
+  }).join('') + '</div>';
 }
 
-function togglePlayer(cid, audioUrl, title) {
-  const panel  = document.getElementById('panel-'+cid);
-  const audio  = document.getElementById('audio-'+cid);
-  const ptitle = document.getElementById('ptitle-'+cid);
-  const btn    = document.getElementById('btn-'+cid);
-  const isOpen = panel.classList.contains('open');
+// ── Persistent bottom player ──
+const audioEl = document.getElementById('audioEl');
+let currentTrackId = null;
 
-  if (activeCardId && activeCardId !== cid) {
-    const prevPanel = document.getElementById('panel-'+activeCardId);
-    const prevAudio = document.getElementById('audio-'+activeCardId);
-    const prevBtn   = document.getElementById('btn-'+activeCardId);
-    if (prevPanel) prevPanel.classList.remove('open');
-    if (prevAudio) { prevAudio.pause(); prevAudio.removeAttribute('src'); prevAudio.load(); }
-    if (prevBtn)   { prevBtn.textContent='▶ Play'; prevBtn.classList.remove('active'); }
-  }
+function playTrack(id, url, title) {
+  document.querySelectorAll('.card.playing').forEach(c => c.classList.remove('playing'));
+  const card = document.getElementById('card-'+id);
+  if (card) card.classList.add('playing');
 
-  if (isOpen) {
-    panel.classList.remove('open');
-    audio.pause(); audio.removeAttribute('src'); audio.load();
-    btn.textContent='▶ Play'; btn.classList.remove('active');
-    activeCardId=null;
-  } else {
-    panel.classList.add('open');
-    ptitle.textContent=title;
-    audio.src=audioUrl; audio.load();
-    audio.play().catch(e=>console.log('Play error:',e));
-    btn.textContent='■ Close'; btn.classList.add('active');
-    activeCardId=cid;
-  }
+  currentTrackId = id;
+  audioEl.src = url;
+  audioEl.play().catch(e => console.log('play error', e));
+  document.getElementById('playerTitle').textContent = title;
+  document.getElementById('playerBar').classList.add('open');
+  setPlayIcon(true);
 }
 
-document.getElementById('q').addEventListener('keydown', e=>{if(e.key==='Enter')search()});
+function togglePlayPause() {
+  if (audioEl.paused) { audioEl.play(); setPlayIcon(true); }
+  else { audioEl.pause(); setPlayIcon(false); }
+}
+function setPlayIcon(playing) {
+  document.getElementById('playerIcon').innerHTML = playing
+    ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'
+    : '<path d="M8 5v14l11-7z"/>';
+}
+function closePlayer() {
+  audioEl.pause(); audioEl.src = '';
+  document.getElementById('playerBar').classList.remove('open');
+  document.querySelectorAll('.card.playing').forEach(c => c.classList.remove('playing'));
+  currentTrackId = null;
+}
+function seekTo(e) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  if (audioEl.duration) audioEl.currentTime = pct * audioEl.duration;
+}
+function fmtTime(s) {
+  if (!isFinite(s)) return '0:00';
+  return Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0');
+}
+audioEl.addEventListener('timeupdate', () => {
+  if (!audioEl.duration) return;
+  document.getElementById('playerFill').style.width = (audioEl.currentTime/audioEl.duration*100) + '%';
+  document.getElementById('playerCur').textContent = fmtTime(audioEl.currentTime);
+});
+audioEl.addEventListener('loadedmetadata', () => {
+  document.getElementById('playerDur').textContent = fmtTime(audioEl.duration);
+});
+audioEl.addEventListener('ended', () => setPlayIcon(false));
+
+document.getElementById('q').addEventListener('input', debouncedSearch);
+document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ clearTimeout(debounceTimer); search(); } });
 </script>
 </body>
 </html>
