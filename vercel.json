@@ -2,6 +2,9 @@
   "functions": {
     "api/proxy.js": { "memory": 256, "maxDuration": 30 },
     "api/build-index.js": { "memory": 256, "maxDuration": 30 },
-    "api/search.js": { "memory": 256, "maxDuration": 10 }
+    "api/search.js": { "memory": 256, "maxDuration": 10 },
+    "api/pdf-info.js": { "memory": 512, "maxDuration": 30 },
+    "api/transcribe-page.js": { "memory": 1024, "maxDuration": 60 },
+    "api/segment-sichos.js": { "memory": 512, "maxDuration": 60 }
   }
 }
