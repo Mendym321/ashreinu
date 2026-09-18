@@ -2,6 +2,7 @@
   "name": "ashreinu-search",
   "version": "1.0.0",
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4"
+    "@supabase/supabase-js": "^2.45.4",
+    "pdf-parse": "^1.1.1"
   }
 }
