@@ -23,21 +23,16 @@ header h1{font-family:'Frank Ruhl Libre',serif;font-weight:300;font-size:22px;co
 
 .wrap{padding:20px 28px 80px;max-width:800px;margin:0 auto}
 .srow{display:flex;gap:8px;margin-bottom:12px}
-input[type=text]{flex:1;font-family:inherit;font-size:15px;padding:11px 15px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);outline:none;transition:border-color .15s}
-input[type=text]:focus{border-color:var(--gold)}
-input[type=text]::placeholder{color:var(--ink-light)}
+input[type=text],input[type=number]{flex:1;font-family:inherit;font-size:15px;padding:11px 15px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);outline:none;transition:border-color .15s}
+input:focus{border-color:var(--gold)}
+input::placeholder{color:var(--ink-light)}
 button.primary{font-family:inherit;font-size:14px;font-weight:600;padding:11px 20px;background:var(--gold);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;white-space:nowrap;transition:background .15s}
 button.primary:hover{background:var(--gold-dim)}
-button.primary:disabled{background:var(--border);color:var(--ink-light);cursor:default}
 
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;font-size:12px;color:var(--ink-light)}
-select{font-family:inherit;font-size:13px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);cursor:pointer;outline:none}
-select:focus{border-color:var(--gold)}
-
-.prog{display:none;margin-bottom:16px}
-.prog-bg{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
-.prog-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .3s ease;width:0}
-.prog-txt{font-size:12px;color:var(--ink-light);margin-top:5px}
+select,.yr-input{font-family:inherit;font-size:13px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink);cursor:pointer;outline:none}
+.yr-input{width:80px;cursor:text}
+select:focus,.yr-input:focus{border-color:var(--gold)}
 
 #rmeta{font-size:13px;color:var(--ink-light);margin-bottom:12px;min-height:18px}
 
@@ -68,6 +63,8 @@ select:focus{border-color:var(--gold)}
 
 .empty{color:var(--ink-light);font-size:14px;line-height:1.9;padding:36px 0}
 .empty strong{color:var(--ink-mid)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -82,21 +79,21 @@ select:focus{border-color:var(--gold)}
 <div class="wrap">
   <div class="srow">
     <input type="text" id="q" placeholder="Search farbrengens and sichos…" autocomplete="off" />
-    <button class="primary" id="sbtn" onclick="go()">Load & Search</button>
+    <button class="primary" onclick="search()">Search</button>
   </div>
   <div class="filters">
     <span>Type:</span>
-    <select id="tf" onchange="if(indexed)search()">
+    <select id="tf" onchange="search()">
       <option value="">All</option>
       <option value="sicha">Sicha</option>
       <option value="maamar">Ma'amar</option>
       <option value="farbrengen">Farbrengen</option>
       <option value="niggun">Niggun</option>
     </select>
-    <span style="margin-left:4px">Year:</span>
-    <select id="yf" onchange="if(indexed)search()"><option value="">All</option></select>
+    <span style="margin-left:4px">Hebrew Year:</span>
+    <input type="number" class="yr-input" id="yf" placeholder="e.g. 5711" onkeydown="if(event.key==='Enter')search()" />
     <span style="margin-left:4px">Month:</span>
-    <select id="mf" onchange="if(indexed)search()">
+    <select id="mf" onchange="search()">
       <option value="">All</option>
       <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
       <option>Tevet</option><option>Shevat</option><option>Adar</option>
@@ -105,48 +102,30 @@ select:focus{border-color:var(--gold)}
     </select>
   </div>
 
-  <div class="prog" id="prog">
-    <div class="prog-bg"><div class="prog-fill" id="pf"></div></div>
-    <div class="prog-txt" id="pt"></div>
-  </div>
-
   <div id="rmeta"></div>
   <div id="res">
     <div class="empty">
-      Press <strong>Load & Search</strong> to index the Ashreinu archive.<br>
-      All API calls run server-side — no browser restrictions.<br>
-      First load takes 2–4 minutes. After that, all searches are instant.
+      Type a title, or set filters, and press <strong>Search</strong>.<br>
+      Results come straight from the database — instant, no scanning.
     </div>
   </div>
 </div>
 
 <script>
-async function api(path) {
-  try {
-    const r = await fetch('/api/proxy?path=' + encodeURIComponent(path));
-    if (!r.ok) return null;
-    return await r.json();
-  } catch { return null; }
-}
-
-function getAudioUrl(ev) {
-  const uri = ev.audio_recordings?.[0]?.assets?.[0]?.uri;
-  if (!uri) return null;
-  const opusUri = uri.replace(/\.mp3$/i, '.opus');
+function getAudioUrl(row) {
+  if (!row.audio_uri) return null;
+  const opusUri = row.audio_uri.replace(/\.mp3$/i, '.opus');
   return '/api/proxy?audio=' + encodeURIComponent(opusUri);
 }
-
 function dur(ms) {
   if (!ms) return '';
   const s = Math.round(ms / 1000);
   return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
 }
-function dstr(dates) {
-  if (!dates?.length) return '';
-  const d = dates[0];
-  const h = d.hebrew_day ? d.hebrew_day+' '+d.hebrew_month_name+' '+d.hebrew_year : '';
-  const s = d.secular_year
-    ? new Date(d.secular_year,(d.secular_month||1)-1,d.secular_day||1)
+function dstr(row) {
+  const h = row.hebrew_day ? row.hebrew_day+' '+row.hebrew_month_name+' '+row.hebrew_year : '';
+  const s = row.secular_year
+    ? new Date(row.secular_year,(row.secular_month||1)-1,row.secular_day||1)
         .toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})
     : '';
   return [h,s].filter(Boolean).join(' · ');
@@ -160,132 +139,73 @@ function pillCls(t) {
   return 'po';
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-
-// ── THE FIX: standalone events use their own ID as parentEvent ──
-function lnk(ev) {
-  const parentId = ev.parent_id || ev._pid || ev.id;
-  return 'https://ashreinu.app/player?parentEvent='+parentId+'&event='+ev.id;
+function lnk(row) {
+  const parentId = row.parent_id || row.id;
+  return 'https://ashreinu.app/player?parentEvent='+parentId+'&event='+row.id;
 }
 
-function prog(pct,msg){
-  document.getElementById('pf').style.width=Math.min(pct,100)+'%';
-  document.getElementById('pt').textContent=msg;
-}
-function gstat(s){document.getElementById('gstat').textContent=s}
-
-let events=[], indexed=false, loading=false;
 let activeCardId=null;
+let searchToken=0;
 
-async function buildIndex() {
-  if (indexed||loading) return;
-  loading=true;
-  document.getElementById('prog').style.display='block';
-  document.getElementById('sbtn').disabled=true;
-  gstat('Building index…');
+async function search() {
+  const q  = document.getElementById('q').value.trim();
+  const tf = document.getElementById('tf').value;
+  const yf = document.getElementById('yf').value;
+  const mf = document.getElementById('mf').value;
 
-  const TOTAL=14000, CHUNK=20;
-  let coll=[], found=0;
+  const myToken = ++searchToken;
+  document.getElementById('rmeta').innerHTML = '<span class="spinner"></span>Searching…';
 
-  for (let start=1; start<=TOTAL; start+=CHUNK) {
-    const batch=[];
-    for (let id=start; id<Math.min(start+CHUNK,TOTAL+1); id++) batch.push(id);
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (tf) params.set('type', tf);
+  if (yf) params.set('year', yf);
+  if (mf) params.set('month', mf);
 
-    const results = await Promise.all(batch.map(async id => {
-      const j = await api('/event/'+id);
-      return j?.data||j||null;
-    }));
+  try {
+    const r = await fetch('/api/search?' + params.toString());
+    const j = await r.json();
+    if (myToken !== searchToken) return; // a newer search superseded this one
 
-    results.forEach(ev => {
-      if (!ev?.id) return;
-      if (ev.parent_id!==null && ev.parent_id!==undefined) return;
-      found++;
-      if (!coll.find(x=>x.id===ev.id)) coll.push(ev);
-      (ev.sub_events||[]).forEach(se => {
-        if (!coll.find(x=>x.id===se.id)) {
-          se._pname=ev.name; se._pid=ev.id;
-          coll.push(se);
-        }
-      });
-    });
-
-    prog(Math.round(start/TOTAL*100),
-      'Scanning '+start+'–'+Math.min(start+CHUNK-1,TOTAL)+' of '+TOTAL+
-      ' · '+found+' farbrengens · '+coll.length+' events total');
-  }
-
-  const yrs=[...new Set(coll.flatMap(e=>e.dates||[]).filter(d=>d.hebrew_year).map(d=>d.hebrew_year))].sort((a,b)=>b-a);
-  const ys=document.getElementById('yf');
-  yrs.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o)});
-
-  events=coll;
-  indexed=true;
-  loading=false;
-  document.getElementById('sbtn').disabled=false;
-  document.getElementById('prog').style.display='none';
-  gstat(coll.length+' events indexed');
-}
-
-function search() {
-  const q  =document.getElementById('q').value.trim().toLowerCase();
-  const tf =document.getElementById('tf').value.toLowerCase();
-  const yf =document.getElementById('yf').value;
-  const mf =document.getElementById('mf').value.toLowerCase();
-
-  let hits=events.filter(e=>{
-    const name=(e.name||'').toLowerCase();
-    const type=(e.type||'').toLowerCase();
-    const pn  =(e._pname||e.parent?.name||'').toLowerCase();
-    const textOk=!q||name.includes(q)||pn.includes(q);
-    let typeOk=true;
-    if      (tf==='sicha')      typeOk=type.includes('sicha');
-    else if (tf==='maamar')     typeOk=type.includes('maamar');
-    else if (tf==='farbrengen') typeOk=type==='farbrengen';
-    else if (tf==='niggun')     typeOk=type.includes('niggun');
-    const yk=!yf||(e.dates||[]).some(d=>String(d.hebrew_year)===yf);
-    const mk=!mf||(e.dates||[]).some(d=>(d.hebrew_month_name||'').toLowerCase().includes(mf));
-    return textOk&&typeOk&&yk&&mk;
-  });
-
-  hits.sort((a,b)=>{
-    if(q){
-      const as=(a.name||'').toLowerCase().startsWith(q)?0:1;
-      const bs=(b.name||'').toLowerCase().startsWith(q)?0:1;
-      if(as!==bs) return as-bs;
+    if (j.error) {
+      document.getElementById('rmeta').textContent = 'Error: ' + j.error;
+      return;
     }
-    return (b.dates?.[0]?.secular_year||0)-(a.dates?.[0]?.secular_year||0);
-  });
 
-  const shown=hits.slice(0,200);
-  document.getElementById('rmeta').textContent=hits.length
-    ? hits.length+' result'+(hits.length!==1?'s':'')+(hits.length>200?' (first 200)':'')+(q?' for "'+q+'"':'')
-    : 'No results'+(q?' for "'+q+'"':'')+'.';
+    const results = j.results || [];
+    document.getElementById('rmeta').textContent =
+      results.length + ' result' + (results.length !== 1 ? 's' : '') +
+      (results.length >= 200 ? ' (showing first 200)' : '') +
+      (q ? ' for "' + q + '"' : '');
 
-  renderCards(shown);
+    renderCards(results);
+  } catch (e) {
+    document.getElementById('rmeta').textContent = 'Search failed: ' + e.message;
+  }
 }
 
 function renderCards(items) {
-  const el=document.getElementById('res');
-  if (!items.length) { el.innerHTML='<div class="empty">No matches.</div>'; return; }
+  const el = document.getElementById('res');
+  if (!items.length) { el.innerHTML = '<div class="empty">No matches.</div>'; return; }
 
-  el.innerHTML=items.map(ev=>{
-    const pn =ev._pname||ev.parent?.name||'';
-    const d  =ev.audio_recordings_duration||ev.audio_recordings?.[0]?.duration;
-    const lbl=(ev.type||'').replace('Farbrengen – ','');
-    const audioUrl=getAudioUrl(ev);
-    const cid='c'+ev.id;
-    const link=lnk(ev);
+  el.innerHTML = items.map(row => {
+    const d = row.duration_ms;
+    const lbl = (row.type||'').replace('Farbrengen – ','');
+    const audioUrl = getAudioUrl(row);
+    const cid = 'c'+row.id;
+    const link = lnk(row);
 
     return '<div class="card" id="'+cid+'">'
       +'<div class="card-main">'
         +'<div class="ctop">'
-          +'<a class="cname" href="'+link+'" target="_blank">'+esc(ev.name||'(untitled)')+'</a>'
-          +(lbl?'<span class="pill '+pillCls(ev.type)+'">'+esc(lbl)+'</span>':'')
+          +'<a class="cname" href="'+link+'" target="_blank">'+esc(row.name||'(untitled)')+'</a>'
+          +(lbl?'<span class="pill '+pillCls(row.type)+'">'+esc(lbl)+'</span>':'')
         +'</div>'
-        +(pn?'<div class="cpar">In: <span>'+esc(pn)+'</span></div>':'')
+        +(row.parent_name?'<div class="cpar">In: <span>'+esc(row.parent_name)+'</span></div>':'')
         +'<div class="cmeta">'
-          +(dstr(ev.dates)?'<span>'+esc(dstr(ev.dates))+'</span>':'')
+          +(dstr(row)?'<span>'+esc(dstr(row))+'</span>':'')
           +(d?'<span>· '+dur(d)+'</span>':'')
-          +(audioUrl?'<span class="play-btn" id="btn-'+cid+'" onclick="togglePlayer(\''+cid+'\',\''+audioUrl+'\',\''+esc(ev.name||'')+'\')">▶ Play</span>':'')
+          +(audioUrl?'<span class="play-btn" id="btn-'+cid+'" onclick="togglePlayer(\''+cid+'\',\''+audioUrl+'\',\''+esc(row.name||'')+'\')">▶ Play</span>':'')
           +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu →</a>'
         +'</div>'
       +'</div>'
@@ -315,30 +235,20 @@ function togglePlayer(cid, audioUrl, title) {
 
   if (isOpen) {
     panel.classList.remove('open');
-    audio.pause();
-    audio.removeAttribute('src');
-    audio.load();
-    btn.textContent='▶ Play';
-    btn.classList.remove('active');
+    audio.pause(); audio.removeAttribute('src'); audio.load();
+    btn.textContent='▶ Play'; btn.classList.remove('active');
     activeCardId=null;
   } else {
     panel.classList.add('open');
     ptitle.textContent=title;
-    audio.src=audioUrl;
-    audio.load();
+    audio.src=audioUrl; audio.load();
     audio.play().catch(e=>console.log('Play error:',e));
-    btn.textContent='■ Close';
-    btn.classList.add('active');
+    btn.textContent='■ Close'; btn.classList.add('active');
     activeCardId=cid;
   }
 }
 
-async function go() {
-  if (!indexed&&!loading) { await buildIndex(); if(indexed) search(); }
-  else if (indexed) search();
-}
-
-document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+document.getElementById('q').addEventListener('keydown', e=>{if(e.key==='Enter')search()});
 </script>
 </body>
 </html>
