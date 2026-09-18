@@ -121,7 +121,6 @@ select:focus{border-color:var(--gold)}
 </div>
 
 <script>
-// ── All API calls go through our Vercel proxy ──
 async function api(path) {
   try {
     const r = await fetch('/api/proxy?path=' + encodeURIComponent(path));
@@ -130,7 +129,6 @@ async function api(path) {
   } catch { return null; }
 }
 
-// ── Get audio URL — swap .mp3 for .opus, route through proxy ──
 function getAudioUrl(ev) {
   const uri = ev.audio_recordings?.[0]?.assets?.[0]?.uri;
   if (!uri) return null;
@@ -138,7 +136,6 @@ function getAudioUrl(ev) {
   return '/api/proxy?audio=' + encodeURIComponent(opusUri);
 }
 
-// ── Helpers ──
 function dur(ms) {
   if (!ms) return '';
   const s = Math.round(ms / 1000);
@@ -163,22 +160,22 @@ function pillCls(t) {
   return 'po';
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function lnk(ev){
-  return (ev.parent_id||ev._pid)
-    ? 'https://ashreinu.app/player?parentEvent='+(ev.parent_id||ev._pid)+'&event='+ev.id
-    : 'https://ashreinu.app/player?parentEvent='+ev.id;
+
+// ── THE FIX: standalone events use their own ID as parentEvent ──
+function lnk(ev) {
+  const parentId = ev.parent_id || ev._pid || ev.id;
+  return 'https://ashreinu.app/player?parentEvent='+parentId+'&event='+ev.id;
 }
+
 function prog(pct,msg){
   document.getElementById('pf').style.width=Math.min(pct,100)+'%';
   document.getElementById('pt').textContent=msg;
 }
 function gstat(s){document.getElementById('gstat').textContent=s}
 
-// ── State ──
 let events=[], indexed=false, loading=false;
 let activeCardId=null;
 
-// ── Build index ──
 async function buildIndex() {
   if (indexed||loading) return;
   loading=true;
@@ -228,7 +225,6 @@ async function buildIndex() {
   gstat(coll.length+' events indexed');
 }
 
-// ── Search ──
 function search() {
   const q  =document.getElementById('q').value.trim().toLowerCase();
   const tf =document.getElementById('tf').value.toLowerCase();
@@ -267,7 +263,6 @@ function search() {
   renderCards(shown);
 }
 
-// ── Render cards ──
 function renderCards(items) {
   const el=document.getElementById('res');
   if (!items.length) { el.innerHTML='<div class="empty">No matches.</div>'; return; }
@@ -278,11 +273,12 @@ function renderCards(items) {
     const lbl=(ev.type||'').replace('Farbrengen – ','');
     const audioUrl=getAudioUrl(ev);
     const cid='c'+ev.id;
+    const link=lnk(ev);
 
     return '<div class="card" id="'+cid+'">'
       +'<div class="card-main">'
         +'<div class="ctop">'
-          +'<a class="cname" href="'+lnk(ev)+'" target="_blank">'+esc(ev.name||'(untitled)')+'</a>'
+          +'<a class="cname" href="'+link+'" target="_blank">'+esc(ev.name||'(untitled)')+'</a>'
           +(lbl?'<span class="pill '+pillCls(ev.type)+'">'+esc(lbl)+'</span>':'')
         +'</div>'
         +(pn?'<div class="cpar">In: <span>'+esc(pn)+'</span></div>':'')
@@ -290,7 +286,7 @@ function renderCards(items) {
           +(dstr(ev.dates)?'<span>'+esc(dstr(ev.dates))+'</span>':'')
           +(d?'<span>· '+dur(d)+'</span>':'')
           +(audioUrl?'<span class="play-btn" id="btn-'+cid+'" onclick="togglePlayer(\''+cid+'\',\''+audioUrl+'\',\''+esc(ev.name||'')+'\')">▶ Play</span>':'')
-          +'<a class="olink" href="'+lnk(ev)+'" target="_blank">Open in Ashreinu →</a>'
+          +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu →</a>'
         +'</div>'
       +'</div>'
       +'<div class="player-panel" id="panel-'+cid+'">'
@@ -301,7 +297,6 @@ function renderCards(items) {
   }).join('');
 }
 
-// ── Toggle inline audio player ──
 function togglePlayer(cid, audioUrl, title) {
   const panel  = document.getElementById('panel-'+cid);
   const audio  = document.getElementById('audio-'+cid);
@@ -309,7 +304,6 @@ function togglePlayer(cid, audioUrl, title) {
   const btn    = document.getElementById('btn-'+cid);
   const isOpen = panel.classList.contains('open');
 
-  // Close previously open player
   if (activeCardId && activeCardId !== cid) {
     const prevPanel = document.getElementById('panel-'+activeCardId);
     const prevAudio = document.getElementById('audio-'+activeCardId);
@@ -320,7 +314,6 @@ function togglePlayer(cid, audioUrl, title) {
   }
 
   if (isOpen) {
-    // Close this player
     panel.classList.remove('open');
     audio.pause();
     audio.removeAttribute('src');
@@ -329,7 +322,6 @@ function togglePlayer(cid, audioUrl, title) {
     btn.classList.remove('active');
     activeCardId=null;
   } else {
-    // Open this player
     panel.classList.add('open');
     ptitle.textContent=title;
     audio.src=audioUrl;
