@@ -24,18 +24,28 @@ export default async function handler(req, res) {
         max_tokens: 8192,
         messages: [{
           role: 'user',
-          content: `This is a full transcript of a farbrengen (chassidic gathering), containing multiple sichos (talks) separated by markers like "שיחה א'", "שיחה ב'", "שיחה ג'" etc, and possibly ma'amarim.
+          content: `This is a full transcript of a farbrengen (chassidic gathering) from Toras Menachem / Sichos Kodesh. It's written as one continuous flow, internally divided into numbered points (א, ב, ג, ד...) — but those numbers are NOT sicha boundaries, just points within whatever sicha they fall in.
 
-Split this into its individual sichos/sections. For each one, identify:
-- Its marker/number (e.g. "שיחה א'")
-- A short title summarizing its topic (in English, one line)
-- The full Hebrew text of that section
+The ONLY structural marker is a line containing just "* * *" (sometimes rendered as "***" or "— • —" due to OCR/formatting). This marker is used for exactly two things, nothing else:
 
-Respond ONLY with valid JSON in this exact format, no other text:
+1. A boundary into a NEW SICHA — the numbered points simply continue as if starting fresh (often back at א, or sometimes continuing the letter sequence — check what actually happens in this document).
+2. A short bracketed note that a MA'AMAR was said, itself surrounded by "* * *" on both sides (i.e. "* * *" then a brief note like the ma'amar's title, then "* * *" again) — after which a new sicha begins.
+
+IMPORTANT: niggunim (musical interludes) are NEVER marked by "* * *". They may appear as a bracketed aside like "[כ"ק אדמו"ר שליט"א צוה לנגן ניגון]" INSIDE a sicha's flow, or not be mentioned in the text at all. Do not treat any niggun mention as a boundary — ignore it completely for this task.
+
+Find every single "* * *" in the text — scan the ENTIRE document carefully, don't stop after finding a few — and classify each one as either "new sicha" or "maamar note". Report them in chronological order.
+
+For each TRUE sicha boundary (not the maamar note itself, but the sicha that starts after it), report:
+- The first ~8 words of Hebrew text right after that boundary, EXACTLY as written (so we can locate it in the source text ourselves)
+- A short English summary of what that sicha covers
+
+Respond ONLY with valid JSON, no other text:
 [
-  {"marker": "שיחה א'", "titleEn": "short English summary", "text": "full hebrew text of this section"},
-  {"marker": "שיחה ב'", "titleEn": "short English summary", "text": "full hebrew text of this section"}
+  {"firstWords": "exact first few Hebrew words", "titleEn": "short English summary"},
+  {"firstWords": "exact first few Hebrew words", "titleEn": "short English summary"}
 ]
+
+The first sicha always starts at the very beginning of the document, even though there's no "* * *" before it — include it as the first entry.
 
 Here is the transcript:
 
@@ -53,11 +63,30 @@ ${text}`
     let raw = claudeData.content?.[0]?.text || '[]';
     raw = raw.replace(/```json|```/g, '').trim();
 
-    let segments;
+    let boundaries;
     try {
-      segments = JSON.parse(raw);
+      boundaries = JSON.parse(raw);
     } catch (parseErr) {
       return res.status(200).json({ error: 'Could not parse Claude response as JSON', raw });
+    }
+
+    // Splice the actual text ourselves using the firstWords markers Claude found,
+    // rather than trusting Claude to reproduce long text verbatim (which hits
+    // token limits and risks subtle errors in transcription).
+    const segments = [];
+    for (let i = 0; i < boundaries.length; i++) {
+      const b = boundaries[i];
+      const startIdx = text.indexOf(b.firstWords);
+      if (startIdx === -1) {
+        segments.push({ ...b, text: null, warning: 'Could not locate firstWords in source text' });
+        continue;
+      }
+      const nextB = boundaries[i + 1];
+      const endIdx = nextB ? text.indexOf(nextB.firstWords, startIdx + 1) : text.length;
+      segments.push({
+        ...b,
+        text: text.slice(startIdx, endIdx === -1 ? text.length : endIdx).trim()
+      });
     }
 
     res.status(200).json({ segments, count: segments.length });
