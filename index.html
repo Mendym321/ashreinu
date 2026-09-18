@@ -5,153 +5,179 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ashreinu Search</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --ink:#0e0e18;--ink-mid:#4a4a5c;--ink-light:#8888a0;--ink-faint:#c4c4d2;
-  --gold:#b8912a;--gold-dim:#8a6c1e;
-  --bg:#faf9f6;--surface:#fff;--border:#e8e5de;--border-soft:#f0eee8;
-  --blue:#1a4fcc;--radius:10px;
-  --sicha:#2f5fd6;--maamar:#8a2fb8;--farb:#1f8a4f;--niggun:#c07a1a;
+  --ink:#1b1712;--ink-mid:#5c5648;--ink-light:#93897a;--ink-faint:#c9c1b3;
+  --gold:#a3762f;--gold-dim:#7d5a24;--gold-bg:#faf1de;
+  --burgundy:#8a3a3a;
+  --bg:#f7f4ee;--surface:#fffdf9;--border:#e6ded0;--border-soft:#efe9dd;
+  --shadow-sm:0 1px 2px rgba(27,23,18,0.04),0 1px 1px rgba(27,23,18,0.03);
+  --shadow-md:0 4px 16px rgba(27,23,18,0.06),0 1px 3px rgba(27,23,18,0.04);
+  --shadow-lg:0 8px 30px rgba(27,23,18,0.10),0 2px 8px rgba(27,23,18,0.05);
+  --radius:14px;--radius-sm:9px;
+  --sicha:#2f5fb8;--maamar:#8a3ab8;--farb:#2e7d4f;--niggun:#b8721a;
 }
 html{scroll-behavior:smooth}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:88px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:96px;-webkit-font-smoothing:antialiased}
 
-/* ── Header ── */
-header{background:var(--ink);padding:22px 28px 18px;position:sticky;top:0;z-index:20}
-.header-inner{max-width:760px;margin:0 auto}
-.wordmark{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
-.wordmark h1{font-family:'Frank Ruhl Libre',serif;font-weight:400;font-size:21px;color:#f0e6c8;letter-spacing:0.01em}
-.wordmark span{font-size:10px;color:#6a6a8a;text-transform:uppercase;letter-spacing:0.12em;font-weight:600}
+/* ═══ Header ═══ */
+header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 28px 22px;position:sticky;top:0;z-index:20;box-shadow:var(--shadow-lg)}
+.header-inner{max-width:720px;margin:0 auto}
+.wordmark{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.wordmark-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#c9962f,#8a6420);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+.wordmark-icon svg{width:16px;height:16px;fill:#1a1408}
+.wordmark-text h1{font-family:'Fraunces',serif;font-weight:500;font-size:22px;color:#f3e9d2;letter-spacing:0.005em;line-height:1}
+.wordmark-text span{font-size:10px;color:#8a8270;text-transform:uppercase;letter-spacing:0.14em;font-weight:600;display:block;margin-top:3px}
 
 .search-box{position:relative}
 .search-box input{
-  width:100%;font-family:inherit;font-size:16px;padding:13px 44px 13px 16px;
-  border:none;border-radius:8px;background:#1c1c2e;color:#f0eee8;outline:none;
-  transition:background .15s;
+  width:100%;font-family:'Inter',sans-serif;font-size:16px;padding:15px 48px 15px 18px;
+  border:1px solid rgba(255,255,255,0.08);border-radius:11px;background:rgba(255,255,255,0.06);
+  color:#f3ede0;outline:none;transition:all .18s;
 }
-.search-box input::placeholder{color:#6a6a85}
-.search-box input:focus{background:#22223a}
-.search-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#6a6a85;pointer-events:none}
+.search-box input::placeholder{color:#7a7364}
+.search-box input:focus{background:rgba(255,255,255,0.1);border-color:rgba(201,150,47,0.5);box-shadow:0 0 0 3px rgba(201,150,47,0.12)}
+.search-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);color:#8a8270;pointer-events:none}
 .search-icon svg{width:18px;height:18px;display:block}
 .search-icon.loading svg{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── Filter chips ── */
-.chips{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center}
-.chip{
-  font-family:inherit;font-size:12.5px;font-weight:500;padding:6px 13px;
-  border-radius:20px;border:1px solid transparent;background:#1c1c2e;color:#a0a0b8;
-  cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none;
+/* ═══ Filter row ═══ */
+.filter-row{display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap}
+.segmented{display:inline-flex;background:rgba(255,255,255,0.06);border-radius:9px;padding:3px;gap:2px}
+.seg-btn{
+  font-family:inherit;font-size:12.5px;font-weight:500;padding:7px 13px;border-radius:7px;
+  border:none;background:none;color:#a39a86;cursor:pointer;transition:all .15s;white-space:nowrap;
 }
-.chip:hover{background:#26263e}
-.chip.active{background:var(--gold);color:#1a1408;font-weight:600}
-.chip-sep{width:1px;height:16px;background:#33334a;margin:0 4px}
-.year-chip{display:flex;align-items:center;gap:6px;background:#1c1c2e;border-radius:20px;padding:4px 6px 4px 13px}
-.year-chip input{
-  width:56px;background:none;border:none;color:#f0eee8;font-family:inherit;font-size:12.5px;
-  outline:none;padding:2px 0;
-}
-.year-chip input::placeholder{color:#6a6a85}
-.year-chip button{
-  background:#33334a;border:none;color:#a0a0b8;border-radius:14px;width:22px;height:22px;
-  font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-}
-.year-chip button:hover{background:#44445e}
+.seg-btn:hover{color:#e8ddc8}
+.seg-btn.active{background:#c9962f;color:#211705;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
 
-/* ── Body ── */
-.wrap{max-width:760px;margin:0 auto;padding:22px 28px}
-#rmeta{font-size:13px;color:var(--ink-light);margin-bottom:14px;min-height:18px;display:flex;align-items:center;gap:6px}
+.mini-field{display:flex;align-items:center;background:rgba(255,255,255,0.06);border-radius:9px;overflow:hidden;border:1px solid transparent;transition:border-color .15s}
+.mini-field:focus-within{border-color:rgba(201,150,47,0.4)}
+.mini-field input, .mini-field select{
+  background:none;border:none;color:#e8ddc8;font-family:inherit;font-size:12.5px;font-weight:500;
+  padding:8px 12px;outline:none;cursor:pointer;
+}
+.mini-field input{width:64px;cursor:text}
+.mini-field input::placeholder{color:#7a7364}
+.mini-field select{appearance:none;-webkit-appearance:none;padding-right:28px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7364' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+}
 
-/* ── Landing state ── */
-.landing{padding:60px 8px 20px;text-align:center}
-.landing-icon{font-size:36px;margin-bottom:14px;opacity:.5}
-.landing h2{font-family:'Frank Ruhl Libre',serif;font-weight:400;font-size:22px;color:var(--ink-mid);margin-bottom:8px}
-.landing p{font-size:14px;color:var(--ink-light);max-width:380px;margin:0 auto;line-height:1.7}
-.landing-examples{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+/* ═══ Body ═══ */
+.wrap{max-width:720px;margin:0 auto;padding:26px 28px}
+#rmeta{font-size:13px;color:var(--ink-light);margin-bottom:16px;min-height:20px;display:flex;align-items:center;gap:7px;font-weight:500}
+
+/* ═══ Landing ═══ */
+.landing{padding:70px 8px 30px;text-align:center}
+.landing-mark{width:52px;height:52px;margin:0 auto 22px;border-radius:14px;background:linear-gradient(135deg,#e9dcb8,#c9962f22);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.landing-mark svg{width:24px;height:24px;color:var(--gold)}
+.landing h2{font-family:'Fraunces',serif;font-weight:500;font-size:25px;color:var(--ink);margin-bottom:10px;letter-spacing:-0.01em}
+.landing p{font-size:14.5px;color:var(--ink-light);max-width:400px;margin:0 auto;line-height:1.75}
+.landing-examples{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:26px}
 .example-pill{
-  font-size:12.5px;padding:7px 14px;border-radius:20px;background:var(--surface);
-  border:1px solid var(--border);color:var(--ink-mid);cursor:pointer;transition:all .15s;
+  font-size:13px;font-weight:500;padding:8px 16px;border-radius:20px;background:var(--surface);
+  border:1px solid var(--border);color:var(--ink-mid);cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm);
 }
-.example-pill:hover{border-color:var(--gold);color:var(--gold-dim)}
+.example-pill:hover{border-color:var(--gold);color:var(--gold-dim);box-shadow:var(--shadow-md);transform:translateY(-1px)}
 
-/* ── Skeleton ── */
-.skel-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:16px;margin-bottom:8px}
-.skel-line{height:12px;border-radius:4px;background:linear-gradient(90deg,#eee 25%,#f4f3f0 50%,#eee 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
+/* ═══ Skeleton ═══ */
+.skel-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:18px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+.skel-line{height:12px;border-radius:4px;background:linear-gradient(90deg,#efe9dc 25%,#f7f3ea 50%,#efe9dc 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
 @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
-.skel-line.title{width:60%;height:16px;margin-bottom:10px}
-.skel-line.meta{width:35%}
+.skel-line.title{width:58%;height:17px;margin-bottom:11px}
+.skel-line.meta{width:32%}
 
-/* ── Result cards ── */
-.results-list{display:flex;flex-direction:column;gap:2px}
+/* ═══ Result cards ═══ */
+.results-list{display:flex;flex-direction:column;gap:9px}
 .card{
-  background:var(--surface);border:1px solid transparent;border-bottom:1px solid var(--border-soft);
-  padding:14px 4px;transition:background .12s;cursor:default;
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
+  padding:17px 19px;transition:all .16s;box-shadow:var(--shadow-sm);
 }
-.card:hover{background:#f5f4f0}
-.card.playing{background:#fbf6e8}
-.ctop{display:flex;align-items:flex-start;gap:10px}
-.type-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:8px}
-.dot-sicha{background:var(--sicha)}
-.dot-maamar{background:var(--maamar)}
-.dot-farb{background:var(--farb)}
-.dot-niggun{background:var(--niggun)}
-.dot-other{background:var(--ink-faint)}
+.card:hover{border-color:var(--border);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.card.playing{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),var(--shadow-md);background:var(--gold-bg)}
+
+.ctop{display:flex;align-items:flex-start;gap:12px}
+.type-badge{
+  flex-shrink:0;margin-top:3px;width:8px;height:8px;border-radius:50%;position:relative;
+}
+.type-badge::after{content:'';position:absolute;inset:-4px;border-radius:50%;background:currentColor;opacity:0.15}
+.dot-sicha{background:var(--sicha);color:var(--sicha)}
+.dot-maamar{background:var(--maamar);color:var(--maamar)}
+.dot-farb{background:var(--farb);color:var(--farb)}
+.dot-niggun{background:var(--niggun);color:var(--niggun)}
+.dot-other{background:var(--ink-faint);color:var(--ink-faint)}
 
 .card-body{flex:1;min-width:0}
-.card-toprow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.card-toprow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .cname{
-  font-family:'Frank Ruhl Libre',serif;font-size:16.5px;font-weight:400;color:var(--ink);
-  text-decoration:none;line-height:1.35;display:block;
+  font-family:'Fraunces',serif;font-size:17.5px;font-weight:500;color:var(--ink);
+  text-decoration:none;line-height:1.4;display:block;letter-spacing:-0.005em;
 }
 .cname:hover{color:var(--gold-dim)}
-.ctype-label{font-size:10.5px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.06em;font-weight:600;flex-shrink:0;white-space:nowrap;margin-top:2px}
+.ctype-label{
+  font-size:10px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.08em;font-weight:700;
+  flex-shrink:0;white-space:nowrap;margin-top:5px;padding:3px 9px;background:var(--bg);border-radius:20px;
+}
 
-.cpar{font-size:12.5px;color:var(--ink-light);margin-top:2px}
+.cpar{font-family:'Fraunces',serif;font-style:italic;font-size:13px;color:var(--ink-light);margin-top:3px}
 .cpar span{color:var(--ink-mid)}
 
-.cmeta-row{display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap}
-.cmeta-item{font-size:12px;color:var(--ink-light);display:flex;align-items:center;gap:5px}
+.cmeta-row{display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}
+.cmeta-item{font-size:12px;color:var(--ink-light);display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+.cmeta-item svg{width:12px;height:12px;opacity:0.7}
 
+.action-row{display:flex;align-items:center;gap:16px;margin-left:auto}
 .play-toggle{
-  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
-  color:var(--gold-dim);cursor:pointer;user-select:none;padding:4px 0;
+  display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+  color:var(--gold-dim);cursor:pointer;user-select:none;padding:5px 0;transition:color .15s;
 }
 .play-toggle svg{width:13px;height:13px;flex-shrink:0}
 .play-toggle:hover{color:var(--gold)}
 
-.olink{color:var(--blue);text-decoration:none;font-weight:500;font-size:12px}
-.olink:hover{text-decoration:underline}
+.olink{color:var(--ink-light);text-decoration:none;font-weight:500;font-size:12.5px;display:inline-flex;align-items:center;gap:4px;transition:color .15s}
+.olink svg{width:11px;height:11px}
+.olink:hover{color:var(--gold-dim)}
 
-.empty{color:var(--ink-light);font-size:14px;line-height:1.9;padding:50px 0;text-align:center}
+.empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Fraunces',serif;font-style:italic}
 
-/* ── Persistent bottom player ── */
+/* ═══ Persistent bottom player ═══ */
 .player-bar{
-  position:fixed;bottom:0;left:0;right:0;background:var(--ink);border-top:1px solid #2a2a3e;
-  padding:12px 20px;display:none;align-items:center;gap:14px;z-index:30;
-  box-shadow:0 -4px 20px rgba(0,0,0,0.15);
+  position:fixed;bottom:0;left:0;right:0;
+  background:linear-gradient(180deg,#1e1a15,#161310);
+  border-top:1px solid rgba(255,255,255,0.08);
+  padding:14px 24px;display:none;align-items:center;gap:16px;z-index:30;
+  box-shadow:0 -8px 30px rgba(0,0,0,0.25);
 }
 .player-bar.open{display:flex}
 .player-play-btn{
-  width:36px;height:36px;border-radius:50%;background:var(--gold);border:none;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;
+  width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#d9a63f,#a3762f);border:none;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;box-shadow:0 2px 8px rgba(0,0,0,0.3);
 }
-.player-play-btn:hover{background:#cba33a}
-.player-play-btn svg{width:15px;height:15px;fill:#1a1408}
+.player-play-btn:hover{transform:scale(1.06)}
+.player-play-btn svg{width:16px;height:16px;fill:#1a1408}
 .player-info{flex:1;min-width:0}
-.player-title{font-family:'Frank Ruhl Libre',serif;font-size:14px;color:#f0eee8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
-.player-progress-row{display:flex;align-items:center;gap:8px}
-.player-time{font-size:10.5px;color:#8a8aa0;font-variant-numeric:tabular-nums;flex-shrink:0;width:34px}
-.player-scrubber{flex:1;height:3px;background:#33334a;border-radius:2px;position:relative;cursor:pointer}
-.player-scrubber-fill{height:100%;background:var(--gold);border-radius:2px;width:0%;pointer-events:none}
-.player-close{width:28px;height:28px;border-radius:50%;background:none;border:none;color:#6a6a85;cursor:pointer;flex-shrink:0;font-size:16px;display:flex;align-items:center;justify-content:center;transition:color .15s}
-.player-close:hover{color:#f0eee8}
+.player-title{font-family:'Fraunces',serif;font-size:14.5px;color:#f3ede0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
+.player-progress-row{display:flex;align-items:center;gap:10px}
+.player-time{font-size:10.5px;color:#8a8270;font-variant-numeric:tabular-nums;flex-shrink:0;width:34px}
+.player-scrubber{flex:1;height:4px;background:rgba(255,255,255,0.12);border-radius:2px;position:relative;cursor:pointer}
+.player-scrubber:hover .player-scrubber-fill{background:#e2b04e}
+.player-scrubber-fill{height:100%;background:var(--gold);border-radius:2px;width:0%;pointer-events:none;position:relative}
+.player-scrubber-fill::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;background:#e2b04e;opacity:0;transition:opacity .15s}
+.player-scrubber:hover .player-scrubber-fill::after{opacity:1}
+.player-close{width:30px;height:30px;border-radius:50%;background:none;border:none;color:#7a7364;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.player-close:hover{color:#f3ede0;background:rgba(255,255,255,0.06)}
+.player-close svg{width:15px;height:15px}
 
 @media (max-width:520px){
-  header{padding:18px 18px 14px}
-  .wrap{padding:18px 18px}
-  .cname{font-size:15.5px}
+  header{padding:24px 18px 18px}
+  .wrap{padding:20px 18px}
+  .cname{font-size:16.5px}
+  .filter-row{gap:8px}
 }
 </style>
 </head>
@@ -160,7 +186,13 @@ header{background:var(--ink);padding:22px 28px 18px;position:sticky;top:0;z-inde
 <header>
   <div class="header-inner">
     <div class="wordmark">
-      <h1>Ashreinu</h1><span>Search</span>
+      <div class="wordmark-icon">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.2L19.5 8 12 11.8 4.5 8 12 4.2zM4 9.7l7 3.5v7.1l-7-3.5V9.7zm9 10.6v-7.1l7-3.5v7.1l-7 3.5z"/></svg>
+      </div>
+      <div class="wordmark-text">
+        <h1>Ashreinu</h1>
+        <span>Archive Search</span>
+      </div>
     </div>
     <div class="search-box">
       <input type="text" id="q" placeholder="Search farbrengens, sichos, ma'amarim…" autocomplete="off" />
@@ -168,23 +200,26 @@ header{background:var(--ink);padding:22px 28px 18px;position:sticky;top:0;z-inde
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </div>
     </div>
-    <div class="chips">
-      <button class="chip active" data-type="" onclick="setType('',this)">All</button>
-      <button class="chip" data-type="sicha" onclick="setType('sicha',this)">Sicha</button>
-      <button class="chip" data-type="maamar" onclick="setType('maamar',this)">Ma'amar</button>
-      <button class="chip" data-type="farbrengen" onclick="setType('farbrengen',this)">Farbrengen</button>
-      <button class="chip" data-type="niggun" onclick="setType('niggun',this)">Niggun</button>
-      <div class="chip-sep"></div>
-      <div class="year-chip">
+    <div class="filter-row">
+      <div class="segmented">
+        <button class="seg-btn active" data-type="" onclick="setType('',this)">All</button>
+        <button class="seg-btn" data-type="sicha" onclick="setType('sicha',this)">Sicha</button>
+        <button class="seg-btn" data-type="maamar" onclick="setType('maamar',this)">Ma'amar</button>
+        <button class="seg-btn" data-type="farbrengen" onclick="setType('farbrengen',this)">Farbrengen</button>
+        <button class="seg-btn" data-type="niggun" onclick="setType('niggun',this)">Niggun</button>
+      </div>
+      <div class="mini-field">
         <input type="number" id="yf" placeholder="Year" oninput="debouncedSearch()" />
       </div>
-      <select id="mf" onchange="search()" class="chip" style="appearance:none;-webkit-appearance:none;padding-right:24px">
-        <option value="">Month</option>
-        <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
-        <option>Tevet</option><option>Shevat</option><option>Adar</option>
-        <option>Nissan</option><option>Iyar</option><option>Sivan</option>
-        <option>Tammuz</option><option>Av</option><option>Elul</option>
-      </select>
+      <div class="mini-field">
+        <select id="mf" onchange="search()">
+          <option value="">Month</option>
+          <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
+          <option>Tevet</option><option>Shevat</option><option>Adar</option>
+          <option>Nissan</option><option>Iyar</option><option>Sivan</option>
+          <option>Tammuz</option><option>Av</option><option>Elul</option>
+        </select>
+      </div>
     </div>
   </div>
 </header>
@@ -193,7 +228,9 @@ header{background:var(--ink);padding:22px 28px 18px;position:sticky;top:0;z-inde
   <div id="rmeta"></div>
   <div id="res">
     <div class="landing">
-      <div class="landing-icon">◈</div>
+      <div class="landing-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
       <h2>Search the Ashreinu archive</h2>
       <p>Every farbrengen, sicha, and ma'amar — searchable by title, filterable by type, year, and month.</p>
       <div class="landing-examples">
@@ -208,7 +245,7 @@ header{background:var(--ink);padding:22px 28px 18px;position:sticky;top:0;z-inde
 
 <div class="player-bar" id="playerBar">
   <button class="player-play-btn" id="playerBtn" onclick="togglePlayPause()">
-    <svg id="playerIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    <svg id="playerIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
   </button>
   <div class="player-info">
     <div class="player-title" id="playerTitle"></div>
@@ -220,7 +257,9 @@ header{background:var(--ink);padding:22px 28px 18px;position:sticky;top:0;z-inde
       <span class="player-time" id="playerDur">0:00</span>
     </div>
   </div>
-  <button class="player-close" onclick="closePlayer()">✕</button>
+  <button class="player-close" onclick="closePlayer()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
 </div>
 <audio id="audioEl"></audio>
 
@@ -263,9 +302,14 @@ function lnk(row) {
   return 'https://ashreinu.app/player?parentEvent='+parentId+'&event='+row.id;
 }
 
+const clockIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>';
+const calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+const extIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const playIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
 function setType(t, el) {
   currentType = t;
-  document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.seg-btn').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   search();
 }
@@ -326,11 +370,9 @@ async function search() {
 
 function showLanding() {
   document.getElementById('rmeta').textContent = '';
-  document.getElementById('res').innerHTML = document.querySelector('.landing')
-    ? document.getElementById('res').innerHTML
-    : '';
   document.getElementById('res').innerHTML =
-    '<div class="landing"><div class="landing-icon">◈</div>'
+    '<div class="landing">'
+    +'<div class="landing-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>'
     +'<h2>Search the Ashreinu archive</h2>'
     +'<p>Every farbrengen, sicha, and ma\'amar — searchable by title, filterable by type, year, and month.</p>'
     +'<div class="landing-examples">'
@@ -351,7 +393,7 @@ function showSkeletons() {
 
 function renderCards(items) {
   const el = document.getElementById('res');
-  if (!items.length) { el.innerHTML = '<div class="empty">No matches found.</div>'; return; }
+  if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; return; }
 
   el.innerHTML = '<div class="results-list">' + items.map(row => {
     const d = row.duration_ms;
@@ -359,10 +401,11 @@ function renderCards(items) {
     const audioUrl = getAudioUrl(row);
     const rid = String(row.id);
     const link = lnk(row);
+    const titleAttr = esc(row.name||'').replace(/'/g,"\\'");
 
     return '<div class="card" id="card-'+rid+'">'
       +'<div class="ctop">'
-        +'<div class="type-dot '+typeDot(row.type)+'"></div>'
+        +'<div class="type-badge '+typeDot(row.type)+'"></div>'
         +'<div class="card-body">'
           +'<div class="card-toprow">'
             +'<a class="cname" href="'+link+'" target="_blank">'+esc(row.name||'(untitled)')+'</a>'
@@ -370,10 +413,12 @@ function renderCards(items) {
           +'</div>'
           +(row.parent_name?'<div class="cpar">In <span>'+esc(row.parent_name)+'</span></div>':'')
           +'<div class="cmeta-row">'
-            +(dstr(row)?'<span class="cmeta-item">'+esc(dstr(row))+'</span>':'')
-            +(d?'<span class="cmeta-item">'+dur(d)+'</span>':'')
-            +(audioUrl?'<span class="play-toggle" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+esc(row.name||'').replace(/'/g,"\\'")+'\')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Play</span>':'')
-            +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu →</a>'
+            +(dstr(row)?'<span class="cmeta-item">'+calIcon+esc(dstr(row))+'</span>':'')
+            +(d?'<span class="cmeta-item">'+clockIcon+dur(d)+'</span>':'')
+            +'<div class="action-row">'
+            +(audioUrl?'<span class="play-toggle" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+playIcon+'Play</span>':'')
+            +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu'+extIcon+'</a>'
+            +'</div>'
           +'</div>'
         +'</div>'
       +'</div>'
