@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Farbrengen Transcriber</title>
+<style>
+body{font-family:-apple-system,sans-serif;background:#f5f3ee;padding:24px;max-width:760px;margin:0 auto;color:#12121f}
+h2{font-size:18px;margin-bottom:6px}
+p.sub{font-size:14px;color:#666;margin-bottom:18px}
+input[type=text]{width:100%;font-size:14px;padding:10px 12px;border:1px solid #ddd;border-radius:6px;margin-bottom:10px}
+button{font-size:14px;font-weight:600;padding:10px 20px;background:#c49a2a;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-right:8px}
+button:disabled{background:#ddd;color:#999}
+.bar{height:6px;background:#e2dfd7;border-radius:3px;overflow:hidden;margin:14px 0}
+.fill{height:100%;background:#c49a2a;width:0%;transition:width .3s}
+#log{font-size:12px;color:#444;white-space:pre-wrap;background:#fff;border:1px solid #e2dfd7;border-radius:6px;padding:12px;max-height:200px;overflow:auto;line-height:1.6;margin-bottom:14px}
+#transcript{width:100%;min-height:200px;font-family:monospace;font-size:13px;direction:rtl;padding:12px;border:1px solid #ddd;border-radius:6px;margin-bottom:14px}
+#segments{display:flex;flex-direction:column;gap:10px}
+.seg{background:#fff;border:1px solid #e2dfd7;border-radius:8px;padding:14px}
+.seg h4{font-size:14px;color:#12121f;margin-bottom:6px}
+.seg .txt{direction:rtl;font-size:13px;color:#444;white-space:pre-wrap;max-height:150px;overflow:auto;background:#f9f8f4;padding:10px;border-radius:6px}
+</style>
+</head>
+<body>
+<h2>Farbrengen Transcriber</h2>
+<p class="sub">Paste a Google Drive file ID (the Bilti Mugah PDF). Transcribes every page, then attempts to split into individual sichos.</p>
+
+<input type="text" id="fileId" placeholder="e.g. 1-wO9wj8XOPphqMtZqAxY93FDGTLo51-N" />
+<button id="go" onclick="run()">Transcribe</button>
+<button id="segBtn" onclick="doSegment()" disabled>Split into sichos</button>
+
+<div class="bar"><div class="fill" id="fill"></div></div>
+<div id="log"></div>
+
+<h3 style="font-size:14px;margin-bottom:8px">Full transcript</h3>
+<textarea id="transcript" readonly></textarea>
+
+<h3 style="font-size:14px;margin-bottom:8px">Segmented sichos</h3>
+<div id="segments"></div>
+
+<script>
+let fullText = '';
+
+async function run() {
+  const id = document.getElementById('fileId').value.trim();
+  if (!id) return alert('Paste a file ID first');
+
+  document.getElementById('go').disabled = true;
+  document.getElementById('segBtn').disabled = true;
+  document.getElementById('transcript').value = '';
+  document.getElementById('segments').innerHTML = '';
+  fullText = '';
+
+  log('Getting page count...');
+  const infoRes = await fetch('/api/pdf-info?id=' + id);
+  const info = await infoRes.json();
+  if (info.error) { log('Error: ' + info.error); document.getElementById('go').disabled = false; return; }
+
+  const total = info.totalPages;
+  log('Found ' + total + ' pages. Transcribing...');
+
+  let pages = [];
+  for (let p = 1; p <= total; p++) {
+    log('Transcribing page ' + p + ' of ' + total + '...');
+    try {
+      const r = await fetch('/api/transcribe-page?id=' + id + '&page=' + p);
+      const j = await r.json();
+      if (j.error) {
+        log('  ! page ' + p + ' failed: ' + j.error);
+      } else {
+        pages.push(j.text);
+        log('  -> ' + j.text.length + ' chars');
+      }
+    } catch (e) {
+      log('  ! page ' + p + ' error: ' + e.message);
+    }
+    document.getElementById('fill').style.width = (p/total*100) + '%';
+  }
+
+  fullText = pages.join('\n\n--- page break ---\n\n');
+  document.getElementById('transcript').value = fullText;
+  log('DONE. Total transcript: ' + fullText.length + ' characters.');
+  document.getElementById('go').disabled = false;
+  document.getElementById('segBtn').disabled = false;
+}
+
+async function doSegment() {
+  document.getElementById('segBtn').disabled = true;
+  log('Asking Claude to split into sichos...');
+
+  try {
+    const r = await fetch('/api/segment-sichos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: fullText })
+    });
+    const j = await r.json();
+
+    if (j.error) {
+      log('Segmentation error: ' + j.error);
+      if (j.raw) log('Raw response: ' + j.raw.slice(0, 500));
+      document.getElementById('segBtn').disabled = false;
+      return;
+    }
+
+    log('Found ' + j.count + ' sichos.');
+    document.getElementById('segments').innerHTML = j.segments.map(s =>
+      '<div class="seg"><h4>' + esc(s.marker) + ' — ' + esc(s.titleEn) + '</h4><div class="txt">' + esc(s.text) + '</div></div>'
+    ).join('');
+  } catch (e) {
+    log('Segmentation failed: ' + e.message);
+  }
+  document.getElementById('segBtn').disabled = false;
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function log(msg){
+  const el = document.getElementById('log');
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+</script>
+</body>
+</html>
