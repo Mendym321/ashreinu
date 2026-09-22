@@ -36,6 +36,11 @@ button:disabled{background:#ddd;color:#999}
   <button id="go" onclick="run()">Find & Process</button>
 </div>
 
+<details style="margin-bottom:14px">
+  <summary style="cursor:pointer;font-size:13px;color:#666">Already have a transcript? Paste it to skip transcription entirely</summary>
+  <textarea id="pastedTranscript" placeholder="Paste the full transcript here (with --- page break --- markers if you have them) to skip steps 2 and 3 and go straight to segmentation." style="width:100%;min-height:150px;margin-top:8px;font-family:monospace;font-size:12px;direction:rtl;padding:10px;border:1px solid #ddd;border-radius:6px"></textarea>
+</details>
+
 <div class="bar"><div class="fill" id="fill"></div></div>
 
 <div id="steps">
@@ -89,57 +94,96 @@ async function run() {
   setStep('farbrengen', `Found: ${farbrengen.name} (id ${farbrengen.id})`, 'done');
   prog(10);
 
-  // Step 2: find the Mafteiach source
-  setStep('mafteiach', 'Fetching Mafteiach page...', '');
-  const mRes = await fetch(`/api/mafteiach-fetch?year=${year}&month=${month}&day=${day}`);
-  const mJson = await mRes.json();
-  if (!mJson.foundBiltiMugahSection || !mJson.driveLinksInBiltiSection?.length) {
-    setStep('mafteiach', 'No בלתי מוגה section found on Mafteiach for this date', 'error');
-    document.getElementById('go').disabled = false;
-    return;
-  }
-  const tomLink = mJson.driveLinksInBiltiSection.find(l => l.label && l.label.includes('תו"מ'))
-    || mJson.driveLinksInBiltiSection[mJson.driveLinksInBiltiSection.length - 1];
-  const driveMatch = tomLink.url.match(/[-\w]{25,}/);
-  const driveFileId = driveMatch ? driveMatch[0] : null;
-  if (!driveFileId) {
-    setStep('mafteiach', 'Found links but could not extract a file ID', 'error');
-    document.getElementById('go').disabled = false;
-    return;
-  }
-  setStep('mafteiach', `Found: "${tomLink.label}" (${driveFileId})`, 'done');
-  prog(20);
+  const pastedText = document.getElementById('pastedTranscript').value.trim();
+  let fullText, total, driveFileId = null;
 
-  // Step 3: transcribe every page
-  setStep('transcribe', 'Getting page count...', '');
-  const infoRes = await fetch(`/api/pdf-info?id=${driveFileId}`);
-  const info = await infoRes.json();
-  if (info.error) {
-    setStep('transcribe', 'Error: ' + info.error, 'error');
-    document.getElementById('go').disabled = false;
-    return;
-  }
-  const total = info.totalPages;
-  let pages = [];
-  for (let p = 1; p <= total; p++) {
-    setStep('transcribe', `Page ${p} of ${total}...`, '');
-    log(`Transcribing page ${p}/${total}...`);
-    try {
-      const r = await fetch(`/api/transcribe-page?id=${driveFileId}&page=${p}`);
-      const j = await r.json();
-      if (j.error) {
-        log(`  ! page ${p} failed: ${j.error}`);
-      } else {
-        pages.push(j.text);
-        log(`  -> ${j.text.length} chars`);
-      }
-    } catch (e) {
-      log(`  ! page ${p} error: ${e.message}`);
+  if (pastedText) {
+    // Skip Mafteiach lookup and transcription entirely — use what was pasted.
+    setStep('mafteiach', 'Skipped — using pasted transcript', 'done');
+    setStep('transcribe', `Skipped — using pasted transcript (${pastedText.length} characters)`, 'done');
+    fullText = pastedText;
+    total = (pastedText.match(/--- page break ---/g) || []).length + 1;
+    prog(70);
+
+    // Cache it too, so future re-runs (even without re-pasting) can reuse it.
+    await fetch('/api/transcript-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ farbrengenId: farbrengen.id, driveFileId: null, pageCount: total, fullText })
+    });
+  } else {
+    // Step 2: find the Mafteiach source
+    setStep('mafteiach', 'Fetching Mafteiach page...', '');
+    const mRes = await fetch(`/api/mafteiach-fetch?year=${year}&month=${month}&day=${day}`);
+    const mJson = await mRes.json();
+    if (!mJson.foundBiltiMugahSection || !mJson.driveLinksInBiltiSection?.length) {
+      setStep('mafteiach', 'No בלתי מוגה section found on Mafteiach for this date', 'error');
+      document.getElementById('go').disabled = false;
+      return;
     }
-    prog(20 + (p / total) * 50);
+    const tomLink = mJson.driveLinksInBiltiSection.find(l => l.label && l.label.includes('תו"מ'))
+      || mJson.driveLinksInBiltiSection[mJson.driveLinksInBiltiSection.length - 1];
+    const driveMatch = tomLink.url.match(/[-\w]{25,}/);
+    driveFileId = driveMatch ? driveMatch[0] : null;
+    if (!driveFileId) {
+      setStep('mafteiach', 'Found links but could not extract a file ID', 'error');
+      document.getElementById('go').disabled = false;
+      return;
+    }
+    setStep('mafteiach', `Found: "${tomLink.label}" (${driveFileId})`, 'done');
+    prog(20);
+
+    // Step 3: transcribe every page (skip if already cached)
+    setStep('transcribe', 'Checking for a cached transcript...', '');
+
+    const cacheRes = await fetch(`/api/transcript-cache?farbrengenId=${farbrengen.id}`);
+    const cacheJson = await cacheRes.json();
+
+    if (cacheJson.cached && cacheJson.driveFileId === driveFileId) {
+      fullText = cacheJson.fullText;
+      total = cacheJson.pageCount;
+      setStep('transcribe', `Using cached transcript — ${fullText.length} characters across ${total} pages (no re-transcription cost)`, 'done');
+      log('Found cached transcript, skipping transcription entirely.');
+      prog(70);
+    } else {
+      setStep('transcribe', 'Getting page count...', '');
+      const infoRes = await fetch(`/api/pdf-info?id=${driveFileId}`);
+      const info = await infoRes.json();
+      if (info.error) {
+        setStep('transcribe', 'Error: ' + info.error, 'error');
+        document.getElementById('go').disabled = false;
+        return;
+      }
+      total = info.totalPages;
+      let pages = [];
+      for (let p = 1; p <= total; p++) {
+        setStep('transcribe', `Page ${p} of ${total}...`, '');
+        log(`Transcribing page ${p}/${total}...`);
+        try {
+          const r = await fetch(`/api/transcribe-page?id=${driveFileId}&page=${p}`);
+          const j = await r.json();
+          if (j.error) {
+            log(`  ! page ${p} failed: ${j.error}`);
+          } else {
+            pages.push(j.text);
+            log(`  -> ${j.text.length} chars`);
+          }
+        } catch (e) {
+          log(`  ! page ${p} error: ${e.message}`);
+        }
+        prog(20 + (p / total) * 50);
+      }
+      fullText = pages.join('\n\n--- page break ---\n\n');
+      setStep('transcribe', `Done — ${fullText.length} characters across ${total} pages`, 'done');
+
+      await fetch('/api/transcript-cache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ farbrengenId: farbrengen.id, driveFileId, pageCount: total, fullText })
+      });
+      log('Transcript cached for future re-runs.');
+    }
   }
-  const fullText = pages.join('\n\n--- page break ---\n\n');
-  setStep('transcribe', `Done — ${fullText.length} characters across ${total} pages`, 'done');
 
   // Step 4: segment + tag
   setStep('segment', 'Asking Claude to split and tag...', '');
@@ -156,7 +200,7 @@ async function run() {
   }
   const validSegments = segJson.segments.filter(s => s.text);
   const failedCount = segJson.segments.length - validSegments.length;
-  setStep('segment', `Found ${segJson.segments.length} sichos${failedCount ? ` (${failedCount} could not be located)` : ''}`, 'done');
+  setStep('segment', `Found ${segJson.segments.length} sichos${failedCount ? ` (${failedCount} could not be located)` : ''}${segJson.truncated ? ' — ⚠️ response was truncated, later sichos in this farbrengen may be missing' : ''}`, segJson.truncated ? 'error' : 'done');
   prog(85);
 
   // Step 5: save
