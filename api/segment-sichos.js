@@ -37,12 +37,14 @@ Find every single "* * *" in the text — scan the ENTIRE document carefully, do
 
 For each TRUE sicha boundary (not the maamar note itself, but the sicha that starts after it), report:
 - The first ~8 words of Hebrew text right after that boundary, EXACTLY as written (so we can locate it in the source text ourselves)
-- A short English summary of what that sicha covers
+- A short English title (5-8 words) summarizing its main topic
+- A 2-3 sentence English summary of what this section actually discusses
+- 4-8 tags: a mix of (a) core topics/themes discussed, (b) any specific dates/occasions mentioned (e.g. "19 Kislev", "Alter Rebbe's release"), (c) chassidic/torah concepts referenced (e.g. "pnimiyus haTorah", "gemilus chassadim"), (d) any named sources/seforim cited. Use short, lowercase, consistent tags a search filter could use.
 
 Respond ONLY with valid JSON, no other text:
 [
-  {"firstWords": "exact first few Hebrew words", "titleEn": "short English summary"},
-  {"firstWords": "exact first few Hebrew words", "titleEn": "short English summary"}
+  {"firstWords": "exact first few Hebrew words", "titleEn": "short English title", "summaryEn": "2-3 sentence summary", "tags": ["tag1","tag2","tag3"]},
+  {"firstWords": "exact first few Hebrew words", "titleEn": "short English title", "summaryEn": "2-3 sentence summary", "tags": ["tag1","tag2","tag3"]}
 ]
 
 The first sicha always starts at the very beginning of the document, even though there's no "* * *" before it — include it as the first entry.
@@ -80,7 +82,11 @@ ${text}`
     // matches, always searching forward from the previous boundary to keep order correct.
     function findBoundary(haystack, firstWords, searchFrom) {
       const words = firstWords.trim().split(/\s+/);
-      for (let n = words.length; n >= 1; n--) {
+      // Never fall back below 2 words — a single short token (especially a
+      // bare Hebrew letter-marker like "יח.") is too likely to collide with
+      // an unrelated footnote reference number elsewhere in the text.
+      const minWords = Math.min(2, words.length);
+      for (let n = words.length; n >= minWords; n--) {
         const candidate = words.slice(0, n).join(' ');
         const idx = haystack.indexOf(candidate, searchFrom);
         if (idx !== -1) return idx;
