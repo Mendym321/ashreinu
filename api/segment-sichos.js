@@ -73,20 +73,38 @@ ${text}`
     // Splice the actual text ourselves using the firstWords markers Claude found,
     // rather than trusting Claude to reproduce long text verbatim (which hits
     // token limits and risks subtle errors in transcription).
+    //
+    // Exact matching is fragile: the transcript may have inline footnote markers,
+    // markdown bold, or OCR letter variations that Claude's "clean" quote doesn't
+    // include. So we try progressively shorter prefixes of firstWords until one
+    // matches, always searching forward from the previous boundary to keep order correct.
+    function findBoundary(haystack, firstWords, searchFrom) {
+      const words = firstWords.trim().split(/\s+/);
+      for (let n = words.length; n >= 1; n--) {
+        const candidate = words.slice(0, n).join(' ');
+        const idx = haystack.indexOf(candidate, searchFrom);
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    }
+
     const segments = [];
+    let searchFrom = 0;
     for (let i = 0; i < boundaries.length; i++) {
       const b = boundaries[i];
-      const startIdx = text.indexOf(b.firstWords);
+      const startIdx = findBoundary(text, b.firstWords, searchFrom);
       if (startIdx === -1) {
-        segments.push({ ...b, text: null, warning: 'Could not locate firstWords in source text' });
+        segments.push({ ...b, text: null, warning: 'Could not locate even a short prefix of firstWords in source text' });
         continue;
       }
       const nextB = boundaries[i + 1];
-      const endIdx = nextB ? text.indexOf(nextB.firstWords, startIdx + 1) : text.length;
-      segments.push({
-        ...b,
-        text: text.slice(startIdx, endIdx === -1 ? text.length : endIdx).trim()
-      });
+      let endIdx = text.length;
+      if (nextB) {
+        const nextIdx = findBoundary(text, nextB.firstWords, startIdx + 1);
+        if (nextIdx !== -1) endIdx = nextIdx;
+      }
+      segments.push({ ...b, text: text.slice(startIdx, endIdx).trim() });
+      searchFrom = startIdx + 1;
     }
 
     res.status(200).json({ segments, count: segments.length });
