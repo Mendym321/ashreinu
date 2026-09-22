@@ -163,6 +163,49 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 .read-expand:hover{color:var(--gold-dim)}
 .read-empty{font-size:13px;color:var(--ink-light);font-style:italic;padding:8px 0}
 
+/* ═══ Expanded "Now Playing" view ═══ */
+.now-playing-overlay{
+  position:fixed;inset:0;background:var(--bg);z-index:40;display:none;
+  flex-direction:column;
+}
+.now-playing-overlay.open{display:flex}
+.np-topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:var(--ink);flex-shrink:0}
+.np-topbar button{background:none;border:none;color:#e8ddc8;cursor:pointer;padding:8px;border-radius:8px;display:flex;transition:background .15s}
+.np-topbar button:hover{background:rgba(255,255,255,0.08)}
+.np-topbar button svg{width:22px;height:22px}
+.np-topbar .np-label{font-size:11px;color:#8a8270;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+
+.np-scroll{flex:1;overflow-y:auto;padding:32px 28px 40px}
+.np-inner{max-width:640px;margin:0 auto}
+
+.np-hero{text-align:center;margin-bottom:28px}
+.np-type-badge{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:4px 12px;border-radius:20px;margin-bottom:14px}
+.np-title{font-family:'Fraunces',serif;font-weight:500;font-size:28px;color:var(--ink);line-height:1.25;margin-bottom:8px}
+.np-parent{font-family:'Fraunces',serif;font-style:italic;font-size:15px;color:var(--ink-light);margin-bottom:4px}
+.np-date{font-size:13px;color:var(--ink-light)}
+
+.np-controls{margin:28px 0 8px}
+.np-play-btn{
+  width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#d9a63f,#a3762f);border:none;margin:0 auto 16px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;box-shadow:0 4px 16px rgba(163,118,47,0.3);
+}
+.np-play-btn:hover{transform:scale(1.05)}
+.np-play-btn svg{width:26px;height:26px;fill:#1a1408}
+.np-progress-row{display:flex;align-items:center;gap:10px;max-width:420px;margin:0 auto}
+.np-time{font-size:11px;color:var(--ink-light);font-variant-numeric:tabular-nums;width:36px}
+.np-scrubber{flex:1;height:5px;background:var(--border);border-radius:3px;position:relative;cursor:pointer}
+.np-scrubber-fill{height:100%;background:var(--gold);border-radius:3px;width:0%}
+
+.np-divider{border-top:1px solid var(--border);margin:32px 0}
+.np-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-light);margin-bottom:14px}
+.np-empty{font-size:14px;color:var(--ink-light);font-style:italic;text-align:center;padding:30px 0}
+
+/* Player bar gets a chevron to expand */
+.player-expand-btn{width:32px;height:32px;border-radius:50%;background:none;border:none;color:#7a7364;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.player-expand-btn:hover{color:#f3ede0;background:rgba(255,255,255,0.06)}
+.player-expand-btn svg{width:16px;height:16px}
+.player-bar-clickable{cursor:pointer}
+
 .empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Fraunces',serif;font-style:italic}
 
 /* ═══ Today's date strip ═══ */
@@ -301,21 +344,58 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
   <button class="player-play-btn" id="playerBtn" onclick="togglePlayPause()">
     <svg id="playerIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
   </button>
-  <div class="player-info">
+  <div class="player-info player-bar-clickable" onclick="openNowPlaying()">
     <div class="player-title" id="playerTitle"></div>
     <div class="player-progress-row">
       <span class="player-time" id="playerCur">0:00</span>
-      <div class="player-scrubber" id="playerScrub" onclick="seekTo(event)">
+      <div class="player-scrubber" id="playerScrub" onclick="event.stopPropagation();seekTo(event)">
         <div class="player-scrubber-fill" id="playerFill"></div>
       </div>
       <span class="player-time" id="playerDur">0:00</span>
     </div>
   </div>
+  <button class="player-expand-btn" onclick="openNowPlaying()" title="Expand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+  </button>
   <button class="player-close" onclick="closePlayer()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
   </button>
 </div>
 <audio id="audioEl"></audio>
+
+<div class="now-playing-overlay" id="npOverlay">
+  <div class="np-topbar">
+    <span class="np-label">Now Playing</span>
+    <button onclick="closeNowPlaying()" title="Minimize">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+  <div class="np-scroll">
+    <div class="np-inner">
+      <div class="np-hero">
+        <div class="np-type-badge" id="npTypeBadge"></div>
+        <div class="np-title" id="npTitle"></div>
+        <div class="np-parent" id="npParent"></div>
+        <div class="np-date" id="npDate"></div>
+      </div>
+
+      <div class="np-controls">
+        <button class="np-play-btn" id="npPlayBtn" onclick="togglePlayPause()">
+          <svg id="npPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="np-progress-row">
+          <span class="np-time" id="npCur">0:00</span>
+          <div class="np-scrubber" id="npScrub" onclick="seekTo(event, true)"><div class="np-scrubber-fill" id="npFill"></div></div>
+          <span class="np-time" id="npDur">0:00</span>
+        </div>
+      </div>
+
+      <div class="np-divider"></div>
+      <div class="np-section-label">Source Text</div>
+      <div id="npReadContent"><div class="np-empty">Loading…</div></div>
+    </div>
+  </div>
+</div>
 
 <script>
 let currentType = '';
@@ -620,6 +700,10 @@ function showSkeletons() {
   document.getElementById('res').innerHTML = html;
 }
 
+// Track full row data by id so playTrack/openNowPlaying can pull rich
+// metadata (parent name, date, type) without re-parsing the DOM.
+const rowsById = {};
+
 function renderCards(items) {
   const el = document.getElementById('res');
   if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; return; }
@@ -631,10 +715,8 @@ function renderCards(items) {
     const rid = String(row.id);
     const link = lnk(row);
     const titleAttr = esc(row.name||'').replace(/'/g,"\\'");
-    // The farbrengen a "read source" lookup should use: this row's own id if
-    // it IS a farbrengen, otherwise its parent's id (sichos/niggunim/maamarim
-    // all read from their parent farbrengen's saved text).
     const farbrengenId = row.parent_id || row.id;
+    rowsById[rid] = row;
 
     return '<div class="card" id="card-'+rid+'">'
       +'<div class="ctop">'
@@ -661,7 +743,7 @@ function renderCards(items) {
   }).join('') + '</div>';
 }
 
-// ── Persistent bottom player ──
+// ── Persistent bottom player + expandable "Now Playing" view ──
 const audioEl = document.getElementById('audioEl');
 let currentTrackId = null;
 
@@ -676,6 +758,12 @@ function playTrack(id, url, title) {
   document.getElementById('playerTitle').textContent = title;
   document.getElementById('playerBar').classList.add('open');
   setPlayIcon(true);
+
+  // If the Now Playing view happens to already be open (switched tracks
+  // without minimizing first), refresh it immediately for the new track.
+  if (document.getElementById('npOverlay').classList.contains('open')) {
+    populateNowPlaying(id);
+  }
 }
 
 function togglePlayPause() {
@@ -683,15 +771,17 @@ function togglePlayPause() {
   else { audioEl.pause(); setPlayIcon(false); }
 }
 function setPlayIcon(playing) {
-  document.getElementById('playerIcon').innerHTML = playing
-    ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'
-    : '<path d="M8 5v14l11-7z"/>';
+  const d = playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+  document.getElementById('playerIcon').innerHTML = d;
+  const npIcon = document.getElementById('npPlayIcon');
+  if (npIcon) npIcon.innerHTML = d;
 }
 function closePlayer() {
   audioEl.pause(); audioEl.src = '';
   document.getElementById('playerBar').classList.remove('open');
   document.querySelectorAll('.card.playing').forEach(c => c.classList.remove('playing'));
   currentTrackId = null;
+  closeNowPlaying();
 }
 function seekTo(e) {
   const rect = e.currentTarget.getBoundingClientRect();
@@ -704,36 +794,58 @@ function fmtTime(s) {
 }
 audioEl.addEventListener('timeupdate', () => {
   if (!audioEl.duration) return;
-  document.getElementById('playerFill').style.width = (audioEl.currentTime/audioEl.duration*100) + '%';
-  document.getElementById('playerCur').textContent = fmtTime(audioEl.currentTime);
+  const pct = (audioEl.currentTime/audioEl.duration*100) + '%';
+  const cur = fmtTime(audioEl.currentTime);
+  document.getElementById('playerFill').style.width = pct;
+  document.getElementById('playerCur').textContent = cur;
+  const npFill = document.getElementById('npFill');
+  if (npFill) { npFill.style.width = pct; document.getElementById('npCur').textContent = cur; }
 });
 audioEl.addEventListener('loadedmetadata', () => {
-  document.getElementById('playerDur').textContent = fmtTime(audioEl.duration);
+  const d = fmtTime(audioEl.duration);
+  document.getElementById('playerDur').textContent = d;
+  const npDur = document.getElementById('npDur');
+  if (npDur) npDur.textContent = d;
 });
 audioEl.addEventListener('ended', () => setPlayIcon(false));
 
-// ── Read source text panel ──
+// ── Expanded Now Playing view ──
+function openNowPlaying() {
+  if (!currentTrackId) return;
+  document.getElementById('npOverlay').classList.add('open');
+  populateNowPlaying(currentTrackId);
+}
+function closeNowPlaying() {
+  document.getElementById('npOverlay').classList.remove('open');
+}
+function populateNowPlaying(rid) {
+  const row = rowsById[rid];
+  if (!row) return;
+  const lbl = typeLabel(row.type);
+  const dotCls = typeDot(row.type);
+  const colorMap = { 'dot-sicha':['#e8f0fe','#1a56cc'], 'dot-maamar':['#fce8ff','#7a1aaa'], 'dot-farb':['#e8fce8','#1a7a1a'], 'dot-niggun':['#fff3e0','#b06000'], 'dot-other':['#f0f0f0','#555'] };
+  const [bg, fg] = colorMap[dotCls] || colorMap['dot-other'];
+
+  document.getElementById('npTypeBadge').textContent = lbl;
+  document.getElementById('npTypeBadge').style.background = bg;
+  document.getElementById('npTypeBadge').style.color = fg;
+  document.getElementById('npTitle').textContent = row.name || '(untitled)';
+  document.getElementById('npParent').textContent = row.parent_name || '';
+  document.getElementById('npParent').style.display = row.parent_name ? 'block' : 'none';
+  document.getElementById('npDate').textContent = dstr(row);
+
+  const farbrengenId = row.parent_id || row.id;
+  loadReadContent(farbrengenId, 'npReadContent', true);
+}
+
+// ── Read source text (shared between inline card panels and the expanded Now Playing view) ──
 const readCache = {}; // avoid re-fetching the same farbrengen's text repeatedly
 
-async function toggleRead(rid, farbrengenId) {
-  const panel = document.getElementById('readpanel-' + rid);
-  const btn = document.getElementById('readbtn-' + rid);
-  const isOpen = panel.classList.contains('open');
+async function loadReadContent(farbrengenId, targetElId, autoExpandText) {
+  const target = document.getElementById(targetElId);
+  if (readCache[farbrengenId]) { target.innerHTML = readCache[farbrengenId]; return; }
 
-  if (isOpen) {
-    panel.classList.remove('open');
-    return;
-  }
-
-  panel.classList.add('open');
-  btn.style.color = '#1f5e3a';
-
-  if (readCache[farbrengenId]) {
-    panel.innerHTML = readCache[farbrengenId];
-    return;
-  }
-
-  panel.innerHTML = '<div class="read-empty">Loading source text…</div>';
+  target.innerHTML = '<div class="read-empty">Loading source text…</div>';
   try {
     const r = await fetch('/api/get-farbrengen-text?farbrengenId=' + farbrengenId);
     const j = await r.json();
@@ -749,15 +861,31 @@ async function toggleRead(rid, farbrengenId) {
           + (s.summary_en ? '<div class="rsummary">' + esc(s.summary_en) + '</div>' : '')
           + (s.tags||[]).map(t => '<span class="read-tag">' + esc(t) + '</span>').join('')
           + '<div class="read-expand" onclick="document.getElementById(\'' + textId + '\').classList.toggle(\'expanded\')">Show full Hebrew text ▾</div>'
-          + '<div class="read-fulltext" id="' + textId + '">' + esc(s.source_text) + '</div>'
+          + '<div class="read-fulltext' + (autoExpandText ? ' expanded' : '') + '" id="' + textId + '">' + esc(s.source_text) + '</div>'
         + '</div>';
       }).join('');
     }
     readCache[farbrengenId] = html;
-    panel.innerHTML = html;
+    target.innerHTML = html;
   } catch (e) {
-    panel.innerHTML = '<div class="read-empty">Could not load source text: ' + esc(e.message) + '</div>';
+    target.innerHTML = '<div class="read-empty">Could not load source text: ' + esc(e.message) + '</div>';
   }
+}
+
+async function toggleRead(rid, farbrengenId) {
+  const panel = document.getElementById('readpanel-' + rid);
+  const btn = document.getElementById('readbtn-' + rid);
+  const isOpen = panel.classList.contains('open');
+
+  if (isOpen) { panel.classList.remove('open'); return; }
+
+  panel.classList.add('open');
+  btn.style.color = '#1f5e3a';
+  panel.innerHTML = '<div class="read-empty">Loading…</div>';
+
+  const tempId = 'temp-' + rid;
+  panel.innerHTML = '<div id="' + tempId + '"></div>';
+  await loadReadContent(farbrengenId, tempId, false);
 }
 
 document.getElementById('q').addEventListener('input', debouncedSearch);
