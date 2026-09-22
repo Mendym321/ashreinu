@@ -163,6 +163,54 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 
 .empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Fraunces',serif;font-style:italic}
 
+/* ═══ Today's date strip ═══ */
+.today-strip{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#a39a86;margin-top:2px}
+.today-strip strong{color:#e8ddc8;font-weight:600}
+
+/* ═══ Homepage sections ═══ */
+.home-section{margin-bottom:34px}
+.home-section-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.home-section-head h3{font-family:'Fraunces',serif;font-weight:500;font-size:19px;color:var(--ink);letter-spacing:-0.005em}
+.home-section-head span{font-size:12px;color:var(--ink-light)}
+
+.otd-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;margin:0 -28px;padding-left:28px;padding-right:28px;scroll-snap-type:x proximity}
+.otd-scroll::-webkit-scrollbar{height:6px}
+.otd-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.otd-card{flex:0 0 auto;width:200px;background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;scroll-snap-align:start;box-shadow:var(--shadow-sm)}
+.otd-card:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.otd-year{font-family:'Fraunces',serif;font-size:22px;font-weight:500;color:var(--gold-dim);margin-bottom:6px}
+.otd-name{font-size:13px;color:var(--ink-mid);line-height:1.5}
+.otd-empty{font-size:13.5px;color:var(--ink-light);font-style:italic;padding:20px 0}
+
+.browse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.month-tile{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px 14px;cursor:pointer;transition:all .15s;text-align:center;box-shadow:var(--shadow-sm)}
+.month-tile:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.month-tile .mname{font-family:'Fraunces',serif;font-size:15px;color:var(--ink);font-weight:500}
+
+.type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.type-tile{border-radius:14px;padding:20px 18px;cursor:pointer;transition:all .15s;color:#fff;position:relative;overflow:hidden;min-height:88px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:var(--shadow-sm)}
+.type-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.type-tile .ttitle{font-family:'Fraunces',serif;font-size:17px;font-weight:500;position:relative;z-index:1}
+.type-tile .ticon{position:absolute;right:-6px;bottom:-10px;opacity:0.25;width:64px;height:64px}
+.tile-sicha{background:linear-gradient(135deg,#3a63c9,#22397a)}
+.tile-maamar{background:linear-gradient(135deg,#9a4bc9,#5c2a7a)}
+.tile-farb{background:linear-gradient(135deg,#3a9a5f,#1f5e3a)}
+.tile-niggun{background:linear-gradient(135deg,#c98a3a,#8a5a1a)}
+
+.collection-tile{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm)}
+.collection-tile:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.collection-tile .cname{font-family:'Fraunces',serif;font-size:15.5px;color:var(--ink);font-weight:500}
+.collection-tile .cdate{font-size:11.5px;color:var(--ink-light);margin-top:3px}
+
+.year-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin:0 -28px;padding-left:28px;padding-right:28px}
+.year-scroll::-webkit-scrollbar{height:6px}
+.year-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.year-chip-tile{flex:0 0 auto;background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:10px 18px;cursor:pointer;transition:all .15s;font-family:'Fraunces',serif;font-size:15px;color:var(--ink-mid);box-shadow:var(--shadow-sm)}
+.year-chip-tile:hover{border-color:var(--gold);color:var(--gold-dim)}
+
+.filters-row-wrap{display:none}
+.filters-row-wrap.active{display:flex}
+
 /* ═══ Persistent bottom player ═══ */
 .player-bar{
   position:fixed;bottom:0;left:0;right:0;
@@ -212,13 +260,14 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
         <span>Archive Search</span>
       </div>
     </div>
+    <div class="today-strip" id="todayStrip"></div>
     <div class="search-box">
       <input type="text" id="q" placeholder="Search farbrengens, sichos, ma'amarim…" autocomplete="off" />
       <div class="search-icon" id="searchIcon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </div>
     </div>
-    <div class="filter-row">
+    <div class="filter-row filters-row-wrap" id="filterRow">
       <div class="segmented">
         <button class="seg-btn active" data-type="" onclick="setType('',this)">All</button>
         <button class="seg-btn" data-type="sicha" onclick="setType('sicha',this)">Sicha</button>
@@ -244,21 +293,7 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 
 <div class="wrap">
   <div id="rmeta"></div>
-  <div id="res">
-    <div class="landing">
-      <div class="landing-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </div>
-      <h2>Search the Ashreinu archive</h2>
-      <p>Every farbrengen, sicha, and ma'amar — searchable by title, filterable by type, year, and month.</p>
-      <div class="landing-examples">
-        <span class="example-pill" onclick="quickSearch('Yud Shevat')">Yud Shevat</span>
-        <span class="example-pill" onclick="quickSearch('Sicha 1')">Sicha 1</span>
-        <span class="example-pill" onclick="quickSearch('Rosh Hashana')">Rosh Hashana</span>
-        <span class="example-pill" onclick="quickSearch('Simchas Torah')">Simchas Torah</span>
-      </div>
-    </div>
-  </div>
+  <div id="res"></div>
 </div>
 
 <div class="player-bar" id="playerBar">
@@ -283,7 +318,30 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 
 <script>
 let currentType = '';
+let currentDates = null; // active collection filter: [[month,day], ...] or null
 let debounceTimer = null;
+
+// ── Curated collections: named occasions mapped to their real Hebrew date(s).
+// Multi-day chagim list every day; some (like Chanukah) cross a month boundary.
+const COLLECTIONS = [
+  { name: "Yud-Tes Kislev", sub: "19 Kislev", dates: [[3,19]] },
+  { name: "Chanukah", sub: "25 Kislev – 3 Tevet", dates: [[3,25],[3,26],[3,27],[3,28],[3,29],[3,30],[4,1],[4,2],[4,3]] },
+  { name: "Yud Shevat", sub: "10 Shevat", dates: [[5,10]] },
+  { name: "Purim", sub: "14 Adar", dates: [[6,14]] },
+  { name: "Erev Pesach", sub: "14 Nissan", dates: [[7,14]] },
+  { name: "Pesach", sub: "15–22 Nissan", dates: [[7,15],[7,16],[7,17],[7,18],[7,19],[7,20],[7,21],[7,22]] },
+  { name: "Lag BaOmer", sub: "18 Iyar", dates: [[8,18]] },
+  { name: "Erev Shavuos", sub: "5 Sivan", dates: [[9,5]] },
+  { name: "Shavuos", sub: "6–7 Sivan", dates: [[9,6],[9,7]] },
+  { name: "Gimmel Tammuz", sub: "3 Tammuz", dates: [[10,3]] },
+  { name: "Yud-Beis Tammuz", sub: "12 Tammuz", dates: [[10,12]] },
+  { name: "Erev Rosh Hashanah", sub: "29 Elul", dates: [[12,29]] },
+  { name: "Rosh Hashanah", sub: "1–2 Tishrei", dates: [[1,1],[1,2]] },
+  { name: "Yom Kippur", sub: "10 Tishrei", dates: [[1,10]] },
+  { name: "Erev Sukkos", sub: "14 Tishrei", dates: [[1,14]] },
+  { name: "Sukkos", sub: "15–21 Tishrei", dates: [[1,15],[1,16],[1,17],[1,18],[1,19],[1,20],[1,21]] },
+  { name: "Shmini Atzeres & Simchas Torah", sub: "22–23 Tishrei", dates: [[1,22],[1,23]] },
+];
 
 function getAudioUrl(row) {
   if (!row.audio_uri) return null;
@@ -328,11 +386,13 @@ const bookIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 
 function setType(t, el) {
   currentType = t;
+  currentDates = null;
   document.querySelectorAll('.seg-btn').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   search();
 }
 function quickSearch(term) {
+  currentDates = null;
   document.getElementById('q').value = term;
   search();
 }
@@ -347,10 +407,12 @@ async function search() {
   const yf = document.getElementById('yf').value;
   const mf = document.getElementById('mf').value;
 
-  if (!q && !currentType && !yf && !mf) {
+  if (!q && !currentType && !yf && !mf && !currentDates) {
+    document.getElementById('filterRow').classList.remove('active');
     showLanding();
     return;
   }
+  document.getElementById('filterRow').classList.add('active');
 
   const myToken = ++searchToken;
   document.getElementById('searchIcon').classList.add('loading');
@@ -361,6 +423,7 @@ async function search() {
   if (currentType) params.set('type', currentType);
   if (yf) params.set('year', yf);
   if (mf) params.set('month', mf);
+  if (currentDates) params.set('dates', JSON.stringify(currentDates));
 
   try {
     const r = await fetch('/api/search?' + params.toString());
@@ -375,10 +438,11 @@ async function search() {
     }
 
     const results = j.results || [];
+    const collectionName = currentDates ? document.getElementById('rmeta').dataset.collectionName : null;
     document.getElementById('rmeta').textContent =
       results.length + ' result' + (results.length !== 1 ? 's' : '') +
       (results.length >= 200 ? ' (first 200)' : '') +
-      (q ? ' for "' + q + '"' : '');
+      (collectionName ? ' for ' + collectionName : (q ? ' for "' + q + '"' : ''));
 
     renderCards(results);
   } catch (e) {
@@ -387,19 +451,153 @@ async function search() {
   }
 }
 
-function showLanding() {
+// ── Hebrew calendar awareness ──
+const HEBCAL_MONTH_MAP = {
+  'Tishrei':1,'Cheshvan':2,'Kislev':3,'Tevet':4,"Sh'vat":5,'Shevat':5,
+  'Adar':6,'Adar I':6,'Adar II':6,'Nisan':7,'Nissan':7,'Iyyar':8,'Iyar':8,
+  'Sivan':9,'Tamuz':10,'Tammuz':11,'Av':11,'Elul':12
+};
+let todayHebrew = null; // { year, month, day, monthName, displayStr }
+
+async function loadTodayHebrewDate() {
+  try {
+    const now = new Date();
+    const gy = now.getFullYear(), gm = now.getMonth()+1, gd = now.getDate();
+    const r = await fetch(`https://www.hebcal.com/converter?cfg=json&gy=${gy}&gm=${gm}&gd=${gd}&g2h=1`);
+    const j = await r.json();
+    const monthNum = HEBCAL_MONTH_MAP[j.hm] || null;
+    todayHebrew = { year: j.hy, month: monthNum, day: j.hd, monthName: j.hm };
+    document.getElementById('todayStrip').innerHTML =
+      '<span>Today: <strong>' + esc(j.hd) + ' ' + esc(j.hm) + ' ' + esc(j.hy) + '</strong></span>';
+  } catch (e) {
+    document.getElementById('todayStrip').textContent = '';
+  }
+}
+
+const MONTH_LIST = ['Tishrei','Cheshvan','Kislev','Tevet','Shevat','Adar','Nissan','Iyar','Sivan','Tammuz','Av','Elul'];
+
+function browseByMonth(monthName) {
+  currentDates = null;
+  document.getElementById('mf').value = monthName;
+  search();
+}
+function browseByType(type) {
+  currentDates = null;
+  currentType = type;
+  document.querySelectorAll('.seg-btn').forEach(c => c.classList.remove('active'));
+  document.querySelector('.seg-btn[data-type="'+type+'"]')?.classList.add('active');
+  document.getElementById('q').value = '';
+  search();
+}
+function browseByCollection(idx) {
+  const c = COLLECTIONS[idx];
+  currentDates = c.dates;
+  currentType = '';
+  document.getElementById('q').value = '';
+  document.getElementById('yf').value = '';
+  document.getElementById('mf').value = '';
+  document.querySelectorAll('.seg-btn').forEach(el => el.classList.remove('active'));
+  document.querySelector('.seg-btn[data-type=""]')?.classList.add('active');
+  document.getElementById('rmeta').dataset.collectionName = c.name;
+  search();
+}
+function browseByYear(year) {
+  currentDates = null;
+  document.getElementById('yf').value = year;
+  search();
+}
+
+async function showLanding() {
   document.getElementById('rmeta').textContent = '';
+
+  const typeGridHtml = `
+    <div class="home-section">
+      <div class="home-section-head"><h3>Browse by type</h3></div>
+      <div class="type-grid">
+        <div class="type-tile tile-sicha" onclick="browseByType('sicha')"><div class="ttitle">Sichos</div></div>
+        <div class="type-tile tile-maamar" onclick="browseByType('maamar')"><div class="ttitle">Ma'amarim</div></div>
+        <div class="type-tile tile-farb" onclick="browseByType('farbrengen')"><div class="ttitle">Farbrengens</div></div>
+        <div class="type-tile tile-niggun" onclick="browseByType('niggun')"><div class="ttitle">Niggunim</div></div>
+      </div>
+    </div>`;
+
+  const monthGridHtml = `
+    <div class="home-section">
+      <div class="home-section-head"><h3>Browse by Hebrew month</h3></div>
+      <div class="browse-grid">
+        ${MONTH_LIST.map(m => `<div class="month-tile" onclick="browseByMonth('${m}')"><div class="mname">${m}</div></div>`).join('')}
+      </div>
+    </div>`;
+
+  const collectionsHtml = `
+    <div class="home-section">
+      <div class="home-section-head"><h3>Collections</h3><span>Browse by occasion</span></div>
+      <div class="browse-grid">
+        ${COLLECTIONS.map((c, i) => `<div class="collection-tile" onclick="browseByCollection(${i})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`).join('')}
+      </div>
+    </div>`;
+
   document.getElementById('res').innerHTML =
-    '<div class="landing">'
-    +'<div class="landing-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>'
-    +'<h2>Search the Ashreinu archive</h2>'
-    +'<p>Every farbrengen, sicha, and ma\'amar — searchable by title, filterable by type, year, and month.</p>'
-    +'<div class="landing-examples">'
-    +'<span class="example-pill" onclick="quickSearch(\'Yud Shevat\')">Yud Shevat</span>'
-    +'<span class="example-pill" onclick="quickSearch(\'Sicha 1\')">Sicha 1</span>'
-    +'<span class="example-pill" onclick="quickSearch(\'Rosh Hashana\')">Rosh Hashana</span>'
-    +'<span class="example-pill" onclick="quickSearch(\'Simchas Torah\')">Simchas Torah</span>'
-    +'</div></div>';
+    '<div class="home-section" id="otdSection" style="display:none">'
+      + '<div class="home-section-head"><h3>On This Day</h3><span id="otdSubtitle"></span></div>'
+      + '<div class="otd-scroll" id="otdScroll"><div class="otd-empty">Loading…</div></div>'
+    + '</div>'
+    + typeGridHtml
+    + collectionsHtml
+    + monthGridHtml
+    + '<div class="home-section" id="yearSection" style="display:none">'
+      + '<div class="home-section-head"><h3>Browse by year</h3></div>'
+      + '<div class="year-scroll" id="yearScroll"><div class="otd-empty">Loading…</div></div>'
+    + '</div>';
+
+  loadOnThisDay();
+  loadYearList();
+}
+
+async function loadYearList() {
+  try {
+    const r = await fetch('/api/search?distinct=years');
+    const j = await r.json();
+    const years = j.years || [];
+    if (!years.length) return;
+    document.getElementById('yearSection').style.display = 'block';
+    document.getElementById('yearScroll').innerHTML = years.map(y =>
+      '<div class="year-chip-tile" onclick="browseByYear(' + y + ')">' + y + '</div>'
+    ).join('');
+  } catch (e) { /* silently skip if this fails — not critical */ }
+}
+
+async function loadOnThisDay() {
+  if (!todayHebrew || !todayHebrew.month) return;
+  try {
+    const r = await fetch(`/api/on-this-day?month=${todayHebrew.month}&day=${todayHebrew.day}`);
+    const j = await r.json();
+    const results = j.results || [];
+
+    document.getElementById('otdSection').style.display = 'block';
+    document.getElementById('otdSubtitle').textContent = todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years';
+
+    if (!results.length) {
+      document.getElementById('otdScroll').innerHTML = '<div class="otd-empty">No farbrengens recorded on this date yet.</div>';
+      return;
+    }
+
+    document.getElementById('otdScroll').innerHTML = results.map(row => {
+      const link = 'https://ashreinu.app/player?parentEvent=' + row.id;
+      return '<div class="otd-card" onclick="quickSearchYear(' + row.hebrew_year + ')">'
+        + '<div class="otd-year">' + row.hebrew_year + '</div>'
+        + '<div class="otd-name">' + esc(row.name) + '</div>'
+      + '</div>';
+    }).join('');
+  } catch (e) {
+    document.getElementById('otdScroll').innerHTML = '<div class="otd-empty">Could not load.</div>';
+  }
+}
+
+function quickSearchYear(year) {
+  document.getElementById('yf').value = year;
+  document.getElementById('q').value = todayHebrew.monthName;
+  search();
 }
 
 function showSkeletons() {
@@ -552,6 +750,12 @@ async function toggleRead(rid, farbrengenId) {
 
 document.getElementById('q').addEventListener('input', debouncedSearch);
 document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ clearTimeout(debounceTimer); search(); } });
+
+// ── Init ──
+(async function init() {
+  await loadTodayHebrewDate();
+  showLanding();
+})();
 </script>
 </body>
 </html>
