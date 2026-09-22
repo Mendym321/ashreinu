@@ -5,15 +5,15 @@ export default async function handler(req, res) {
   const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '' } = req.query;
 
   // Special mode: return distinct Hebrew years present in the data, for the
-  // "Browse by year" homepage row. Fetches years in manageable pages rather
-  // than every row, since we only need the distinct set.
+  // "Browse by year" homepage row — earliest first, so the scroll reads
+  // left-to-right in real chronological order.
   if (distinct === 'years') {
     const { data, error } = await supabase
       .from('ashreinu_events')
       .select('hebrew_year')
       .eq('type', 'Farbrengen')
       .not('hebrew_year', 'is', null)
-      .order('hebrew_year', { ascending: false })
+      .order('hebrew_year', { ascending: true })
       .limit(2000);
     if (error) return res.status(500).json({ error: error.message });
     const years = [...new Set(data.map(r => r.hebrew_year))];
@@ -23,14 +23,34 @@ export default async function handler(req, res) {
 
   let query = supabase.from('ashreinu_events').select('*', { count: 'exact' }).limit(parseInt(limit, 10));
 
+  // Tag search: if the query text matches a saved tag on any farbrengen's
+  // written text, fold that whole farbrengen (and all its sub-events) into
+  // the results too, alongside ordinary name matches.
+  let tagFarbrengenIds = [];
   if (q) {
     const safe = q.replace(/[%_]/g, '');
-    query = query.or(`name.ilike.%${safe}%,parent_name.ilike.%${safe}%`);
+    try {
+      const { data: tagMatches } = await supabase
+        .from('farbrengen_texts')
+        .select('farbrengen_id')
+        .contains('tags', [safe.toLowerCase()]);
+      tagFarbrengenIds = [...new Set((tagMatches || []).map(r => r.farbrengen_id))];
+    } catch (e) { /* tags table may not have matches — fine, just skip */ }
+
+    if (tagFarbrengenIds.length) {
+      const idList = tagFarbrengenIds.join(',');
+      query = query.or(`name.ilike.%${safe}%,parent_name.ilike.%${safe}%,id.in.(${idList}),parent_id.in.(${idList})`);
+    } else {
+      query = query.or(`name.ilike.%${safe}%,parent_name.ilike.%${safe}%`);
+    }
   }
+
+  // Type matching: Ashreinu's real field spellings are "Nigun" (one g) and
+  // "Ma'amar" (with an apostrophe) — plain substring checks were missing both.
   if (type === 'sicha') query = query.ilike('type', '%sicha%');
-  else if (type === 'maamar') query = query.ilike('type', '%maamar%');
+  else if (type === 'maamar') query = query.or(`type.ilike.%ma'amar%,type.ilike.%maamar%`);
   else if (type === 'farbrengen') query = query.eq('type', 'Farbrengen');
-  else if (type === 'niggun') query = query.ilike('type', '%niggun%');
+  else if (type === 'nigun') query = query.ilike('type', '%nigun%');
 
   if (year) query = query.eq('hebrew_year', parseInt(year, 10));
   if (month) query = query.eq('hebrew_month_name', month);
@@ -48,7 +68,14 @@ export default async function handler(req, res) {
     } catch (e) { /* ignore malformed dates param */ }
   }
 
-  query = query.order('secular_year', { ascending: false, nullsFirst: false });
+  // Chronological order: earliest year first, and within the same day, in
+  // the order events actually happened (id is sequential in recording order
+  // — Sicha 1, Nigun 1, Sicha 2... in the sequence they occurred).
+  query = query
+    .order('hebrew_year', { ascending: true, nullsFirst: false })
+    .order('hebrew_month', { ascending: true, nullsFirst: false })
+    .order('hebrew_day', { ascending: true, nullsFirst: false })
+    .order('id', { ascending: true });
 
   const { data, error, count } = await query;
   if (error) return res.status(500).json({ error: error.message });
