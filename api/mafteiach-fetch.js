@@ -13,21 +13,30 @@ export default async function handler(req, res) {
     if (!r.ok) return res.status(502).json({ error: `Mafteiach returned ${r.status}`, url });
     const html = await r.text();
 
-    // Pull out just the parts likely to contain Drive links and labels,
-    // so the response isn't the whole page's CSS/JS noise.
-    const driveLinks = [...html.matchAll(/<a[^>]+href="(https:\/\/drive\.google\.com[^"]+)"[^>]*>([^<]*)<\/a>/g)]
-      .map(m => ({ url: m[1], label: m[2] }));
+    // Find the "בלתי מוגה" (unedited/raw) section specifically — that's the
+    // source type we want, as distinct from "מוגה" (edited) or "מאמרים".
+    const biltiIdx = html.indexOf('בלתי מוגה');
+    const bilti = biltiIdx === -1 ? html : html.slice(biltiIdx, biltiIdx + 3000);
 
-    const h5Labels = [...html.matchAll(/<h5[^>]*>([^<]*)<\/h5>/g)].map(m => m[1]);
+    // Grab every Drive URL directly, regardless of exact surrounding tag
+    // structure or quoting style — much more robust than matching <a> tags.
+    const urlPattern = /https:\/\/drive\.google\.com\/[^\s"'<>\\]+/g;
+    const rawUrls = [...bilti.matchAll(urlPattern)].map(m => m[0]);
+
+    // For each URL, grab the link text that follows it (between > and <)
+    const linksWithLabels = rawUrls.map(url => {
+      const urlIdx = bilti.indexOf(url);
+      const after = bilti.slice(urlIdx, urlIdx + 300);
+      const labelMatch = after.match(/>([^<]{1,60})<\/a>/);
+      return { url, label: labelMatch ? labelMatch[1] : null };
+    });
 
     res.status(200).json({
       fetchedUrl: url,
       htmlLength: html.length,
-      driveLinksFound: driveLinks.length,
-      driveLinks,
-      h5Labels,
-      // include a chunk of raw HTML too, in case the regexes above miss the real structure
-      rawHtmlSample: html.slice(html.indexOf('drive.google') > 500 ? html.indexOf('drive.google') - 500 : 0, html.indexOf('drive.google') + 1500)
+      foundBiltiMugahSection: biltiIdx !== -1,
+      driveLinksInBiltiSection: linksWithLabels,
+      biltiSectionSample: bilti.slice(0, 1200)
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
