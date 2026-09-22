@@ -33,7 +33,7 @@ button:disabled{background:#ddd;color:#999}
 <div id="log"></div>
 
 <h3 style="font-size:14px;margin-bottom:8px">Full transcript</h3>
-<textarea id="transcript" readonly></textarea>
+<textarea id="transcript" placeholder="You can paste already-transcribed pages here, then fetch only the missing pages below, before clicking Split into sichos."></textarea>
 
 <h3 style="font-size:14px;margin-bottom:8px">Segmented sichos</h3>
 <div id="segments"></div>
@@ -48,12 +48,15 @@ async function run() {
 
   document.getElementById('go').disabled = true;
   document.getElementById('segBtn').disabled = true;
+
+  const transcriptBox = document.getElementById('transcript');
   if (startFrom === 1) {
-    document.getElementById('transcript').value = '';
+    transcriptBox.value = '';
     document.getElementById('segments').innerHTML = '';
-    window.pagesSoFar = [];
   }
-  window.pagesSoFar = window.pagesSoFar || [];
+  // Whatever's already in the box (pasted manually, or from an earlier run) is kept —
+  // new pages get appended after it, so you can paste known pages then fetch only the rest.
+  let existing = transcriptBox.value;
 
   log('Getting page count...');
   const infoRes = await fetch('/api/pdf-info?id=' + id);
@@ -63,33 +66,28 @@ async function run() {
   const total = info.totalPages;
   log('Found ' + total + ' pages. Transcribing from page ' + startFrom + '...');
 
-  const transcriptBox = document.getElementById('transcript');
   for (let p = startFrom; p <= total; p++) {
     log('Transcribing page ' + p + ' of ' + total + '...');
     try {
       const r = await fetch('/api/transcribe-page?id=' + id + '&page=' + p);
       const j = await r.json();
       if (j.error) {
-        log('  ! page ' + p + ' failed: ' + j.error + ' — you can resume from page ' + p + ' using the "Start from page" box');
+        log('  ! page ' + p + ' failed: ' + j.error + ' — you can resume from page ' + p + ' using the "Start from page" box (your progress so far is kept in the transcript box)');
         break;
       } else {
-        window.pagesSoFar.push(j.text);
         log('  -> ' + j.text.length + ' chars');
-        fullText = window.pagesSoFar.join('\n\n--- page break ---\n\n');
-        transcriptBox.value = fullText;
+        existing = existing ? (existing + '\n\n--- page break ---\n\n' + j.text) : j.text;
+        transcriptBox.value = existing;
         transcriptBox.scrollTop = transcriptBox.scrollHeight;
       }
     } catch (e) {
-      log('  ! page ' + p + ' error: ' + e.message + ' — you can resume from page ' + p + ' using the "Start from page" box');
+      log('  ! page ' + p + ' error: ' + e.message + ' — you can resume from page ' + p + ' using the "Start from page" box (your progress so far is kept in the transcript box)');
       break;
     }
     document.getElementById('fill').style.width = (p/total*100) + '%';
   }
 
-  log('Stopped. Total transcript so far: ' + fullText.length + ' characters.');
-  document.getElementById('go').disabled = false;
-  document.getElementById('segBtn').disabled = false;
-}
+  log('Stopped. Total transcript so far: ' + transcriptBox.value.length + ' characters.');
   document.getElementById('go').disabled = false;
   document.getElementById('segBtn').disabled = false;
 }
@@ -98,11 +96,13 @@ async function doSegment() {
   document.getElementById('segBtn').disabled = true;
   log('Asking Claude to split into sichos...');
 
+  const liveText = document.getElementById('transcript').value; // read whatever's actually in the box, including manual edits/pastes
+
   try {
     const r = await fetch('/api/segment-sichos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: fullText })
+      body: JSON.stringify({ text: liveText })
     });
     const j = await r.json();
 
