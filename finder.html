@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Farbrengen Text Finder</title>
+<style>
+body{font-family:-apple-system,sans-serif;background:#f5f3ee;padding:24px;max-width:800px;margin:0 auto;color:#12121f}
+h2{font-size:20px;margin-bottom:6px}
+p.sub{font-size:14px;color:#666;margin-bottom:20px}
+.row{display:flex;gap:8px;margin-bottom:12px}
+input[type=number]{width:100px;font-size:14px;padding:10px 12px;border:1px solid #ddd;border-radius:6px}
+button{font-size:14px;font-weight:600;padding:10px 20px;background:#c49a2a;color:#fff;border:none;border-radius:6px;cursor:pointer}
+button:disabled{background:#ddd;color:#999}
+.step{background:#fff;border:1px solid #e2dfd7;border-radius:8px;padding:14px 16px;margin-bottom:10px}
+.step h4{font-size:13px;color:#999;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.step .status{font-size:14px;color:#12121f}
+.step.done{border-color:#8a6}
+.step.error{border-color:#c55}
+.bar{height:6px;background:#e2dfd7;border-radius:3px;overflow:hidden;margin:10px 0}
+.fill{height:100%;background:#c49a2a;width:0%;transition:width .3s}
+#log{font-size:12px;color:#444;white-space:pre-wrap;background:#fff;border:1px solid #e2dfd7;border-radius:6px;padding:12px;max-height:200px;overflow:auto;line-height:1.6;margin-top:14px}
+.seg{background:#fff;border:1px solid #e2dfd7;border-radius:8px;padding:14px;margin-bottom:10px}
+.seg h4{font-family:Georgia,serif;font-size:16px;margin-bottom:6px}
+.seg .summary{font-size:13px;color:#444;margin-bottom:8px}
+.tag{display:inline-block;font-size:11px;background:#fdf1d0;color:#8a6420;padding:2px 8px;border-radius:12px;margin:0 4px 4px 0}
+</style>
+</head>
+<body>
+<h2>Farbrengen Text Finder</h2>
+<p class="sub">Enter a Hebrew date. This will automatically find the farbrengen, locate its source text on Mafteiach, transcribe it, split it into sichos, tag each one, and save it — all in one run.</p>
+
+<div class="row">
+  <input type="number" id="year" placeholder="Year (5712)" />
+  <input type="number" id="month" placeholder="Month (1-13)" />
+  <input type="number" id="day" placeholder="Day" />
+  <button id="go" onclick="run()">Find & Process</button>
+</div>
+
+<div class="bar"><div class="fill" id="fill"></div></div>
+
+<div id="steps">
+  <div class="step" id="step-farbrengen"><h4>1. Find farbrengen</h4><div class="status">Waiting...</div></div>
+  <div class="step" id="step-mafteiach"><h4>2. Find source text on Mafteiach</h4><div class="status">Waiting...</div></div>
+  <div class="step" id="step-transcribe"><h4>3. Transcribe pages</h4><div class="status">Waiting...</div></div>
+  <div class="step" id="step-segment"><h4>4. Split into sichos + tag</h4><div class="status">Waiting...</div></div>
+  <div class="step" id="step-save"><h4>5. Save to database</h4><div class="status">Waiting...</div></div>
+</div>
+
+<div id="log"></div>
+<div id="results"></div>
+
+<script>
+function setStep(id, status, cls) {
+  const el = document.getElementById('step-' + id);
+  el.querySelector('.status').textContent = status;
+  el.className = 'step' + (cls ? ' ' + cls : '');
+}
+function log(msg) {
+  const el = document.getElementById('log');
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+function prog(pct) {
+  document.getElementById('fill').style.width = pct + '%';
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+async function run() {
+  const year = document.getElementById('year').value.trim();
+  const month = document.getElementById('month').value.trim();
+  const day = document.getElementById('day').value.trim();
+  if (!year || !month || !day) return alert('Enter year, month, and day');
+
+  document.getElementById('go').disabled = true;
+  document.getElementById('results').innerHTML = '';
+  ['farbrengen','mafteiach','transcribe','segment','save'].forEach(s => setStep(s, 'Waiting...', ''));
+  prog(0);
+
+  // Step 1: find the farbrengen
+  setStep('farbrengen', 'Looking up...', '');
+  const fRes = await fetch(`/api/find-farbrengen?year=${year}&month=${month}&day=${day}`);
+  const fJson = await fRes.json();
+  if (fJson.error || !fJson.matches?.length) {
+    setStep('farbrengen', 'Not found in our index — ' + (fJson.error || 'no farbrengen on this date'), 'error');
+    document.getElementById('go').disabled = false;
+    return;
+  }
+  const farbrengen = fJson.matches[0];
+  setStep('farbrengen', `Found: ${farbrengen.name} (id ${farbrengen.id})`, 'done');
+  prog(10);
+
+  // Step 2: find the Mafteiach source
+  setStep('mafteiach', 'Fetching Mafteiach page...', '');
+  const mRes = await fetch(`/api/mafteiach-fetch?year=${year}&month=${month}&day=${day}`);
+  const mJson = await mRes.json();
+  if (!mJson.foundBiltiMugahSection || !mJson.driveLinksInBiltiSection?.length) {
+    setStep('mafteiach', 'No בלתי מוגה section found on Mafteiach for this date', 'error');
+    document.getElementById('go').disabled = false;
+    return;
+  }
+  const tomLink = mJson.driveLinksInBiltiSection.find(l => l.label && l.label.includes('תו"מ'))
+    || mJson.driveLinksInBiltiSection[mJson.driveLinksInBiltiSection.length - 1];
+  const driveMatch = tomLink.url.match(/[-\w]{25,}/);
+  const driveFileId = driveMatch ? driveMatch[0] : null;
+  if (!driveFileId) {
+    setStep('mafteiach', 'Found links but could not extract a file ID', 'error');
+    document.getElementById('go').disabled = false;
+    return;
+  }
+  setStep('mafteiach', `Found: "${tomLink.label}" (${driveFileId})`, 'done');
+  prog(20);
+
+  // Step 3: transcribe every page
+  setStep('transcribe', 'Getting page count...', '');
+  const infoRes = await fetch(`/api/pdf-info?id=${driveFileId}`);
+  const info = await infoRes.json();
+  if (info.error) {
+    setStep('transcribe', 'Error: ' + info.error, 'error');
+    document.getElementById('go').disabled = false;
+    return;
+  }
+  const total = info.totalPages;
+  let pages = [];
+  for (let p = 1; p <= total; p++) {
+    setStep('transcribe', `Page ${p} of ${total}...`, '');
+    log(`Transcribing page ${p}/${total}...`);
+    try {
+      const r = await fetch(`/api/transcribe-page?id=${driveFileId}&page=${p}`);
+      const j = await r.json();
+      if (j.error) {
+        log(`  ! page ${p} failed: ${j.error}`);
+      } else {
+        pages.push(j.text);
+        log(`  -> ${j.text.length} chars`);
+      }
+    } catch (e) {
+      log(`  ! page ${p} error: ${e.message}`);
+    }
+    prog(20 + (p / total) * 50);
+  }
+  const fullText = pages.join('\n\n--- page break ---\n\n');
+  setStep('transcribe', `Done — ${fullText.length} characters across ${total} pages`, 'done');
+
+  // Step 4: segment + tag
+  setStep('segment', 'Asking Claude to split and tag...', '');
+  const segRes = await fetch('/api/segment-sichos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: fullText })
+  });
+  const segJson = await segRes.json();
+  if (segJson.error) {
+    setStep('segment', 'Error: ' + segJson.error, 'error');
+    document.getElementById('go').disabled = false;
+    return;
+  }
+  const validSegments = segJson.segments.filter(s => s.text);
+  const failedCount = segJson.segments.length - validSegments.length;
+  setStep('segment', `Found ${segJson.segments.length} sichos${failedCount ? ` (${failedCount} could not be located)` : ''}`, 'done');
+  prog(85);
+
+  // Step 5: save
+  setStep('save', 'Saving to database...', '');
+  const saveRes = await fetch('/api/save-segments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      farbrengenId: farbrengen.id,
+      hebrewYear: parseInt(year, 10),
+      hebrewMonth: parseInt(month, 10),
+      hebrewDay: parseInt(day, 10),
+      driveFileId,
+      sourceType: 'toras_menachem',
+      segments: segJson.segments
+    })
+  });
+  const saveJson = await saveRes.json();
+  if (saveJson.error) {
+    setStep('save', 'Error: ' + saveJson.error, 'error');
+  } else {
+    setStep('save', `Saved ${saveJson.saved} segments`, 'done');
+  }
+  prog(100);
+
+  // Show results
+  document.getElementById('results').innerHTML = validSegments.map((s, i) =>
+    `<div class="seg">
+      <h4>${i+1}. ${esc(s.titleEn)}</h4>
+      <div class="summary">${esc(s.summaryEn || '')}</div>
+      <div>${(s.tags||[]).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+    </div>`
+  ).join('');
+
+  document.getElementById('go').disabled = false;
+}
+</script>
+</body>
+</html>
