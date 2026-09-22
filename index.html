@@ -98,7 +98,7 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 .results-list{display:flex;flex-direction:column;gap:9px}
 .card{
   background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
-  padding:17px 19px;transition:all .16s;box-shadow:var(--shadow-sm);
+  padding:17px 19px;margin-bottom:10px;transition:all .16s;box-shadow:var(--shadow-sm);
 }
 .card:hover{border-color:var(--border);box-shadow:var(--shadow-md);transform:translateY(-1px)}
 .card.playing{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),var(--shadow-md);background:var(--gold-bg)}
@@ -163,48 +163,70 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 .read-expand:hover{color:var(--gold-dim)}
 .read-empty{font-size:13px;color:var(--ink-light);font-style:italic;padding:8px 0}
 
-/* ═══ Expanded "Now Playing" view ═══ */
+/* ═══ Expanded "Now Playing" — bottom sheet, not a full takeover ═══ */
+.np-backdrop{position:fixed;inset:0;background:rgba(27,23,18,0.4);z-index:39;display:none}
+.np-backdrop.open{display:block}
 .now-playing-overlay{
-  position:fixed;inset:0;background:var(--bg);z-index:40;display:none;
-  flex-direction:column;
+  position:fixed;left:0;right:0;bottom:0;top:12vh;background:var(--bg);z-index:40;
+  display:none;flex-direction:column;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,0.25);
+  overflow:hidden;
 }
 .now-playing-overlay.open{display:flex}
-.np-topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:var(--ink);flex-shrink:0}
+.np-topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--ink);flex-shrink:0}
 .np-topbar button{background:none;border:none;color:#e8ddc8;cursor:pointer;padding:8px;border-radius:8px;display:flex;transition:background .15s}
 .np-topbar button:hover{background:rgba(255,255,255,0.08)}
 .np-topbar button svg{width:22px;height:22px}
 .np-topbar .np-label{font-size:11px;color:#8a8270;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
 
-.np-scroll{flex:1;overflow-y:auto;padding:32px 28px 40px}
+.np-scroll{flex:1;overflow-y:auto;padding:28px 28px 20px;min-height:0}
 .np-inner{max-width:640px;margin:0 auto}
 
-.np-hero{text-align:center;margin-bottom:28px}
+.np-hero{text-align:center;margin-bottom:8px}
 .np-type-badge{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:4px 12px;border-radius:20px;margin-bottom:14px}
-.np-title{font-family:'Fraunces',serif;font-weight:500;font-size:28px;color:var(--ink);line-height:1.25;margin-bottom:8px}
+.np-title{font-family:'Fraunces',serif;font-weight:500;font-size:26px;color:var(--ink);line-height:1.25;margin-bottom:8px}
 .np-parent{font-family:'Fraunces',serif;font-style:italic;font-size:15px;color:var(--ink-light);margin-bottom:4px}
 .np-date{font-size:13px;color:var(--ink-light)}
 
-.np-controls{margin:28px 0 8px}
+.np-divider{border-top:1px solid var(--border);margin:24px 0}
+.np-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-light);margin-bottom:14px}
+.np-empty{font-size:14px;color:var(--ink-light);font-style:italic;text-align:center;padding:30px 0}
+
+/* Fixed control bar at the bottom of the sheet — always reachable, never scrolls away */
+.np-controls-bar{flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);padding:14px 28px 18px}
+.np-controls-inner{max-width:420px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.np-skip-btn{background:none;border:none;color:var(--ink-mid);cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all .15s;flex-shrink:0}
+.np-skip-btn:hover{background:var(--bg);color:var(--ink)}
+.np-skip-btn svg{width:20px;height:20px}
+.np-skip-btn:disabled{opacity:0.3;cursor:default}
+.np-skip-btn:disabled:hover{background:none}
 .np-play-btn{
-  width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#d9a63f,#a3762f);border:none;margin:0 auto 16px;
+  width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#d9a63f,#a3762f);border:none;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;box-shadow:0 4px 16px rgba(163,118,47,0.3);
 }
 .np-play-btn:hover{transform:scale(1.05)}
-.np-play-btn svg{width:26px;height:26px;fill:#1a1408}
-.np-progress-row{display:flex;align-items:center;gap:10px;max-width:420px;margin:0 auto}
-.np-time{font-size:11px;color:var(--ink-light);font-variant-numeric:tabular-nums;width:36px}
+.np-play-btn svg{width:22px;height:22px;fill:#1a1408}
+.np-progress-col{flex:1;min-width:0}
+.np-progress-row{display:flex;align-items:center;gap:8px}
+.np-time{font-size:11px;color:var(--ink-light);font-variant-numeric:tabular-nums;width:32px;flex-shrink:0}
 .np-scrubber{flex:1;height:5px;background:var(--border);border-radius:3px;position:relative;cursor:pointer}
 .np-scrubber-fill{height:100%;background:var(--gold);border-radius:3px;width:0%}
-
-.np-divider{border-top:1px solid var(--border);margin:32px 0}
-.np-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-light);margin-bottom:14px}
-.np-empty{font-size:14px;color:var(--ink-light);font-style:italic;text-align:center;padding:30px 0}
 
 /* Player bar gets a chevron to expand */
 .player-expand-btn{width:32px;height:32px;border-radius:50%;background:none;border:none;color:#7a7364;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .player-expand-btn:hover{color:#f3ede0;background:rgba(255,255,255,0.06)}
 .player-expand-btn svg{width:16px;height:16px}
 .player-bar-clickable{cursor:pointer}
+
+/* ═══ Group-by-farbrengen results ═══ */
+.farb-group{margin-bottom:18px}
+.farb-group-head{
+  display:flex;align-items:baseline;gap:10px;padding:10px 4px;margin-bottom:6px;
+  border-bottom:1px solid var(--border);cursor:pointer;
+}
+.farb-group-head h4{font-family:'Fraunces',serif;font-weight:500;font-size:16px;color:var(--ink)}
+.farb-group-head .fg-date{font-size:12px;color:var(--ink-light)}
+.farb-group-head .fg-count{font-size:11.5px;color:var(--ink-light);margin-left:auto}
+.farb-group-items{display:flex;flex-direction:column;gap:8px}
 
 .empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Fraunces',serif;font-style:italic}
 
@@ -363,6 +385,7 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 </div>
 <audio id="audioEl"></audio>
 
+<div class="np-backdrop" id="npBackdrop" onclick="closeNowPlaying()"></div>
 <div class="now-playing-overlay" id="npOverlay">
   <div class="np-topbar">
     <span class="np-label">Now Playing</span>
@@ -379,20 +402,30 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
         <div class="np-date" id="npDate"></div>
       </div>
 
-      <div class="np-controls">
-        <button class="np-play-btn" id="npPlayBtn" onclick="togglePlayPause()">
-          <svg id="npPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-        </button>
-        <div class="np-progress-row">
-          <span class="np-time" id="npCur">0:00</span>
-          <div class="np-scrubber" id="npScrub" onclick="seekTo(event, true)"><div class="np-scrubber-fill" id="npFill"></div></div>
-          <span class="np-time" id="npDur">0:00</span>
-        </div>
-      </div>
-
       <div class="np-divider"></div>
       <div class="np-section-label">Source Text</div>
       <div id="npReadContent"><div class="np-empty">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="np-controls-bar">
+    <div class="np-controls-inner">
+      <button class="np-skip-btn" id="npPrevBtn" onclick="playPrev()" title="Previous">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button class="np-play-btn" id="npPlayBtn" onclick="togglePlayPause()">
+        <svg id="npPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="np-skip-btn" id="npNextBtn" onclick="playNext()" title="Next">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zm-9.5 6L15 6v12z"/></svg>
+      </button>
+      <div class="np-progress-col">
+        <div class="np-progress-row">
+          <span class="np-time" id="npCur">0:00</span>
+          <div class="np-scrubber" id="npScrub" onclick="seekTo(event)"><div class="np-scrubber-fill" id="npFill"></div></div>
+          <span class="np-time" id="npDur">0:00</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -703,44 +736,90 @@ function showSkeletons() {
 // Track full row data by id so playTrack/openNowPlaying can pull rich
 // metadata (parent name, date, type) without re-parsing the DOM.
 const rowsById = {};
+let currentOrder = []; // rids with audio, in the order they appear — powers next/prev
+
+function cardHtml(row) {
+  const d = row.duration_ms;
+  const lbl = typeLabel(row.type);
+  const audioUrl = getAudioUrl(row);
+  const rid = String(row.id);
+  const link = lnk(row);
+  const titleAttr = esc(row.name||'').replace(/'/g,"\\'");
+  const farbrengenId = row.parent_id || row.id;
+  rowsById[rid] = row;
+  if (audioUrl) currentOrder.push(rid);
+
+  return '<div class="card" id="card-'+rid+'">'
+    +'<div class="ctop">'
+      +'<div class="type-badge '+typeDot(row.type)+'"></div>'
+      +'<div class="card-body">'
+        +'<div class="card-toprow">'
+          +'<a class="cname" href="'+link+'" target="_blank">'+esc(row.name||'(untitled)')+'</a>'
+          +(lbl?'<span class="ctype-label">'+esc(lbl)+'</span>':'')
+        +'</div>'
+        +(row.parent_name?'<div class="cpar">In <span>'+esc(row.parent_name)+'</span></div>':'')
+        +'<div class="cmeta-row">'
+          +(dstr(row)?'<span class="cmeta-item">'+calIcon+esc(dstr(row))+'</span>':'')
+          +(d?'<span class="cmeta-item">'+clockIcon+dur(d)+'</span>':'')
+          +'<div class="action-row">'
+          +(audioUrl?'<span class="play-toggle" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+playIcon+'Play</span>':'')
+          +'<span class="read-toggle" id="readbtn-'+rid+'" onclick="toggleRead(\''+rid+'\','+farbrengenId+')">'+bookIcon+'Read source</span>'
+          +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu'+extIcon+'</a>'
+          +'</div>'
+        +'</div>'
+        +'<div class="read-panel" id="readpanel-'+rid+'"></div>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+}
 
 function renderCards(items) {
   const el = document.getElementById('res');
   if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; return; }
+  currentOrder = [];
 
-  el.innerHTML = '<div class="results-list">' + items.map(row => {
-    const d = row.duration_ms;
-    const lbl = typeLabel(row.type);
-    const audioUrl = getAudioUrl(row);
-    const rid = String(row.id);
-    const link = lnk(row);
-    const titleAttr = esc(row.name||'').replace(/'/g,"\\'");
-    const farbrengenId = row.parent_id || row.id;
-    rowsById[rid] = row;
+  // Group consecutive items that belong to the same farbrengen (results
+  // already come back in chronological order, so same-farbrengen items
+  // are naturally adjacent) — shows sichos/niggunim/ma'amarim nested under
+  // their farbrengen instead of a flat list.
+  const groups = [];
+  let lastKey = null;
+  for (const row of items) {
+    const isFarbrengen = row.type === 'Farbrengen';
+    const key = row.parent_id || row.id;
+    if (key === lastKey && groups.length) {
+      groups[groups.length - 1].items.push(row);
+      if (isFarbrengen) groups[groups.length - 1].farbrengenRow = row;
+    } else {
+      groups.push({ key, items: [row], farbrengenRow: isFarbrengen ? row : null });
+      lastKey = key;
+    }
+  }
 
-    return '<div class="card" id="card-'+rid+'">'
-      +'<div class="ctop">'
-        +'<div class="type-badge '+typeDot(row.type)+'"></div>'
-        +'<div class="card-body">'
-          +'<div class="card-toprow">'
-            +'<a class="cname" href="'+link+'" target="_blank">'+esc(row.name||'(untitled)')+'</a>'
-            +(lbl?'<span class="ctype-label">'+esc(lbl)+'</span>':'')
-          +'</div>'
-          +(row.parent_name?'<div class="cpar">In <span>'+esc(row.parent_name)+'</span></div>':'')
-          +'<div class="cmeta-row">'
-            +(dstr(row)?'<span class="cmeta-item">'+calIcon+esc(dstr(row))+'</span>':'')
-            +(d?'<span class="cmeta-item">'+clockIcon+dur(d)+'</span>':'')
-            +'<div class="action-row">'
-            +(audioUrl?'<span class="play-toggle" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+playIcon+'Play</span>':'')
-            +'<span class="read-toggle" id="readbtn-'+rid+'" onclick="toggleRead(\''+rid+'\','+farbrengenId+')">'+bookIcon+'Read source</span>'
-            +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu'+extIcon+'</a>'
-            +'</div>'
-          +'</div>'
-          +'<div class="read-panel" id="readpanel-'+rid+'"></div>'
-        +'</div>'
-      +'</div>'
-    +'</div>';
-  }).join('') + '</div>';
+  el.innerHTML = groups.map(g => {
+    // A "group" of just one plain item (no clear farbrengen context) renders
+    // as a single ungrouped card — grouping only adds value with 2+ items
+    // or when we actually have the parent farbrengen's own info to head it.
+    if (g.items.length === 1 && !g.farbrengenRow) {
+      return cardHtml(g.items[0]);
+    }
+
+    const head = g.farbrengenRow || g.items[0];
+    const headDate = dstr(head);
+    const subItems = g.farbrengenRow ? g.items.filter(r => r.id !== g.farbrengenRow.id) : g.items;
+
+    return '<div class="farb-group">'
+      + '<div class="farb-group-head">'
+        + '<h4>' + esc(head.name || head.parent_name || '(untitled)') + '</h4>'
+        + (headDate ? '<span class="fg-date">' + esc(headDate) + '</span>' : '')
+        + '<span class="fg-count">' + g.items.length + ' item' + (g.items.length!==1?'s':'') + '</span>'
+      + '</div>'
+      + '<div class="farb-group-items">'
+        + (g.farbrengenRow ? cardHtml(g.farbrengenRow) : '')
+        + subItems.map(cardHtml).join('')
+      + '</div>'
+    + '</div>';
+  }).join('');
 }
 
 // ── Persistent bottom player + expandable "Now Playing" view ──
@@ -763,6 +842,7 @@ function playTrack(id, url, title) {
   // without minimizing first), refresh it immediately for the new track.
   if (document.getElementById('npOverlay').classList.contains('open')) {
     populateNowPlaying(id);
+    updateSkipButtons();
   }
 }
 
@@ -813,10 +893,36 @@ audioEl.addEventListener('ended', () => setPlayIcon(false));
 function openNowPlaying() {
   if (!currentTrackId) return;
   document.getElementById('npOverlay').classList.add('open');
+  document.getElementById('npBackdrop').classList.add('open');
   populateNowPlaying(currentTrackId);
+  updateSkipButtons();
 }
 function closeNowPlaying() {
   document.getElementById('npOverlay').classList.remove('open');
+  document.getElementById('npBackdrop').classList.remove('open');
+}
+function updateSkipButtons() {
+  const idx = currentOrder.indexOf(currentTrackId);
+  document.getElementById('npPrevBtn').disabled = idx <= 0;
+  document.getElementById('npNextBtn').disabled = idx === -1 || idx >= currentOrder.length - 1;
+}
+function playNext() {
+  const idx = currentOrder.indexOf(currentTrackId);
+  if (idx === -1 || idx >= currentOrder.length - 1) return;
+  playFromOrder(currentOrder[idx + 1]);
+}
+function playPrev() {
+  const idx = currentOrder.indexOf(currentTrackId);
+  if (idx <= 0) return;
+  playFromOrder(currentOrder[idx - 1]);
+}
+function playFromOrder(rid) {
+  const row = rowsById[rid];
+  if (!row) return;
+  const url = getAudioUrl(row);
+  if (!url) return;
+  playTrack(rid, url, row.name || '');
+  document.getElementById('card-'+rid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function populateNowPlaying(rid) {
   const row = rowsById[rid];
