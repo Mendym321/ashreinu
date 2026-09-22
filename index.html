@@ -26,8 +26,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 /* ═══ Header ═══ */
 header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 28px 22px;position:sticky;top:0;z-index:20;box-shadow:var(--shadow-lg)}
 .header-inner{max-width:720px;margin:0 auto}
-.wordmark{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-.wordmark-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#c9962f,#8a6420);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+.wordmark{display:flex;align-items:center;gap:12px;margin-bottom:22px;transition:opacity .15s}
+.wordmark:hover{opacity:0.8}
+.wordmark:hover .wordmark-icon{transform:scale(1.05)}
+.wordmark-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#c9962f,#8a6420);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.3);transition:transform .15s}
 .wordmark-icon svg{width:16px;height:16px;fill:#1a1408}
 .wordmark-text h1{font-family:'Fraunces',serif;font-weight:500;font-size:22px;color:#f3e9d2;letter-spacing:0.005em;line-height:1}
 .wordmark-text span{font-size:10px;color:#8a8270;text-transform:uppercase;letter-spacing:0.14em;font-weight:600;display:block;margin-top:3px}
@@ -251,7 +253,7 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 
 <header>
   <div class="header-inner">
-    <div class="wordmark">
+    <div class="wordmark" onclick="goHome()" style="cursor:pointer" title="Back to home">
       <div class="wordmark-icon">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.2L19.5 8 12 11.8 4.5 8 12 4.2zM4 9.7l7 3.5v7.1l-7-3.5V9.7zm9 10.6v-7.1l7-3.5v7.1l-7 3.5z"/></svg>
       </div>
@@ -262,7 +264,7 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
     </div>
     <div class="today-strip" id="todayStrip"></div>
     <div class="search-box">
-      <input type="text" id="q" placeholder="Search farbrengens, sichos, ma'amarim…" autocomplete="off" />
+      <input type="text" id="q" placeholder="Search by title or tag — e.g. teshuva, geulah, 19 Kislev…" autocomplete="off" />
       <div class="search-icon" id="searchIcon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </div>
@@ -272,8 +274,7 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
         <button class="seg-btn active" data-type="" onclick="setType('',this)">All</button>
         <button class="seg-btn" data-type="sicha" onclick="setType('sicha',this)">Sicha</button>
         <button class="seg-btn" data-type="maamar" onclick="setType('maamar',this)">Ma'amar</button>
-        <button class="seg-btn" data-type="farbrengen" onclick="setType('farbrengen',this)">Farbrengen</button>
-        <button class="seg-btn" data-type="niggun" onclick="setType('niggun',this)">Niggun</button>
+        <button class="seg-btn" data-type="nigun" onclick="setType('nigun',this)">Nigun</button>
       </div>
       <div class="mini-field">
         <input type="number" id="yf" placeholder="Year" oninput="debouncedSearch()" />
@@ -364,9 +365,9 @@ function dstr(row) {
 function typeDot(t) {
   const l=(t||'').toLowerCase();
   if(l.includes('sicha'))  return 'dot-sicha';
-  if(l.includes('maamar')) return 'dot-maamar';
+  if(l.includes('maamar')||l.includes("ma'amar")) return 'dot-maamar';
   if(t==='Farbrengen')     return 'dot-farb';
-  if(l.includes('niggun')) return 'dot-niggun';
+  if(l.includes('nigun')) return 'dot-niggun';
   return 'dot-other';
 }
 function typeLabel(t) {
@@ -383,6 +384,18 @@ const calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const extIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const playIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const bookIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+
+function goHome() {
+  currentType = '';
+  currentDates = null;
+  document.getElementById('q').value = '';
+  document.getElementById('yf').value = '';
+  document.getElementById('mf').value = '';
+  document.querySelectorAll('.seg-btn').forEach(el => el.classList.remove('active'));
+  document.querySelector('.seg-btn[data-type=""]')?.classList.add('active');
+  document.getElementById('filterRow').classList.remove('active');
+  showLanding();
+}
 
 function setType(t, el) {
   currentType = t;
@@ -516,8 +529,7 @@ async function showLanding() {
       <div class="type-grid">
         <div class="type-tile tile-sicha" onclick="browseByType('sicha')"><div class="ttitle">Sichos</div></div>
         <div class="type-tile tile-maamar" onclick="browseByType('maamar')"><div class="ttitle">Ma'amarim</div></div>
-        <div class="type-tile tile-farb" onclick="browseByType('farbrengen')"><div class="ttitle">Farbrengens</div></div>
-        <div class="type-tile tile-niggun" onclick="browseByType('niggun')"><div class="ttitle">Niggunim</div></div>
+        <div class="type-tile tile-niggun" onclick="browseByType('nigun')"><div class="ttitle">Nigunim</div></div>
       </div>
     </div>`;
 
