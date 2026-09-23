@@ -6,7 +6,7 @@
 import { renderPageAsImage } from 'unpdf';
 
 export default async function handler(req, res) {
-  const { id, page } = req.query;
+  const { id, page, context } = req.query;
   if (!id || !page) return res.status(400).json({ error: 'Missing ?id= or ?page=' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -44,7 +44,10 @@ export default async function handler(req, res) {
             { type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64Image } },
             {
               type: 'text',
-              text: 'Transcribe this Hebrew document page exactly as written, preserving line breaks, punctuation, footnote markers, and section markers (like שיחה א׳, אות, etc). Output only the transcribed text, nothing else.'
+              text: (context
+                ? `For context only (do NOT repeat this in your output) — here is the end of the previous page, which may help you correctly read an ambiguous letter or word at the very top of this page (page-top headers have no surrounding sentence context, which can cause letters that look similar in this script — like ת and ח — to be misread):\n\n"...${context}"\n\n`
+                : '') +
+                'Transcribe this Hebrew document page exactly as written, preserving line breaks, punctuation, footnote markers, and section markers (like שיחה א׳, אות, etc). Output only the transcribed text, nothing else.'
             }
           ]
         }]
