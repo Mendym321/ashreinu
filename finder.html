@@ -249,19 +249,67 @@ async function run() {
   <div class="row">
     <input type="number" id="linkEventId" placeholder="Ashreinu Event ID (e.g. 7148 for Sicha 4)" style="width:260px" />
     <input type="number" id="linkFarbrengenId" placeholder="Farbrengen ID" style="width:160px" />
+    <button onclick="loadExistingSegments()" style="background:#5a7a9a">Load Existing Segments</button>
   </div>
+  <div id="existingSegmentsList" style="margin-bottom:10px"></div>
   <textarea id="linkStartSnippet" placeholder="Start snippet — first few Hebrew words of exactly where this sicha begins" style="width:100%;min-height:60px;margin-bottom:8px;font-family:monospace;font-size:13px;direction:rtl;padding:10px;border:1px solid #ddd;border-radius:6px"></textarea>
-  <textarea id="linkEndSnippet" placeholder="End snippet (optional) — first few Hebrew words of whatever comes right AFTER this sicha ends. Leave blank if it runs to the end of the transcript." style="width:100%;min-height:60px;margin-bottom:10px;font-family:monospace;font-size:13px;direction:rtl;padding:10px;border:1px solid #ddd;border-radius:6px"></textarea>
+  <textarea id="linkEndSnippet" placeholder="End snippet (optional) — first few Hebrew words of whatever comes right AFTER this sicha ends. Leave blank if unsure — safer than guessing wrong and cutting it short." style="width:100%;min-height:60px;margin-bottom:10px;font-family:monospace;font-size:13px;direction:rtl;padding:10px;border:1px solid #ddd;border-radius:6px"></textarea>
+
+  <details style="margin-bottom:10px">
+    <summary style="cursor:pointer;font-size:13px;color:#666">Optional: set title/summary/tags manually (skips generating new ones)</summary>
+    <input type="text" id="manualTitle" placeholder="Title" style="width:100%;margin:8px 0;padding:8px 10px;border:1px solid #ddd;border-radius:6px" />
+    <textarea id="manualSummary" placeholder="Summary" style="width:100%;min-height:50px;margin-bottom:8px;padding:8px 10px;border:1px solid #ddd;border-radius:6px"></textarea>
+    <input type="text" id="manualTags" placeholder="Tags, comma separated" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px" />
+  </details>
+
   <button onclick="saveLink()">Save Precise Link</button>
   <div id="linkResult" style="margin-top:12px;font-size:13px;color:#444;white-space:pre-wrap"></div>
 </div>
 
 <script>
+async function loadExistingSegments() {
+  const farbrengenId = document.getElementById('linkFarbrengenId').value.trim();
+  const listEl = document.getElementById('existingSegmentsList');
+  if (!farbrengenId) { listEl.innerHTML = '<div style="color:#c55;font-size:13px">Enter a Farbrengen ID first.</div>'; return; }
+
+  listEl.innerHTML = '<div style="font-size:13px;color:#666">Loading...</div>';
+  try {
+    const r = await fetch('/api/get-farbrengen-text?farbrengenId=' + farbrengenId);
+    const j = await r.json();
+    if (!j.hasText || !j.segments?.length) {
+      listEl.innerHTML = '<div style="font-size:13px;color:#666">No general segments found for this farbrengen yet — run it through the main pipeline above first.</div>';
+      return;
+    }
+    listEl.innerHTML = j.segments.map((s, i) =>
+      `<div style="background:#fff;border:1px solid #e2dfd7;border-radius:6px;padding:10px 12px;margin-bottom:6px;cursor:pointer" onclick="useSegment(${i})">
+        <strong>${esc(s.title_en || 'Segment ' + (i+1))}</strong><br>
+        <span style="font-size:12px;color:#666">${esc(s.summary_en || '')}</span>
+      </div>`
+    ).join('');
+    window._loadedSegments = j.segments;
+  } catch (e) {
+    listEl.innerHTML = '<div style="color:#c55;font-size:13px">Failed: ' + e.message + '</div>';
+  }
+}
+
+function useSegment(i) {
+  const s = window._loadedSegments[i];
+  document.getElementById('manualTitle').value = s.title_en || '';
+  document.getElementById('manualSummary').value = s.summary_en || '';
+  document.getElementById('manualTags').value = (s.tags || []).join(', ');
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
 async function saveLink() {
   const eventId = document.getElementById('linkEventId').value.trim();
   const farbrengenId = document.getElementById('linkFarbrengenId').value.trim();
   const startSnippet = document.getElementById('linkStartSnippet').value.trim();
   const endSnippet = document.getElementById('linkEndSnippet').value.trim();
+  const manualTitle = document.getElementById('manualTitle').value.trim();
+  const manualSummary = document.getElementById('manualSummary').value.trim();
+  const manualTagsRaw = document.getElementById('manualTags').value.trim();
+  const manualTags = manualTagsRaw ? manualTagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
   const resultEl = document.getElementById('linkResult');
 
   if (!eventId || !farbrengenId || !startSnippet) {
@@ -269,21 +317,25 @@ async function saveLink() {
     return;
   }
 
-  resultEl.textContent = 'Saving...';
+  resultEl.textContent = 'Saving... (this can take up to a minute — Claude is cleaning the text and pulling out footnotes)';
   try {
     const r = await fetch('/api/get-farbrengen-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId: parseInt(eventId,10), farbrengenId: parseInt(farbrengenId,10), startSnippet, endSnippet: endSnippet || null })
+      body: JSON.stringify({
+        eventId: parseInt(eventId,10), farbrengenId: parseInt(farbrengenId,10),
+        startSnippet, endSnippet: endSnippet || null,
+        manualTitle: manualTitle || null, manualSummary: manualSummary || null, manualTags
+      })
     });
     const j = await r.json();
     if (j.error) {
       resultEl.textContent = 'Error: ' + j.error + (j.hint ? '\n' + j.hint : '');
     } else {
-      resultEl.innerHTML = '<strong>Saved!</strong> ' + j.resolvedTextLength + ' characters matched.<br>'
-        + '<strong>Title:</strong> ' + (j.titleEn || '(none generated)') + '<br>'
-        + '<strong>Summary:</strong> ' + (j.summaryEn || '(none generated)') + '<br>'
-        + '<strong>Tags:</strong> ' + (j.tags||[]).join(', ');
+      resultEl.innerHTML = '<strong>Saved!</strong> ' + j.resolvedTextLength + ' characters matched, ' + j.footnoteCount + ' footnotes extracted.<br>'
+        + '<strong>Title:</strong> ' + esc(j.titleEn || '(none)') + '<br>'
+        + '<strong>Summary:</strong> ' + esc(j.summaryEn || '(none)') + '<br>'
+        + '<strong>Tags:</strong> ' + esc((j.tags||[]).join(', '));
     }
   } catch (e) {
     resultEl.textContent = 'Failed: ' + e.message;
