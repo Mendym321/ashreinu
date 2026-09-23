@@ -156,16 +156,19 @@ async function run() {
       }
       total = info.totalPages;
       let pages = [];
+      let prevTail = '';
       for (let p = 1; p <= total; p++) {
         setStep('transcribe', `Page ${p} of ${total}...`, '');
         log(`Transcribing page ${p}/${total}...`);
         try {
-          const r = await fetch(`/api/transcribe-page?id=${driveFileId}&page=${p}`);
+          const ctxParam = prevTail ? '&context=' + encodeURIComponent(prevTail) : '';
+          const r = await fetch(`/api/transcribe-page?id=${driveFileId}&page=${p}${ctxParam}`);
           const j = await r.json();
           if (j.error) {
             log(`  ! page ${p} failed: ${j.error}`);
           } else {
             pages.push(j.text);
+            prevTail = j.text.slice(-200);
             log(`  -> ${j.text.length} chars`);
           }
         } catch (e) {
@@ -277,7 +280,10 @@ async function saveLink() {
     if (j.error) {
       resultEl.textContent = 'Error: ' + j.error + (j.hint ? '\n' + j.hint : '');
     } else {
-      resultEl.textContent = 'Saved! Matched ' + j.resolvedTextLength + ' characters.\n\nPreview:\n' + j.resolvedTextPreview;
+      resultEl.innerHTML = '<strong>Saved!</strong> ' + j.resolvedTextLength + ' characters matched.<br>'
+        + '<strong>Title:</strong> ' + (j.titleEn || '(none generated)') + '<br>'
+        + '<strong>Summary:</strong> ' + (j.summaryEn || '(none generated)') + '<br>'
+        + '<strong>Tags:</strong> ' + (j.tags||[]).join(', ');
     }
   } catch (e) {
     resultEl.textContent = 'Failed: ' + e.message;
