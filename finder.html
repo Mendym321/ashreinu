@@ -238,5 +238,51 @@ async function run() {
   document.getElementById('go').disabled = false;
 }
 </script>
+
+<div style="margin-top:40px;padding-top:24px;border-top:2px solid #e2dfd7">
+  <h2>Link a Specific Sicha to Exact Text</h2>
+  <p class="sub">Automated splitting finds the main topic-breaks correctly, but Ashreinu sometimes splits into more audio tracks than the text visibly marks. If you've manually verified where a specific Sicha/track's text actually starts and ends (by listening + reading side by side), save that exact match here — it'll be used instead of the general farbrengen text whenever that specific track plays.</p>
+
+  <div class="row">
+    <input type="number" id="linkEventId" placeholder="Ashreinu Event ID (e.g. 7148 for Sicha 4)" style="width:260px" />
+    <input type="number" id="linkFarbrengenId" placeholder="Farbrengen ID" style="width:160px" />
+  </div>
+  <textarea id="linkStartSnippet" placeholder="Start snippet — first few Hebrew words of exactly where this sicha begins" style="width:100%;min-height:60px;margin-bottom:8px;font-family:monospace;font-size:13px;direction:rtl;padding:10px;border:1px solid #ddd;border-radius:6px"></textarea>
+  <textarea id="linkEndSnippet" placeholder="End snippet (optional) — first few Hebrew words of whatever comes right AFTER this sicha ends. Leave blank if it runs to the end of the transcript." style="width:100%;min-height:60px;margin-bottom:10px;font-family:monospace;font-size:13px;direction:rtl;padding:10px;border:1px solid #ddd;border-radius:6px"></textarea>
+  <button onclick="saveLink()">Save Precise Link</button>
+  <div id="linkResult" style="margin-top:12px;font-size:13px;color:#444;white-space:pre-wrap"></div>
+</div>
+
+<script>
+async function saveLink() {
+  const eventId = document.getElementById('linkEventId').value.trim();
+  const farbrengenId = document.getElementById('linkFarbrengenId').value.trim();
+  const startSnippet = document.getElementById('linkStartSnippet').value.trim();
+  const endSnippet = document.getElementById('linkEndSnippet').value.trim();
+  const resultEl = document.getElementById('linkResult');
+
+  if (!eventId || !farbrengenId || !startSnippet) {
+    resultEl.textContent = 'Please fill in Event ID, Farbrengen ID, and the start snippet.';
+    return;
+  }
+
+  resultEl.textContent = 'Saving...';
+  try {
+    const r = await fetch('/api/get-farbrengen-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId: parseInt(eventId,10), farbrengenId: parseInt(farbrengenId,10), startSnippet, endSnippet: endSnippet || null })
+    });
+    const j = await r.json();
+    if (j.error) {
+      resultEl.textContent = 'Error: ' + j.error + (j.hint ? '\n' + j.hint : '');
+    } else {
+      resultEl.textContent = 'Saved! Matched ' + j.resolvedTextLength + ' characters.\n\nPreview:\n' + j.resolvedTextPreview;
+    }
+  } catch (e) {
+    resultEl.textContent = 'Failed: ' + e.message;
+  }
+}
+</script>
 </body>
 </html>
