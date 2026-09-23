@@ -51,14 +51,43 @@ export default async function handler(req, res) {
       if (foundEnd !== -1) endIdx = foundEnd;
     }
 
-    const resolvedText = text.slice(startIdx, endIdx).trim();
+    // Strip obvious page artifacts ourselves — instant, no API call needed.
+    // Running headers and bare page numbers reliably appear right after a
+    // "--- page break ---" marker, as one or two short standalone lines
+    // before the real sentence resumes.
+    function stripPageArtifacts(t) {
+      return t
+        .split(/---\s*page break\s*---/g)
+        .map((chunk, i) => {
+          if (i === 0) return chunk;
+          // Drop up to 2 leading short lines (a bare number, or a short
+          // date-like header line) at the start of each new page's chunk.
+          const lines = chunk.split('\n');
+          let dropped = 0;
+          while (dropped < 3 && lines.length && (
+            /^\s*$/.test(lines[0]) ||
+            /^\s*#?\s*\d{1,4}\s*$/.test(lines[0]) ||
+            (lines[0].length < 40 && /כסלו|תשרי|חשון|טבת|שבט|אדר|ניסן|אייר|סיון|תמוז|אב|אלול|ה'תש|ה׳תש/.test(lines[0]))
+          )) {
+            lines.shift();
+            dropped++;
+          }
+          return lines.join('\n');
+        })
+        .join('\n\n');
+    }
 
-    // Generate a title, summary, tags — and clean the text itself: strip
-    // running page headers/page numbers, and pull footnotes out into a
-    // structured list with simple {{fn:N}} markers left inline, so the
-    // reading view can render them as real clickable footnotes instead of
-    // mixed-in text.
-    let titleEn = null, summaryEn = null, tags = [], cleanedText = resolvedText, footnotes = [];
+    // Footnote markers came through the page-by-page transcription as
+    // <sup>N</sup> tags where the source had a clear superscript — convert
+    // those to {{fn:N}} tokens directly (deterministic, instant). Footnotes
+    // referenced by a plain trailing number (no <sup>) aren't auto-linked
+    // yet — a known limitation, safer than a fragile regex that risks
+    // mismatching ordinary numbers in the text.
+    const headerStripped = stripPageArtifacts(resolvedText);
+    const withFnTokens = headerStripped.replace(/<sup>(\w+)<\/sup>/g, '{{fn:$1}}');
+    const referencedMarkers = [...new Set([...withFnTokens.matchAll(/\{\{fn:(\w+)\}\}/g)].map(m => m[1]))];
+
+    let titleEn = null, summaryEn = null, tags = [], footnotes = [];
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (apiKey) {
       try {
@@ -67,23 +96,18 @@ export default async function handler(req, res) {
           headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({
             model: 'claude-sonnet-4-5',
-            max_tokens: 8192,
+            max_tokens: 2048,
             messages: [{
               role: 'user',
-              content: `This is a section of a chassidic sicha/farbrengen transcript, OCR'd page by page — it has running headers (a repeated date/page-number line at the top or bottom of each page) and footnotes mixed into the body text that need cleaning up.
+              content: `This is a section of a chassidic sicha/farbrengen transcript. Do NOT reproduce or repeat the body text back — respond ONLY with this JSON:
 
-Do the following:
-1. Remove running headers and bare page numbers (short lines like a date + page number, e.g. "י״ט כסלו, ה'תשי״ג" alone on a line, or a lone number like "194") — these are page artifacts, not part of the actual sicha.
-2. Find every footnote: a marker in the body (a number, often superscript or in parentheses) paired with its footnote text (usually collected near the bottom of the page it appeared on). Replace each marker in the body with a simple inline tag {{fn:N}} using sequential numbers 1,2,3... in the order they appear, and collect the actual footnote text separately.
-3. Keep everything else in the body text EXACTLY as written — same words, same Hebrew, same paragraph breaks — just with headers/page-numbers removed and footnote markers normalized.
-4. Also generate a short English title (5-8 words), a 2-3 sentence English summary, and 4-8 short lowercase tags (topics, dates/occasions, chassidic concepts, sources cited).
+{"titleEn": "short English title (5-8 words)", "summaryEn": "2-3 sentence English summary", "tags": ["4-8 short lowercase tags: topics, dates/occasions, chassidic concepts, sources cited"], "footnotes": [{"marker": "N", "text": "the footnote's actual text, found elsewhere in this excerpt (often near the bottom of the page it was referenced on)"}]}
 
-Respond ONLY with valid JSON, no other text:
-{"cleanedText": "the cleaned Hebrew body text with {{fn:N}} markers", "footnotes": [{"marker":"1","text":"footnote text"}, ...], "titleEn": "...", "summaryEn": "...", "tags": ["...","..."]}
+Provide footnote text for exactly these marker numbers, in this order, if you can find each one's corresponding text in the excerpt: ${referencedMarkers.join(', ') || '(none found)'}
 
 Text:
 
-${resolvedText.slice(0, 14000)}`
+${withFnTokens.slice(0, 14000)}`
             }]
           })
         });
@@ -94,10 +118,9 @@ ${resolvedText.slice(0, 14000)}`
           titleEn = parsed.titleEn || null;
           summaryEn = parsed.summaryEn || null;
           tags = parsed.tags || [];
-          if (parsed.cleanedText) cleanedText = parsed.cleanedText;
           footnotes = parsed.footnotes || [];
         }
-      } catch (e) { /* enrichment/cleanup is best-effort — a failed call shouldn't block saving the raw link */ }
+      } catch (e) { /* enrichment is best-effort — a failed call shouldn't block saving the link */ }
     }
 
     // Manual overrides win if given — e.g. reusing a title/summary already
@@ -114,7 +137,7 @@ ${resolvedText.slice(0, 14000)}`
         farbrengen_id: farbrengenId,
         start_snippet: startSnippet,
         end_snippet: endSnippet || null,
-        resolved_text: cleanedText,
+        resolved_text: withFnTokens,
         title_en: titleEn,
         summary_en: summaryEn,
         tags,
@@ -123,7 +146,7 @@ ${resolvedText.slice(0, 14000)}`
 
     if (saveErr) return res.status(500).json({ error: saveErr.message });
 
-    return res.status(200).json({ saved: true, titleEn, summaryEn, tags, footnoteCount: footnotes.length, resolvedTextLength: cleanedText.length, resolvedTextPreview: cleanedText.slice(0, 300) });
+    return res.status(200).json({ saved: true, titleEn, summaryEn, tags, footnoteCount: footnotes.length, resolvedTextLength: withFnTokens.length, resolvedTextPreview: withFnTokens.slice(0, 300) });
   }
 
   // GET
