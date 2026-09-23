@@ -6,7 +6,7 @@
 <title>Ashreinu Search</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=David+Libre:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -157,8 +157,11 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 .read-seg h5{font-family:'Fraunces',serif;font-size:15px;font-weight:500;color:var(--ink);margin-bottom:6px}
 .read-seg .rsummary{font-size:12.5px;color:var(--ink-mid);margin-bottom:8px;line-height:1.6}
 .read-tag{display:inline-block;font-size:10.5px;background:var(--gold-bg);color:var(--gold-dim);padding:2px 9px;border-radius:12px;margin:0 4px 4px 0;font-weight:600}
-.read-fulltext{direction:rtl;font-size:14px;color:var(--ink);line-height:1.9;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);white-space:pre-wrap;max-height:0;overflow:hidden;transition:max-height .3s ease}
-.read-fulltext.expanded{max-height:4000px}
+.read-fulltext{font-family:'David Libre',serif;direction:rtl;font-size:16px;color:var(--ink);line-height:2;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);white-space:pre-wrap;max-height:0;overflow:hidden;transition:max-height .3s ease}
+.read-fulltext.expanded{max-height:8000px}
+.fn-marker{color:var(--gold-dim);cursor:pointer;font-weight:700;padding:0 1px;font-family:'Inter',sans-serif}
+.fn-marker:hover{text-decoration:underline}
+.fn-popup{position:absolute;max-width:280px;background:#1b1712;color:#f3ede0;font-family:'David Libre',serif;font-size:13.5px;padding:12px 14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.35);z-index:100;direction:rtl;line-height:1.7}
 .read-expand{font-size:11.5px;color:var(--ink-light);cursor:pointer;margin-top:6px;display:inline-block}
 .read-expand:hover{color:var(--gold-dim)}
 .read-empty{font-size:13px;color:var(--ink-light);font-style:italic;padding:8px 0}
@@ -978,6 +981,35 @@ function populateNowPlaying(rid) {
 // ── Read source text (shared between inline card panels and the expanded Now Playing view) ──
 const readCache = {}; // avoid re-fetching the same farbrengen's text repeatedly
 
+// ── Footnote popovers ──
+window.footnoteStore = {};
+function renderTextWithFootnotes(text, footnotes, keyPrefix) {
+  if (!text) return '';
+  const fnMap = {};
+  (footnotes||[]).forEach(f => { fnMap[f.marker] = f.text; });
+  return esc(text).replace(/\{\{fn:(\w+)\}\}/g, (m, num) => {
+    const key = keyPrefix + '-fn' + num;
+    window.footnoteStore[key] = fnMap[num] || '(footnote text unavailable)';
+    return '<sup class="fn-marker" onclick="toggleFootnote(event,\'' + key + '\')">[' + esc(num) + ']</sup>';
+  });
+}
+function toggleFootnote(e, key) {
+  e.stopPropagation();
+  document.querySelectorAll('.fn-popup').forEach(el => el.remove());
+  const popup = document.createElement('div');
+  popup.className = 'fn-popup';
+  popup.textContent = window.footnoteStore[key] || '';
+  document.body.appendChild(popup);
+  const rect = e.target.getBoundingClientRect();
+  popup.style.left = Math.max(10, Math.min(rect.left, window.innerWidth - 300)) + 'px';
+  popup.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+  setTimeout(() => {
+    document.addEventListener('click', function closeOnce(ev) {
+      if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('click', closeOnce); }
+    });
+  }, 0);
+}
+
 async function loadReadContent(farbrengenId, targetElId, autoExpandText, eventId) {
   const target = document.getElementById(targetElId);
   const cacheKey = farbrengenId + ':' + (eventId || '');
@@ -1003,7 +1035,7 @@ async function loadReadContent(farbrengenId, targetElId, autoExpandText, eventId
           + (s.summary_en ? '<div class="rsummary">' + esc(s.summary_en) + '</div>' : '')
           + (s.tags||[]).map(t => '<span class="read-tag">' + esc(t) + '</span>').join('')
           + '<div class="read-expand" onclick="document.getElementById(\'' + textId + '\').classList.toggle(\'expanded\')">Show full Hebrew text ▾</div>'
-          + '<div class="read-fulltext' + (autoExpandText ? ' expanded' : '') + '" id="' + textId + '">' + esc(s.source_text) + '</div>'
+          + '<div class="read-fulltext' + (autoExpandText ? ' expanded' : '') + '" id="' + textId + '">' + renderTextWithFootnotes(s.source_text, s.footnotes, textId) + '</div>'
         + '</div>';
       }).join('');
     }
