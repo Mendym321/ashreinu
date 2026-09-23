@@ -157,11 +157,19 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 .read-seg h5{font-family:'Fraunces',serif;font-size:15px;font-weight:500;color:var(--ink);margin-bottom:6px}
 .read-seg .rsummary{font-size:12.5px;color:var(--ink-mid);margin-bottom:8px;line-height:1.6}
 .read-tag{display:inline-block;font-size:10.5px;background:var(--gold-bg);color:var(--gold-dim);padding:2px 9px;border-radius:12px;margin:0 4px 4px 0;font-weight:600}
-.read-fulltext{font-family:'David Libre',serif;direction:rtl;font-size:16px;color:var(--ink);line-height:2;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);white-space:pre-wrap;max-height:0;overflow:hidden;transition:max-height .3s ease}
+@font-face {
+  font-family: 'Vilna';
+  src: url('/fonts/OT%20Vilna%20Basic-VF.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.read-fulltext{font-family:'Vilna','David Libre',serif;direction:rtl;font-size:16px;color:var(--ink);line-height:2;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);white-space:pre-wrap;max-height:0;overflow:hidden;transition:max-height .3s ease}
 .read-fulltext.expanded{max-height:8000px}
 .fn-marker{color:var(--gold-dim);cursor:pointer;font-weight:700;padding:0 1px;font-family:'Inter',sans-serif}
 .fn-marker:hover{text-decoration:underline}
-.fn-popup{position:absolute;max-width:280px;background:#1b1712;color:#f3ede0;font-family:'David Libre',serif;font-size:13.5px;padding:12px 14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.35);z-index:100;direction:rtl;line-height:1.7}
+.fn-popup{position:absolute;max-width:280px;background:#1b1712;color:#f3ede0;font-family:'Vilna','David Libre',serif;font-size:13.5px;padding:12px 14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.35);z-index:100;direction:rtl;line-height:1.7}
 .read-expand{font-size:11.5px;color:var(--ink-light);cursor:pointer;margin-top:6px;display:inline-block}
 .read-expand:hover{color:var(--gold-dim)}
 .read-empty{font-size:13px;color:var(--ink-light);font-style:italic;padding:8px 0}
