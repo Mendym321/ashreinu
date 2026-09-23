@@ -57,6 +57,7 @@ async function run() {
   // Whatever's already in the box (pasted manually, or from an earlier run) is kept —
   // new pages get appended after it, so you can paste known pages then fetch only the rest.
   let existing = transcriptBox.value;
+  let prevTail = existing.slice(-200); // so resuming mid-document still gives page-top context
 
   log('Getting page count...');
   const infoRes = await fetch('/api/pdf-info?id=' + id);
@@ -69,13 +70,15 @@ async function run() {
   for (let p = startFrom; p <= total; p++) {
     log('Transcribing page ' + p + ' of ' + total + '...');
     try {
-      const r = await fetch('/api/transcribe-page?id=' + id + '&page=' + p);
+      const ctxParam = prevTail ? '&context=' + encodeURIComponent(prevTail) : '';
+      const r = await fetch('/api/transcribe-page?id=' + id + '&page=' + p + ctxParam);
       const j = await r.json();
       if (j.error) {
         log('  ! page ' + p + ' failed: ' + j.error + ' — you can resume from page ' + p + ' using the "Start from page" box (your progress so far is kept in the transcript box)');
         break;
       } else {
         log('  -> ' + j.text.length + ' chars');
+        prevTail = j.text.slice(-200);
         existing = existing ? (existing + '\n\n--- page break ---\n\n' + j.text) : j.text;
         transcriptBox.value = existing;
         transcriptBox.scrollTop = transcriptBox.scrollHeight;
