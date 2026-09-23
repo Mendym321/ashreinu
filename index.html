@@ -447,7 +447,6 @@ const COLLECTIONS = [
   { name: "Lag BaOmer", sub: "18 Iyar", dates: [[8,18]] },
   { name: "Erev Shavuos", sub: "5 Sivan", dates: [[9,5]] },
   { name: "Shavuos", sub: "6–7 Sivan", dates: [[9,6],[9,7]] },
-  { name: "Gimmel Tammuz", sub: "3 Tammuz", dates: [[10,3]] },
   { name: "Yud-Beis Tammuz", sub: "12 Tammuz", dates: [[10,12]] },
   { name: "Erev Rosh Hashanah", sub: "29 Elul", dates: [[12,29]] },
   { name: "Rosh Hashanah", sub: "1–2 Tishrei", dates: [[1,1],[1,2]] },
@@ -633,8 +632,39 @@ function browseByYear(year) {
   search();
 }
 
+// Approximate day-ordinal for sorting "what's coming up" — treats every
+// Hebrew month as 30 days for comparison purposes only (exact leap-year/
+// month-length arithmetic isn't needed just to rank occasions by proximity).
+function approxOrdinal(month, day) { return month * 30 + day; }
+
+function getUpcomingCollections(count) {
+  if (!todayHebrew || !todayHebrew.month) return [];
+  const todayOrd = approxOrdinal(todayHebrew.month, todayHebrew.day);
+  return COLLECTIONS
+    .map(c => {
+      const startOrd = approxOrdinal(c.dates[0][0], c.dates[0][1]);
+      let diff = startOrd - todayOrd;
+      if (diff < 0) diff += 360; // wrap forward into next year
+      return { ...c, diff };
+    })
+    .sort((a, b) => a.diff - b.diff)
+    .slice(0, count);
+}
+
 async function showLanding() {
   document.getElementById('rmeta').textContent = '';
+
+  const upcoming = getUpcomingCollections(4);
+  const upcomingHtml = upcoming.length ? `
+    <div class="home-section">
+      <div class="home-section-head"><h3>Coming Up</h3><span>From today's date</span></div>
+      <div class="browse-grid">
+        ${upcoming.map(c => {
+          const idx = COLLECTIONS.indexOf(COLLECTIONS.find(x => x.name === c.name));
+          return `<div class="collection-tile" onclick="browseByCollection(${idx})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
 
   const typeGridHtml = `
     <div class="home-section">
@@ -663,7 +693,8 @@ async function showLanding() {
     </div>`;
 
   document.getElementById('res').innerHTML =
-    '<div class="home-section" id="otdSection" style="display:none">'
+    upcomingHtml
+    + '<div class="home-section" id="otdSection" style="display:none">'
       + '<div class="home-section-head"><h3>On This Day</h3><span id="otdSubtitle"></span></div>'
       + '<div class="otd-scroll" id="otdScroll"><div class="otd-empty">Loading…</div></div>'
     + '</div>'
