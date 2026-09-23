@@ -941,29 +941,34 @@ function populateNowPlaying(rid) {
   document.getElementById('npDate').textContent = dstr(row);
 
   const farbrengenId = row.parent_id || row.id;
-  loadReadContent(farbrengenId, 'npReadContent', true);
+  loadReadContent(farbrengenId, 'npReadContent', true, rid);
 }
 
 // ── Read source text (shared between inline card panels and the expanded Now Playing view) ──
 const readCache = {}; // avoid re-fetching the same farbrengen's text repeatedly
 
-async function loadReadContent(farbrengenId, targetElId, autoExpandText) {
+async function loadReadContent(farbrengenId, targetElId, autoExpandText, eventId) {
   const target = document.getElementById(targetElId);
-  if (readCache[farbrengenId]) { target.innerHTML = readCache[farbrengenId]; return; }
+  const cacheKey = farbrengenId + ':' + (eventId || '');
+  if (readCache[cacheKey]) { target.innerHTML = readCache[cacheKey]; return; }
 
   target.innerHTML = '<div class="read-empty">Loading source text…</div>';
   try {
-    const r = await fetch('/api/get-farbrengen-text?farbrengenId=' + farbrengenId);
+    const url = '/api/get-farbrengen-text?farbrengenId=' + farbrengenId + (eventId ? '&eventId=' + eventId : '');
+    const r = await fetch(url);
     const j = await r.json();
 
     let html;
     if (!j.hasText || !j.segments?.length) {
       html = '<div class="read-empty">No transcribed source text available yet for this farbrengen.</div>';
     } else {
-      html = j.segments.map((s, i) => {
-        const textId = 'fulltext-' + farbrengenId + '-' + i;
+      const preciseNote = j.precise
+        ? '<div style="font-size:11.5px;color:#1f7a4a;font-weight:600;margin-bottom:10px">✓ Verified exact match for this track</div>'
+        : '';
+      html = preciseNote + j.segments.map((s, i) => {
+        const textId = 'fulltext-' + cacheKey.replace(/[^\w]/g,'_') + '-' + i;
         return '<div class="read-seg">'
-          + '<h5>' + esc(s.title_en || ('Section ' + (i+1))) + '</h5>'
+          + (s.title_en ? '<h5>' + esc(s.title_en) + '</h5>' : '')
           + (s.summary_en ? '<div class="rsummary">' + esc(s.summary_en) + '</div>' : '')
           + (s.tags||[]).map(t => '<span class="read-tag">' + esc(t) + '</span>').join('')
           + '<div class="read-expand" onclick="document.getElementById(\'' + textId + '\').classList.toggle(\'expanded\')">Show full Hebrew text ▾</div>'
@@ -971,7 +976,7 @@ async function loadReadContent(farbrengenId, targetElId, autoExpandText) {
         + '</div>';
       }).join('');
     }
-    readCache[farbrengenId] = html;
+    readCache[cacheKey] = html;
     target.innerHTML = html;
   } catch (e) {
     target.innerHTML = '<div class="read-empty">Could not load source text: ' + esc(e.message) + '</div>';
@@ -991,7 +996,7 @@ async function toggleRead(rid, farbrengenId) {
 
   const tempId = 'temp-' + rid;
   panel.innerHTML = '<div id="' + tempId + '"></div>';
-  await loadReadContent(farbrengenId, tempId, false);
+  await loadReadContent(farbrengenId, tempId, false, rid);
 }
 
 document.getElementById('q').addEventListener('input', debouncedSearch);
