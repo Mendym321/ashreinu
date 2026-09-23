@@ -53,10 +53,12 @@ export default async function handler(req, res) {
 
     const resolvedText = text.slice(startIdx, endIdx).trim();
 
-    // Generate a title, summary, and tags for this specific resolved text —
-    // same enrichment automated segmentation gets, so a manually-linked
-    // sicha is just as useful in the reading view, not a bare wall of text.
-    let titleEn = null, summaryEn = null, tags = [];
+    // Generate a title, summary, tags — and clean the text itself: strip
+    // running page headers/page numbers, and pull footnotes out into a
+    // structured list with simple {{fn:N}} markers left inline, so the
+    // reading view can render them as real clickable footnotes instead of
+    // mixed-in text.
+    let titleEn = null, summaryEn = null, tags = [], cleanedText = resolvedText, footnotes = [];
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (apiKey) {
       try {
@@ -65,10 +67,23 @@ export default async function handler(req, res) {
           headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({
             model: 'claude-sonnet-4-5',
-            max_tokens: 1024,
+            max_tokens: 8192,
             messages: [{
               role: 'user',
-              content: `This is a section of a chassidic sicha/farbrengen transcript. Respond ONLY with valid JSON, no other text:\n{"titleEn": "short English title (5-8 words)", "summaryEn": "2-3 sentence English summary", "tags": ["4-8 short lowercase tags: topics, dates/occasions mentioned, chassidic concepts, sources cited"]}\n\nText:\n\n${resolvedText.slice(0, 12000)}`
+              content: `This is a section of a chassidic sicha/farbrengen transcript, OCR'd page by page — it has running headers (a repeated date/page-number line at the top or bottom of each page) and footnotes mixed into the body text that need cleaning up.
+
+Do the following:
+1. Remove running headers and bare page numbers (short lines like a date + page number, e.g. "י״ט כסלו, ה'תשי״ג" alone on a line, or a lone number like "194") — these are page artifacts, not part of the actual sicha.
+2. Find every footnote: a marker in the body (a number, often superscript or in parentheses) paired with its footnote text (usually collected near the bottom of the page it appeared on). Replace each marker in the body with a simple inline tag {{fn:N}} using sequential numbers 1,2,3... in the order they appear, and collect the actual footnote text separately.
+3. Keep everything else in the body text EXACTLY as written — same words, same Hebrew, same paragraph breaks — just with headers/page-numbers removed and footnote markers normalized.
+4. Also generate a short English title (5-8 words), a 2-3 sentence English summary, and 4-8 short lowercase tags (topics, dates/occasions, chassidic concepts, sources cited).
+
+Respond ONLY with valid JSON, no other text:
+{"cleanedText": "the cleaned Hebrew body text with {{fn:N}} markers", "footnotes": [{"marker":"1","text":"footnote text"}, ...], "titleEn": "...", "summaryEn": "...", "tags": ["...","..."]}
+
+Text:
+
+${resolvedText.slice(0, 14000)}`
             }]
           })
         });
@@ -79,8 +94,10 @@ export default async function handler(req, res) {
           titleEn = parsed.titleEn || null;
           summaryEn = parsed.summaryEn || null;
           tags = parsed.tags || [];
+          if (parsed.cleanedText) cleanedText = parsed.cleanedText;
+          footnotes = parsed.footnotes || [];
         }
-      } catch (e) { /* enrichment is best-effort — a failed title/tags call shouldn't block saving the link */ }
+      } catch (e) { /* enrichment/cleanup is best-effort — a failed call shouldn't block saving the raw link */ }
     }
 
     const { error: saveErr } = await supabase
@@ -90,15 +107,16 @@ export default async function handler(req, res) {
         farbrengen_id: farbrengenId,
         start_snippet: startSnippet,
         end_snippet: endSnippet || null,
-        resolved_text: resolvedText,
+        resolved_text: cleanedText,
         title_en: titleEn,
         summary_en: summaryEn,
-        tags
+        tags,
+        footnotes
       });
 
     if (saveErr) return res.status(500).json({ error: saveErr.message });
 
-    return res.status(200).json({ saved: true, titleEn, summaryEn, tags, resolvedTextLength: resolvedText.length, resolvedTextPreview: resolvedText.slice(0, 300) });
+    return res.status(200).json({ saved: true, titleEn, summaryEn, tags, footnoteCount: footnotes.length, resolvedTextLength: cleanedText.length, resolvedTextPreview: cleanedText.slice(0, 300) });
   }
 
   // GET
@@ -119,7 +137,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           hasText: true,
           precise: true,
-          segments: [{ title_en: link.title_en, summary_en: link.summary_en, tags: link.tags || [], source_text: link.resolved_text }]
+          segments: [{ title_en: link.title_en, summary_en: link.summary_en, tags: link.tags || [], source_text: link.resolved_text, footnotes: link.footnotes || [] }]
         });
       }
     }
