@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
   if (req.method === 'POST') {
-    const { eventId, farbrengenId, startSnippet, endSnippet } = req.body;
+    const { eventId, farbrengenId, startSnippet, endSnippet, manualTitle, manualSummary, manualTags } = req.body;
     if (!eventId || !farbrengenId || !startSnippet) {
       return res.status(400).json({ error: 'Missing eventId, farbrengenId, or startSnippet' });
     }
@@ -99,6 +99,13 @@ ${resolvedText.slice(0, 14000)}`
         }
       } catch (e) { /* enrichment/cleanup is best-effort — a failed call shouldn't block saving the raw link */ }
     }
+
+    // Manual overrides win if given — e.g. reusing a title/summary already
+    // generated for the general (non-precise) segment covering this same
+    // stretch of the farbrengen, instead of trusting a fresh Claude call.
+    if (manualTitle) titleEn = manualTitle;
+    if (manualSummary) summaryEn = manualSummary;
+    if (manualTags && manualTags.length) tags = manualTags;
 
     const { error: saveErr } = await supabase
       .from('audio_text_links')
