@@ -53,6 +53,36 @@ export default async function handler(req, res) {
 
     const resolvedText = text.slice(startIdx, endIdx).trim();
 
+    // Generate a title, summary, and tags for this specific resolved text —
+    // same enrichment automated segmentation gets, so a manually-linked
+    // sicha is just as useful in the reading view, not a bare wall of text.
+    let titleEn = null, summaryEn = null, tags = [];
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (apiKey) {
+      try {
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5',
+            max_tokens: 1024,
+            messages: [{
+              role: 'user',
+              content: `This is a section of a chassidic sicha/farbrengen transcript. Respond ONLY with valid JSON, no other text:\n{"titleEn": "short English title (5-8 words)", "summaryEn": "2-3 sentence English summary", "tags": ["4-8 short lowercase tags: topics, dates/occasions mentioned, chassidic concepts, sources cited"]}\n\nText:\n\n${resolvedText.slice(0, 12000)}`
+            }]
+          })
+        });
+        if (claudeRes.ok) {
+          const claudeData = await claudeRes.json();
+          let raw = (claudeData.content?.[0]?.text || '{}').replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(raw);
+          titleEn = parsed.titleEn || null;
+          summaryEn = parsed.summaryEn || null;
+          tags = parsed.tags || [];
+        }
+      } catch (e) { /* enrichment is best-effort — a failed title/tags call shouldn't block saving the link */ }
+    }
+
     const { error: saveErr } = await supabase
       .from('audio_text_links')
       .upsert({
@@ -60,12 +90,15 @@ export default async function handler(req, res) {
         farbrengen_id: farbrengenId,
         start_snippet: startSnippet,
         end_snippet: endSnippet || null,
-        resolved_text: resolvedText
+        resolved_text: resolvedText,
+        title_en: titleEn,
+        summary_en: summaryEn,
+        tags
       });
 
     if (saveErr) return res.status(500).json({ error: saveErr.message });
 
-    return res.status(200).json({ saved: true, resolvedTextLength: resolvedText.length, resolvedTextPreview: resolvedText.slice(0, 300) });
+    return res.status(200).json({ saved: true, titleEn, summaryEn, tags, resolvedTextLength: resolvedText.length, resolvedTextPreview: resolvedText.slice(0, 300) });
   }
 
   // GET
@@ -86,7 +119,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           hasText: true,
           precise: true,
-          segments: [{ title_en: null, summary_en: null, tags: [], source_text: link.resolved_text }]
+          segments: [{ title_en: link.title_en, summary_en: link.summary_en, tags: link.tags || [], source_text: link.resolved_text }]
         });
       }
     }
