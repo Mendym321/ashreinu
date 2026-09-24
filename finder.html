@@ -68,7 +68,8 @@ button:disabled{background:#ddd;color:#999}
   <div class="step" id="step-mafteiach"><h4>2. Find source text on Mafteiach</h4><div class="status">Waiting...</div></div>
   <div class="step" id="step-transcribe"><h4>3. Transcribe pages</h4><div class="status">Waiting...</div></div>
   <div class="step" id="step-segment"><h4>4. Split into sichos + tag</h4><div class="status">Waiting...</div></div>
-  <div class="step" id="step-save"><h4>5. Save to database</h4><div class="status">Waiting...</div></div>
+  <div class="step" id="step-save"><h4>5. Save general fallback text</h4><div class="status">Waiting...</div></div>
+  <div class="step" id="step-assign"><h4>6. Assign segments to specific audio tracks</h4><div class="status">Waiting...</div></div>
 </div>
 
 <div id="log"></div>
@@ -237,8 +238,10 @@ async function run() {
   setStep('segment', `Found ${segJson.segments.length} sichos${failedCount ? ` (${failedCount} could not be located)` : ''}${segJson.truncated ? ' — ⚠️ response was truncated, later sichos in this farbrengen may be missing' : ''}`, segJson.truncated ? 'error' : 'done');
   prog(85);
 
-  // Step 5: save
-  setStep('save', 'Saving to database...', '');
+  // Step 5: save the general fallback text (covers any track that never
+  // gets an individual assignment below — better than nothing, but the
+  // assignment step is what actually gets tracks matched correctly)
+  setStep('save', 'Saving fallback text...', '');
   const saveRes = await fetch('/api/save-segments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -256,20 +259,92 @@ async function run() {
   if (saveJson.error) {
     setStep('save', 'Error: ' + saveJson.error, 'error');
   } else {
-    setStep('save', `Saved ${saveJson.saved} segments`, 'done');
+    setStep('save', `Saved ${saveJson.saved} segments as fallback`, 'done');
+  }
+  prog(92);
+
+  // Step 6: build the assignment UI — fetch this farbrengen's actual audio
+  // tracks in recording order, so you can point-and-click which written
+  // segment belongs to which real Sicha/Nigun/Ma'amar, instead of it
+  // silently applying to every track.
+  setStep('assign', 'Loading audio track list...', '');
+  window.currentSegmentsForAssignment = validSegments;
+  window.currentFarbrengenIdForAssignment = farbrengen.id;
+
+  const childRes = await fetch(`/api/search?parentId=${farbrengen.id}`);
+  const childJson = await childRes.json();
+  const audioTracks = (childJson.results || []).filter(t => t.duration_ms); // only actual playable tracks
+
+  if (!audioTracks.length) {
+    setStep('assign', 'No individual audio tracks found under this farbrengen (may be a standalone event) — the fallback text above will be used everywhere.', 'error');
+  } else {
+    setStep('assign', `Found ${audioTracks.length} audio tracks — assign below`, 'done');
+    renderAssignmentUI(validSegments, audioTracks);
   }
   prog(100);
 
-  // Show results
-  document.getElementById('results').innerHTML = validSegments.map((s, i) =>
-    `<div class="seg">
-      <h4>${i+1}. ${esc(s.titleEn)}</h4>
-      <div class="summary">${esc(s.summaryEn || '')}</div>
-      <div>${(s.tags||[]).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
-    </div>`
-  ).join('');
-
   document.getElementById('go').disabled = false;
+}
+
+function fmtDur(ms) {
+  if (!ms) return '';
+  const s = Math.round(ms/1000);
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+function renderAssignmentUI(segments, tracks) {
+  const el = document.getElementById('results');
+  el.innerHTML = `
+    <div style="background:#fff;border:1px solid #e2dfd7;border-radius:8px;padding:16px;margin-bottom:12px">
+      <p style="font-size:13px;color:#666;margin-bottom:14px">For each written segment, check every audio track it actually covers (usually one, sometimes several if the written text spans multiple tracks with no textual break — e.g. a niggun in between). Leave a segment unchecked if you're not sure — it'll just keep using the general fallback text.</p>
+      ${segments.map((s, si) => `
+        <div style="border:1px solid #eee;border-radius:6px;padding:12px;margin-bottom:10px;background:#fafafa">
+          <strong>${si+1}. ${esc(s.titleEn)}</strong>
+          <div style="font-size:12px;color:#777;margin:4px 0 8px">${esc(s.summaryEn || '')}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${tracks.map(t => `
+              <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;background:#fff;border:1px solid #ddd;border-radius:14px;padding:5px 10px;cursor:pointer">
+                <input type="checkbox" class="assign-check" data-seg="${si}" data-event="${t.id}" style="margin:0" />
+                ${esc(t.name)} <span style="color:#999">(${fmtDur(t.duration_ms)})</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+      <button onclick="saveAssignments()" style="margin-top:6px">Save Assignments</button>
+      <div id="assignResult" style="margin-top:10px;font-size:13px;color:#444;white-space:pre-wrap"></div>
+    </div>`;
+}
+
+async function saveAssignments() {
+  const checks = [...document.querySelectorAll('.assign-check:checked')];
+  const resultEl = document.getElementById('assignResult');
+  if (!checks.length) { resultEl.textContent = 'Nothing checked — nothing to save.'; return; }
+
+  const segments = window.currentSegmentsForAssignment;
+  const farbrengenId = window.currentFarbrengenIdForAssignment;
+  resultEl.textContent = `Saving ${checks.length} assignment(s)...`;
+
+  let done = 0, failed = 0;
+  for (const chk of checks) {
+    const seg = segments[parseInt(chk.dataset.seg, 10)];
+    const eventId = parseInt(chk.dataset.event, 10);
+    try {
+      const r = await fetch('/api/get-farbrengen-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId, farbrengenId,
+          resolvedText: seg.text,
+          manualTitle: seg.titleEn, manualSummary: seg.summaryEn, manualTags: seg.tags || []
+        })
+      });
+      const j = await r.json();
+      if (j.error) failed++; else done++;
+    } catch (e) { failed++; }
+    resultEl.textContent = `Saved ${done} of ${checks.length}${failed ? `, ${failed} failed` : ''}...`;
+  }
+  resultEl.textContent = `Done — ${done} track(s) precisely assigned${failed ? `, ${failed} failed` : ''}.`;
 }
 </script>
 
