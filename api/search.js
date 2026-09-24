@@ -39,7 +39,8 @@ export default async function handler(req, res) {
       if (data.length < pageSize) break;
       offset += pageSize;
     }
-    res.setHeader('Cache-Control', 's-maxage=60');
+    // No caching here — this is a diagnostic tool that needs the current
+    // truth, not a stale snapshot from mid-recovery.
     return res.status(200).json({ ids: allIds });
   }
 
@@ -64,7 +65,6 @@ export default async function handler(req, res) {
       offset += pageSize;
     }
     const years = [...new Set(allYears)].sort((a, b) => a - b);
-    res.setHeader('Cache-Control', 's-maxage=3600');
     return res.status(200).json({ years });
   }
 
