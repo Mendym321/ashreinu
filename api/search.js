@@ -17,6 +17,21 @@ export default async function handler(req, res) {
     return res.status(200).json({ results: data });
   }
 
+  // Special mode: return every event ID currently in our database, so a
+  // gap-finder tool can diff against the full 1–14000 range and discover
+  // exactly which IDs were missed (e.g. from rate-limiting during the
+  // original bulk scan) without re-scanning everything from scratch.
+  if (distinct === 'allIds') {
+    const { data, error } = await supabase
+      .from('ashreinu_events')
+      .select('id')
+      .order('id', { ascending: true })
+      .limit(20000);
+    if (error) return res.status(500).json({ error: error.message });
+    res.setHeader('Cache-Control', 's-maxage=60');
+    return res.status(200).json({ ids: data.map(r => r.id) });
+  }
+
   // Special mode: return distinct Hebrew years present in the data, for the
   // "Browse by year" homepage row — earliest first, so the scroll reads
   // left-to-right in real chronological order.
