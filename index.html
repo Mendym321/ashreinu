@@ -994,30 +994,78 @@ const readCache = {}; // avoid re-fetching the same farbrengen's text repeatedly
 // ── Footnote popovers ──
 window.footnoteStore = {};
 
-// The transcript preserves the PRINTED page's line breaks (OCR reads line
-// by line), which is meaningless for on-screen reflow at a different width.
-// This turns that into real paragraphs: a blank line = a new paragraph;
-// anything else collapses into flowing text. Page-break markers are hidden
-// entirely — they're for our own processing, not for reading.
-function reflowToParagraphs(text) {
-  if (!text) return [];
-  return text
+// This handles everything needed to turn raw, page-by-page OCR'd text into
+// a clean reading view — entirely via pattern-matching, no AI call needed,
+// so it's instant and works retroactively on anything already saved:
+//   1. Strip page-break markers and running headers/page-numbers
+//   2. Detect footnote-DEFINITION blocks (paragraphs of "1) ... 2) ...")
+//      and pull them out of the reading flow entirely
+//   3. Detect in-body footnote MARKERS in three styles this OCR produces —
+//      bare digits stuck to a Hebrew word/punctuation, Unicode superscript
+//      digits, and <sup>N</sup> tags — and make them clickable
+const SUPER_MAP = {'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
+function superToPlain(s) { return s.split('').map(c => SUPER_MAP[c] !== undefined ? SUPER_MAP[c] : c).join(''); }
+
+function extractFootnotesAndClean(rawText) {
+  if (!rawText) return { bodyParagraphs: [], footnotesMap: {} };
+
+  let paragraphs = rawText
     .split(/---\s*page break\s*---/g)
     .join('\n\n')
     .split(/\n\s*\n+/)
     .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
     .filter(p => p.length > 0);
+
+  // Drop obvious running-header / bare-page-number paragraphs
+  const HEADER_WORDS = /תשרי|חשון|כסלו|טבת|שבט|אדר|ניסן|אייר|סיון|תמוז|אב|אלול|ה['׳]תש|ה["״]תש/;
+  paragraphs = paragraphs.filter(p => {
+    if (/^\d{1,4}$/.test(p)) return false;
+    if (p.length < 70 && HEADER_WORDS.test(p) && /^\d/.test(p)) return false;
+    return true;
+  });
+
+  // Separate footnote-definition blocks from real body paragraphs
+  const footnotesMap = {};
+  const bodyParagraphs = [];
+  paragraphs.forEach(p => {
+    const positions = [...p.matchAll(/(?:^|\s)(\d{1,3})\)\s*/g)];
+    const looksLikeFootnoteBlock = positions.length >= 2 || (positions.length === 1 && /^\s*\d{1,3}\)/.test(p));
+    if (looksLikeFootnoteBlock) {
+      for (let i = 0; i < positions.length; i++) {
+        const marker = positions[i][1];
+        const start = positions[i].index + positions[i][0].length;
+        const end = i + 1 < positions.length ? positions[i+1].index : p.length;
+        const text = p.slice(start, end).trim();
+        if (text) footnotesMap[marker] = text;
+      }
+    } else {
+      bodyParagraphs.push(p);
+    }
+  });
+
+  // Wrap in-body markers, all three styles, with a common {{fn:N}} token
+  const wrapped = bodyParagraphs.map(p => {
+    p = p.replace(/[\u2070\u00B9\u00B2\u00B3\u2074-\u2079]+/g, m => `{{fn:${superToPlain(m)}}}`);
+    p = p.replace(/<sup>(\w+)<\/sup>/g, '{{fn:$1}}');
+    p = p.replace(/([\u0590-\u05FF])(\d{1,3})(?=[\s,\.\)\]\u05F3\u05F4"'׳״]|$)/g, (m, letter, num) => `${letter}{{fn:${num}}}`);
+    return p;
+  });
+
+  return { bodyParagraphs: wrapped, footnotesMap };
 }
 
-function renderTextWithFootnotes(text, footnotes, keyPrefix) {
+function renderTextWithFootnotes(text, savedFootnotes, keyPrefix) {
   if (!text) return '';
-  const fnMap = {};
-  (footnotes||[]).forEach(f => { fnMap[f.marker] = f.text; });
-  const paragraphs = reflowToParagraphs(text);
-  return paragraphs.map(p => {
+  const { bodyParagraphs, footnotesMap } = extractFootnotesAndClean(text);
+  // Merge any footnotes already saved in the DB (from the older backend
+  // extraction) with whatever this pass found fresh — the fresh pass wins
+  // since it sees the raw text directly.
+  (savedFootnotes || []).forEach(f => { if (!footnotesMap[f.marker]) footnotesMap[f.marker] = f.text; });
+
+  return bodyParagraphs.map(p => {
     const withFn = esc(p).replace(/\{\{fn:(\w+)\}\}/g, (m, num) => {
       const key = keyPrefix + '-fn' + num;
-      window.footnoteStore[key] = fnMap[num] || '(footnote text unavailable)';
+      window.footnoteStore[key] = footnotesMap[num] || '(footnote text not found)';
       return '<sup class="fn-marker" onclick="toggleFootnote(event,\'' + key + '\')">[' + esc(num) + ']</sup>';
     });
     return '<p>' + withFn + '</p>';
