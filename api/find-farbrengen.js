@@ -10,13 +10,16 @@ export default async function handler(req, res) {
   if (!year || !month || !day) return res.status(400).json({ error: 'Missing year/month/day' });
 
   try {
+    // Match any TOP-LEVEL event on this date — a proper "Farbrengen" row,
+    // or a standalone sicha/ma'amar with no parent (its own container,
+    // same as how the Ashreinu app links to it: parentEvent=id&event=id).
     const { data, error } = await supabase
       .from('ashreinu_events')
       .select('id, name, type')
       .eq('hebrew_year', parseInt(year, 10))
       .eq('hebrew_month', parseInt(month, 10))
       .eq('hebrew_day', parseInt(day, 10))
-      .eq('type', 'Farbrengen')
+      .is('parent_id', null)
       .limit(5);
 
     if (error) return res.status(500).json({ error: error.message });
