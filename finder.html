@@ -33,19 +33,19 @@ button:disabled{background:#ddd;color:#999}
   <input type="number" id="year" placeholder="Hebrew Year (e.g. 5712)" style="width:180px" />
   <select id="month" style="width:140px">
     <option value="">Month</option>
-    <option value="1">Tishrei</option>
-    <option value="2">Cheshvan</option>
-    <option value="3">Kislev</option>
-    <option value="4">Tevet</option>
-    <option value="5">Shevat</option>
-    <option value="6">Adar</option>
-    <option value="7">Nissan</option>
-    <option value="8">Iyar</option>
-    <option value="9">Sivan</option>
-    <option value="10">Tammuz</option>
-    <option value="11">Av</option>
-    <option value="12">Elul</option>
-    <option value="13">Adar II (leap year)</option>
+    <option value="1" data-name="Tishrei">Tishrei</option>
+    <option value="2" data-name="Cheshvan">Cheshvan</option>
+    <option value="3" data-name="Kislev">Kislev</option>
+    <option value="4" data-name="Tevet">Tevet</option>
+    <option value="5" data-name="Shevat">Shevat</option>
+    <option value="6" data-name="Adar">Adar</option>
+    <option value="7" data-name="Nissan">Nissan</option>
+    <option value="8" data-name="Iyar">Iyar</option>
+    <option value="9" data-name="Sivan">Sivan</option>
+    <option value="10" data-name="Tammuz">Tammuz</option>
+    <option value="11" data-name="Av">Av</option>
+    <option value="12" data-name="Elul">Elul</option>
+    <option value="13" data-name="Adar II">Adar II (leap year)</option>
   </select>
   <input type="number" id="day" placeholder="Day (1-30)" min="1" max="30" style="width:100px" />
   <button id="go" onclick="run()">Find & Process</button>
@@ -87,7 +87,9 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 async function run() {
   const year = document.getElementById('year').value.trim();
-  const month = document.getElementById('month').value.trim();
+  const monthSel = document.getElementById('month');
+  const month = monthSel.value.trim(); // numeric — used for Mafteiach's URL format
+  const monthName = monthSel.selectedOptions[0]?.dataset.name || ''; // text — used for our own date lookup, sidesteps numbering ambiguity
   const day = document.getElementById('day').value.trim();
   if (!year || !month || !day) return alert('Enter year, month, and day');
 
@@ -98,7 +100,7 @@ async function run() {
 
   // Step 1: find the farbrengen
   setStep('farbrengen', 'Looking up...', '');
-  const fRes = await fetch(`/api/find-farbrengen?year=${year}&month=${month}&day=${day}`);
+  const fRes = await fetch(`/api/find-farbrengen?year=${year}&monthName=${encodeURIComponent(monthName)}&day=${day}`);
   const fJson = await fRes.json();
   if (fJson.error || !fJson.matches?.length) {
     setStep('farbrengen', 'Not found in our index — ' + (fJson.error || 'no farbrengen on this date'), 'error');
