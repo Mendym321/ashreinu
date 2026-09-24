@@ -8,7 +8,7 @@ body{font-family:-apple-system,sans-serif;background:#f5f3ee;padding:24px;max-wi
 h2{font-size:18px}
 .bar{height:6px;background:#e2dfd7;border-radius:3px;overflow:hidden;margin:14px 0}
 .fill{height:100%;background:#c49a2a;width:0%;transition:width .3s}
-#log{font-size:12px;color:#444;white-space:pre-wrap;background:#fff;border:1px solid #e2dfd7;border-radius:6px;padding:12px;max-height:340px;overflow:auto;line-height:1.6}
+#log,#gapLog{font-size:12px;color:#444;white-space:pre-wrap;background:#fff;border:1px solid #e2dfd7;border-radius:6px;padding:12px;max-height:340px;overflow:auto;line-height:1.6}
 button{font-size:14px;font-weight:600;padding:10px 20px;background:#c49a2a;color:#fff;border:none;border-radius:6px;cursor:pointer}
 button:disabled{background:#e2dfd7;color:#999}
 .stat{font-size:13px;color:#666;margin-top:8px}
@@ -21,7 +21,19 @@ button:disabled{background:#e2dfd7;color:#999}
 <div class="bar"><div class="fill" id="fill"></div></div>
 <div class="stat" id="stat"></div>
 <div id="log"></div>
+
+<div style="margin-top:36px;padding-top:20px;border-top:2px solid #e2dfd7">
+  <h2>Find & Fill Gaps</h2>
+  <p style="font-size:14px;color:#555">The scan above hit heavy rate-limiting from Ashreinu's live API — any ID that got rate-limited was silently skipped and never saved. This finds exactly which IDs (out of 1–14000) are missing from our own database, then re-fetches only those — much smaller and gentler than a full re-scan.</p>
+  <button id="findBtn" onclick="findGaps()">Find Gaps</button>
+  <button id="fillBtn" onclick="fillGaps()" disabled style="margin-left:8px">Fill Gaps</button>
+  <div class="stat" id="gapStat"></div>
+  <div class="bar"><div class="fill" id="gapFill"></div></div>
+  <div id="gapLog"></div>
+</div>
+
 <script>
+// ── Original full sweep ──
 async function run(){
   document.getElementById('go').disabled = true;
   const TOTAL = 14000, STEP = 200;
@@ -63,6 +75,81 @@ function log(msg){
   const el = document.getElementById('log');
   el.textContent += msg + '\n';
   el.scrollTop = el.scrollHeight;
+}
+
+// ── Gap finder + filler ──
+let gapRanges = [];
+
+function gapLog(msg){
+  const el = document.getElementById('gapLog');
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+async function findGaps() {
+  document.getElementById('findBtn').disabled = true;
+  document.getElementById('gapStat').textContent = 'Fetching existing IDs...';
+  document.getElementById('gapLog').textContent = '';
+
+  const r = await fetch('/api/search?distinct=allIds');
+  const j = await r.json();
+  const existing = new Set(j.ids || []);
+
+  const TOTAL = 14000;
+  const missing = [];
+  for (let id = 1; id <= TOTAL; id++) {
+    if (!existing.has(id)) missing.push(id);
+  }
+
+  // Group consecutive missing IDs into ranges, so we can feed them to
+  // build-index in efficient chunks instead of one ID at a time.
+  gapRanges = [];
+  let rangeStart = null, prev = null;
+  for (const id of missing) {
+    if (rangeStart === null) { rangeStart = id; prev = id; continue; }
+    if (id === prev + 1) { prev = id; continue; }
+    gapRanges.push([rangeStart, prev]);
+    rangeStart = id; prev = id;
+  }
+  if (rangeStart !== null) gapRanges.push([rangeStart, prev]);
+
+  document.getElementById('gapStat').textContent =
+    existing.size + ' IDs already indexed, ' + missing.length + ' missing, grouped into ' + gapRanges.length + ' range(s) to re-scan.';
+  gapLog('Ranges to fill: ' + gapRanges.map(([s,e]) => s===e ? s : (s + '-' + e)).join(', '));
+
+  document.getElementById('findBtn').disabled = false;
+  document.getElementById('fillBtn').disabled = gapRanges.length === 0;
+}
+
+async function fillGaps() {
+  document.getElementById('fillBtn').disabled = true;
+  const STEP = 200;
+  let totalUpserted = 0, done = 0;
+
+  const chunks = [];
+  for (const [s, e] of gapRanges) {
+    for (let start = s; start <= e; start += STEP) {
+      chunks.push([start, Math.min(start + STEP - 1, e)]);
+    }
+  }
+
+  for (const [start, end] of chunks) {
+    gapLog('Filling ' + start + '-' + end + '...');
+    try {
+      const r = await fetch('/api/build-index?start=' + start + '&end=' + end);
+      const j = await r.json();
+      totalUpserted += j.upserted || 0;
+      gapLog('  -> ' + j.upserted + ' rows written (' + j.farbrengens + ' farbrengens, ' + j.notFound + ' still gaps, ' + j.errors + ' errors)');
+    } catch (e) {
+      gapLog('  ! failed: ' + e.message);
+    }
+    done++;
+    document.getElementById('gapFill').style.width = (done/chunks.length*100) + '%';
+    document.getElementById('gapStat').textContent = totalUpserted + ' rows recovered so far (' + done + '/' + chunks.length + ' chunks done)';
+  }
+
+  gapLog('DONE. Total rows recovered: ' + totalUpserted);
+  document.getElementById('fillBtn').disabled = false;
 }
 </script>
 </body>
