@@ -2,7 +2,20 @@ import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-  const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '' } = req.query;
+  const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '', parentId = '' } = req.query;
+
+  // Special mode: return the actual audio children of a farbrengen, in
+  // recording order — Sicha 1, Nigun 1, Sicha 2... — for the assignment
+  // tool that maps written segments to specific audio tracks.
+  if (parentId) {
+    const { data, error } = await supabase
+      .from('ashreinu_events')
+      .select('id, name, type, duration_ms')
+      .eq('parent_id', parseInt(parentId, 10))
+      .order('id', { ascending: true });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ results: data });
+  }
 
   // Special mode: return distinct Hebrew years present in the data, for the
   // "Browse by year" homepage row — earliest first, so the scroll reads
