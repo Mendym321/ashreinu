@@ -124,6 +124,13 @@ export default async function handler(req, res) {
     .order('hebrew_day', { ascending: true, nullsFirst: false })
     .order('id', { ascending: true });
 
+  // Filter out "phantom" entries: a non-Farbrengen row (a Sicha/Nigun/
+  // Ma'amar) with no audio at all isn't legitimate content — it's a
+  // draft/orphaned record from Ashreinu's raw data that never actually
+  // went live in their own app. A real Farbrengen container is fine with
+  // no audio of its own (its children carry it) — only exclude the rest.
+  query = query.or('type.eq.Farbrengen,audio_uri.not.is.null');
+
   const { data, error, count } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
