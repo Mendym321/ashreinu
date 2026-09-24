@@ -30,9 +30,24 @@ button:disabled{background:#ddd;color:#999}
 <p class="sub">Enter a Hebrew date. This will automatically find the farbrengen, locate its source text on Mafteiach, transcribe it, split it into sichos, tag each one, and save it — all in one run.</p>
 
 <div class="row">
-  <input type="number" id="year" placeholder="Year (5712)" />
-  <input type="number" id="month" placeholder="Month (1-13)" />
-  <input type="number" id="day" placeholder="Day" />
+  <input type="number" id="year" placeholder="Hebrew Year (e.g. 5712)" style="width:180px" />
+  <select id="month" style="width:140px">
+    <option value="">Month</option>
+    <option value="1">Tishrei</option>
+    <option value="2">Cheshvan</option>
+    <option value="3">Kislev</option>
+    <option value="4">Tevet</option>
+    <option value="5">Shevat</option>
+    <option value="6">Adar</option>
+    <option value="7">Nissan</option>
+    <option value="8">Iyar</option>
+    <option value="9">Sivan</option>
+    <option value="10">Tammuz</option>
+    <option value="11">Av</option>
+    <option value="12">Elul</option>
+    <option value="13">Adar II (leap year)</option>
+  </select>
+  <input type="number" id="day" placeholder="Day (1-30)" min="1" max="30" style="width:100px" />
   <button id="go" onclick="run()">Find & Process</button>
 </div>
 
