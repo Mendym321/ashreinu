@@ -375,3 +375,105 @@ async function saveLink() {
 </script>
 </body>
 </html>
+
+<div style="max-width:800px;margin:40px auto 0;padding:24px;background:#f5f3ee;font-family:-apple-system,sans-serif">
+  <h2>Merge Over-Split Sichos</h2>
+  <p style="font-size:14px;color:#666;margin-bottom:16px">If automated segmentation found a real "* * *" text boundary, but the audio for that farbrengen is actually just ONE track covering both parts (like a short standalone sicha that happens to have two written sections), use this to combine them back into one before it confuses the reading view.</p>
+
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <input type="number" id="mergeFarbrengenId" placeholder="Farbrengen ID" style="width:200px;padding:10px;border:1px solid #ddd;border-radius:6px" />
+    <button onclick="loadForMerge()" style="font-size:14px;font-weight:600;padding:10px 20px;background:#5a7a9a;color:#fff;border:none;border-radius:6px;cursor:pointer">Load Segments</button>
+  </div>
+  <div id="mergeList"></div>
+  <button onclick="mergeSelected()" style="margin-top:12px;font-size:14px;font-weight:600;padding:10px 20px;background:#c49a2a;color:#fff;border:none;border-radius:6px;cursor:pointer;display:none" id="mergeBtn">Merge Checked Segments</button>
+  <div id="mergeResult" style="margin-top:12px;font-size:13px;color:#444;white-space:pre-wrap"></div>
+</div>
+
+<script>
+let currentMergeSegments = [];
+let currentMergeFarbrengenId = null;
+
+function escM(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+async function loadForMerge() {
+  const farbrengenId = document.getElementById('mergeFarbrengenId').value.trim();
+  currentMergeFarbrengenId = farbrengenId;
+  const listEl = document.getElementById('mergeList');
+  if (!farbrengenId) { listEl.innerHTML = 'Enter a Farbrengen ID first.'; return; }
+
+  listEl.innerHTML = 'Loading...';
+  try {
+    const r = await fetch('/api/get-farbrengen-text?farbrengenId=' + farbrengenId);
+    const j = await r.json();
+    if (!j.hasText || !j.segments?.length) {
+      listEl.innerHTML = 'No segments found for this farbrengen.';
+      document.getElementById('mergeBtn').style.display = 'none';
+      return;
+    }
+    currentMergeSegments = j.segments;
+    listEl.innerHTML = j.segments.map((s, i) =>
+      `<div style="background:#fff;border:1px solid #e2dfd7;border-radius:6px;padding:12px;margin-bottom:8px">
+        <label style="cursor:pointer;display:flex;gap:10px;align-items:flex-start">
+          <input type="checkbox" class="mergeCheck" value="${i}" style="margin-top:3px" />
+          <div>
+            <strong>${escM(s.title_en || 'Segment ' + (i+1))}</strong><br>
+            <span style="font-size:12px;color:#666">${escM(s.summary_en || '')}</span><br>
+            <span style="font-size:11px;color:#999">${(s.source_text||'').length} characters</span>
+          </div>
+        </label>
+      </div>`
+    ).join('');
+    document.getElementById('mergeBtn').style.display = 'inline-block';
+  } catch (e) {
+    listEl.innerHTML = 'Failed: ' + e.message;
+  }
+}
+
+async function mergeSelected() {
+  const checked = [...document.querySelectorAll('.mergeCheck:checked')].map(el => parseInt(el.value, 10));
+  const resultEl = document.getElementById('mergeResult');
+  if (checked.length < 2) { resultEl.textContent = 'Check at least 2 segments to merge.'; return; }
+
+  checked.sort((a,b) => a-b); // keep original order when combining text
+  const toMerge = checked.map(i => currentMergeSegments[i]);
+  const kept = currentMergeSegments.filter((_, i) => !checked.includes(i));
+
+  const mergedSegment = {
+    titleEn: toMerge[0].title_en, // keeps the first one's title — edit manually afterward if needed
+    summaryEn: toMerge.map(s => s.summary_en).filter(Boolean).join(' '),
+    tags: [...new Set(toMerge.flatMap(s => s.tags || []))],
+    text: toMerge.map(s => s.source_text).join('\n\n')
+  };
+
+  // Rebuild the full segment list in original relative order, with the
+  // merged block taking the position of the first item that was merged.
+  const firstMergedIdx = checked[0];
+  const finalSegments = [];
+  let inserted = false;
+  currentMergeSegments.forEach((s, i) => {
+    if (checked.includes(i)) {
+      if (!inserted) { finalSegments.push(mergedSegment); inserted = true; }
+    } else {
+      finalSegments.push({ titleEn: s.title_en, summaryEn: s.summary_en, tags: s.tags, text: s.source_text });
+    }
+  });
+
+  resultEl.textContent = 'Saving merged segments...';
+  try {
+    const r = await fetch('/api/save-segments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        farbrengenId: parseInt(currentMergeFarbrengenId, 10),
+        segments: finalSegments
+      })
+    });
+    const j = await r.json();
+    if (j.error) { resultEl.textContent = 'Error: ' + j.error; return; }
+    resultEl.textContent = 'Merged and saved — ' + j.saved + ' segments now on file. Reload above to see the result.';
+    loadForMerge();
+  } catch (e) {
+    resultEl.textContent = 'Failed: ' + e.message;
+  }
+}
+</script>
