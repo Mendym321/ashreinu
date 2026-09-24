@@ -124,7 +124,8 @@ async function findGaps() {
 async function fillGaps() {
   document.getElementById('fillBtn').disabled = true;
   const STEP = 200;
-  let totalUpserted = 0, done = 0;
+  let totalUpserted = 0;
+  let chunksDoneCounter = { done: 0 };
 
   const chunks = [];
   for (const [s, e] of gapRanges) {
@@ -133,19 +134,37 @@ async function fillGaps() {
     }
   }
 
-  for (const [start, end] of chunks) {
-    gapLog('Filling ' + start + '-' + end + '...');
+  // Self-healing: a dense range (lots of farbrengens/sub-events to process)
+  // can time out even with a generous limit. Rather than just giving up on
+  // the whole 200-ID block, split it in half and retry each half — repeats
+  // down to a small floor before finally giving up on a tiny piece.
+  async function fillRange(start, end, depth) {
+    depth = depth || 0;
     try {
       const r = await fetch('/api/build-index?start=' + start + '&end=' + end);
       const j = await r.json();
+      if (j.error) throw new Error(j.error);
       totalUpserted += j.upserted || 0;
-      gapLog('  -> ' + j.upserted + ' rows written (' + j.farbrengens + ' farbrengens, ' + j.notFound + ' still gaps, ' + j.errors + ' errors)');
+      gapLog('  -> ' + start + '-' + end + ': ' + j.upserted + ' rows (' + j.farbrengens + ' farbrengens, ' + j.notFound + ' still gaps, ' + j.errors + ' errors)');
     } catch (e) {
-      gapLog('  ! failed: ' + e.message);
+      const size = end - start + 1;
+      if (size <= 20 || depth >= 5) {
+        gapLog('  ! gave up on ' + start + '-' + end + ' after splitting (' + e.message + ')');
+        return;
+      }
+      const mid = start + Math.floor(size / 2) - 1;
+      gapLog('  ! ' + start + '-' + end + ' failed (' + e.message + ') — splitting into ' + start + '-' + mid + ' and ' + (mid+1) + '-' + end);
+      await fillRange(start, mid, depth + 1);
+      await fillRange(mid + 1, end, depth + 1);
     }
-    done++;
-    document.getElementById('gapFill').style.width = (done/chunks.length*100) + '%';
-    document.getElementById('gapStat').textContent = totalUpserted + ' rows recovered so far (' + done + '/' + chunks.length + ' chunks done)';
+  }
+
+  for (const [start, end] of chunks) {
+    gapLog('Filling ' + start + '-' + end + '...');
+    await fillRange(start, end);
+    chunksDoneCounter.done++;
+    document.getElementById('gapFill').style.width = (chunksDoneCounter.done/chunks.length*100) + '%';
+    document.getElementById('gapStat').textContent = totalUpserted + ' rows recovered so far (' + chunksDoneCounter.done + '/' + chunks.length + ' chunks done)';
   }
 
   gapLog('DONE. Total rows recovered: ' + totalUpserted);
