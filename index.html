@@ -10,6 +10,21 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
+  /* Dark theme — the default. Deep warm charcoal, not pure black, so we
+     read as a distinct identity rather than mimicking Ashreinu's own
+     pure-black shell. */
+  --ink:#ede7da;--ink-mid:#b3aa98;--ink-light:#8a8270;--ink-faint:#5c5648;
+  --gold:#d9a63f;--gold-dim:#e2b04e;--gold-bg:#3a2f1a;
+  --burgundy:#c96b6b;
+  --bg:#161310;--surface:#211d17;--border:#332e25;--border-soft:#2a251d;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.25),0 1px 1px rgba(0,0,0,0.2);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.35),0 1px 3px rgba(0,0,0,0.25);
+  --shadow-lg:0 8px 30px rgba(0,0,0,0.45),0 2px 8px rgba(0,0,0,0.3);
+  --radius:14px;--radius-sm:9px;
+  --sicha:#5b8ce8;--maamar:#b478e8;--farb:#4fbf82;--niggun:#e0a24f;
+}
+:root[data-theme="light"]{
+  /* Light theme — the original warm archival palette, opt-in via the toggle. */
   --ink:#1b1712;--ink-mid:#5c5648;--ink-light:#93897a;--ink-faint:#c9c1b3;
   --gold:#a3762f;--gold-dim:#7d5a24;--gold-bg:#faf1de;
   --burgundy:#8a3a3a;
@@ -17,11 +32,10 @@
   --shadow-sm:0 1px 2px rgba(27,23,18,0.04),0 1px 1px rgba(27,23,18,0.03);
   --shadow-md:0 4px 16px rgba(27,23,18,0.06),0 1px 3px rgba(27,23,18,0.04);
   --shadow-lg:0 8px 30px rgba(27,23,18,0.10),0 2px 8px rgba(27,23,18,0.05);
-  --radius:14px;--radius-sm:9px;
   --sicha:#2f5fb8;--maamar:#8a3ab8;--farb:#2e7d4f;--niggun:#b8721a;
 }
-html{scroll-behavior:smooth}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:96px;-webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth;transition:background-color .2s}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:96px;-webkit-font-smoothing:antialiased;transition:background-color .2s,color .2s}
 
 /* ═══ Header ═══ */
 header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 28px 22px;position:sticky;top:0;z-index:20;box-shadow:var(--shadow-lg)}
@@ -115,7 +129,7 @@ input[type=number]{-moz-appearance:textfield}
 
 /* ═══ Skeleton ═══ */
 .skel-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:18px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
-.skel-line{height:12px;border-radius:4px;background:linear-gradient(90deg,#efe9dc 25%,#f7f3ea 50%,#efe9dc 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
+.skel-line{height:12px;border-radius:4px;background:linear-gradient(90deg,var(--border-soft) 25%,var(--border) 50%,var(--border-soft) 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
 @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
 .skel-line.title{width:58%;height:17px;margin-bottom:11px}
 .skel-line.meta{width:32%}
@@ -368,7 +382,12 @@ input[type=number]{-moz-appearance:textfield}
           <span>Archive Search</span>
         </div>
       </div>
-      <div class="browse-menu-wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="browse-menu-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark" style="padding:8px">
+          <svg id="themeIconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        </button>
+        <div class="browse-menu-wrap">
         <button class="browse-menu-btn" onclick="toggleBrowseMenu(event)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           Browse
@@ -395,6 +414,7 @@ input[type=number]{-moz-appearance:textfield}
             Collections &amp; Months
           </div>
         </div>
+      </div>
       </div>
     </div>
     <div class="today-strip" id="todayStrip"></div>
@@ -566,6 +586,29 @@ const calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const extIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const playIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const bookIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+
+// ── Theme (dark default, light opt-in) ──
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.getElementById('themeIconMoon').style.display = 'none';
+    document.getElementById('themeIconSun').style.display = '';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    document.getElementById('themeIconMoon').style.display = '';
+    document.getElementById('themeIconSun').style.display = 'none';
+  }
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  localStorage.setItem('ashreinu-theme', next);
+  applyTheme(next);
+}
+function initTheme() {
+  const saved = localStorage.getItem('ashreinu-theme');
+  applyTheme(saved === 'light' ? 'light' : 'dark'); // dark unless the person has explicitly chosen light before
+}
 
 // ── Browse menu (persistent navigation, available in every state) ──
 function toggleBrowseMenu(e) {
@@ -1058,12 +1101,11 @@ function populateNowPlaying(rid) {
   if (!row) return;
   const lbl = typeLabel(row.type);
   const dotCls = typeDot(row.type);
-  const colorMap = { 'dot-sicha':['#e8f0fe','#1a56cc'], 'dot-maamar':['#fce8ff','#7a1aaa'], 'dot-farb':['#e8fce8','#1a7a1a'], 'dot-niggun':['#fff3e0','#b06000'], 'dot-other':['#f0f0f0','#555'] };
-  const [bg, fg] = colorMap[dotCls] || colorMap['dot-other'];
+  const typeColorVar = { 'dot-sicha':'--sicha', 'dot-maamar':'--maamar', 'dot-farb':'--farb', 'dot-niggun':'--niggun', 'dot-other':'--ink-light' }[dotCls] || '--ink-light';
 
   document.getElementById('npTypeBadge').textContent = lbl;
-  document.getElementById('npTypeBadge').style.background = bg;
-  document.getElementById('npTypeBadge').style.color = fg;
+  document.getElementById('npTypeBadge').style.background = 'var(--border-soft)';
+  document.getElementById('npTypeBadge').style.color = 'var(' + typeColorVar + ')';
   document.getElementById('npTitle').textContent = row.name || '(untitled)';
   document.getElementById('npParent').textContent = row.parent_name || '';
   document.getElementById('npParent').style.display = row.parent_name ? 'block' : 'none';
@@ -1230,6 +1272,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
 
 // ── Init ──
 (async function init() {
+  initTheme();
   await loadTodayHebrewDate();
   showLanding();
 })();
