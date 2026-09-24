@@ -52,6 +52,11 @@ button:disabled{background:#ddd;color:#999}
 </div>
 
 <details style="margin-bottom:14px">
+  <summary style="cursor:pointer;font-size:13px;color:#666">Already know the Google Drive link? Paste it to skip the Mafteiach lookup entirely</summary>
+  <input type="text" id="manualDriveLink" placeholder="Paste the Drive link or just the file ID" style="width:100%;margin-top:8px;padding:10px 12px;border:1px solid #ddd;border-radius:6px" />
+</details>
+
+<details style="margin-bottom:14px">
   <summary style="cursor:pointer;font-size:13px;color:#666">Already have a transcript? Paste it to skip transcription entirely</summary>
   <textarea id="pastedTranscript" placeholder="Paste the full transcript here (with --- page break --- markers if you have them) to skip steps 2 and 3 and go straight to segmentation." style="width:100%;min-height:150px;margin-top:8px;font-family:monospace;font-size:12px;direction:rtl;padding:10px;border:1px solid #ddd;border-radius:6px"></textarea>
 </details>
@@ -112,6 +117,7 @@ async function run() {
   prog(10);
 
   const pastedText = document.getElementById('pastedTranscript').value.trim();
+  const manualDriveInput = document.getElementById('manualDriveLink').value.trim();
   let fullText, total, driveFileId = null;
 
   if (pastedText) {
@@ -129,25 +135,33 @@ async function run() {
       body: JSON.stringify({ farbrengenId: farbrengen.id, driveFileId: null, pageCount: total, fullText })
     });
   } else {
-    // Step 2: find the Mafteiach source
-    setStep('mafteiach', 'Fetching Mafteiach page...', '');
-    const mRes = await fetch(`/api/mafteiach-fetch?year=${year}&month=${month}&day=${day}`);
-    const mJson = await mRes.json();
-    if (!mJson.foundBiltiMugahSection || !mJson.driveLinksInBiltiSection?.length) {
-      setStep('mafteiach', 'No בלתי מוגה section found on Mafteiach for this date', 'error');
-      document.getElementById('go').disabled = false;
-      return;
+    // Step 2: find the Mafteiach source — either from a manually-supplied
+    // link/id (when the auto-parser missed it, e.g. a page layout our
+    // parser doesn't recognize yet), or via the normal auto-lookup.
+    if (manualDriveInput) {
+      const manualMatch = manualDriveInput.match(/[-\w]{25,}/);
+      driveFileId = manualMatch ? manualMatch[0] : manualDriveInput;
+      setStep('mafteiach', `Using manually-supplied link (${driveFileId})`, 'done');
+    } else {
+      setStep('mafteiach', 'Fetching Mafteiach page...', '');
+      const mRes = await fetch(`/api/mafteiach-fetch?year=${year}&month=${month}&day=${day}`);
+      const mJson = await mRes.json();
+      if (!mJson.foundBiltiMugahSection || !mJson.driveLinksInBiltiSection?.length) {
+        setStep('mafteiach', 'No בלתי מוגה section found on Mafteiach for this date — try pasting the Drive link manually above', 'error');
+        document.getElementById('go').disabled = false;
+        return;
+      }
+      const tomLink = mJson.driveLinksInBiltiSection.find(l => l.label && l.label.includes('תו"מ'))
+        || mJson.driveLinksInBiltiSection[mJson.driveLinksInBiltiSection.length - 1];
+      const driveMatch = tomLink.url.match(/[-\w]{25,}/);
+      driveFileId = driveMatch ? driveMatch[0] : null;
+      if (!driveFileId) {
+        setStep('mafteiach', 'Found links but could not extract a file ID', 'error');
+        document.getElementById('go').disabled = false;
+        return;
+      }
+      setStep('mafteiach', `Found: "${tomLink.label}" (${driveFileId})`, 'done');
     }
-    const tomLink = mJson.driveLinksInBiltiSection.find(l => l.label && l.label.includes('תו"מ'))
-      || mJson.driveLinksInBiltiSection[mJson.driveLinksInBiltiSection.length - 1];
-    const driveMatch = tomLink.url.match(/[-\w]{25,}/);
-    driveFileId = driveMatch ? driveMatch[0] : null;
-    if (!driveFileId) {
-      setStep('mafteiach', 'Found links but could not extract a file ID', 'error');
-      document.getElementById('go').disabled = false;
-      return;
-    }
-    setStep('mafteiach', `Found: "${tomLink.label}" (${driveFileId})`, 'done');
     prog(20);
 
     // Step 3: transcribe every page (skip if already cached)
