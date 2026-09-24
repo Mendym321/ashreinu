@@ -51,43 +51,14 @@ export default async function handler(req, res) {
       if (foundEnd !== -1) endIdx = foundEnd;
     }
 
-    // Strip obvious page artifacts ourselves — instant, no API call needed.
-    // Running headers and bare page numbers reliably appear right after a
-    // "--- page break ---" marker, as one or two short standalone lines
-    // before the real sentence resumes.
-    function stripPageArtifacts(t) {
-      return t
-        .split(/---\s*page break\s*---/g)
-        .map((chunk, i) => {
-          if (i === 0) return chunk;
-          // Drop up to 2 leading short lines (a bare number, or a short
-          // date-like header line) at the start of each new page's chunk.
-          const lines = chunk.split('\n');
-          let dropped = 0;
-          while (dropped < 3 && lines.length && (
-            /^\s*$/.test(lines[0]) ||
-            /^\s*#?\s*\d{1,4}\s*$/.test(lines[0]) ||
-            (lines[0].length < 40 && /כסלו|תשרי|חשון|טבת|שבט|אדר|ניסן|אייר|סיון|תמוז|אב|אלול|ה'תש|ה׳תש/.test(lines[0]))
-          )) {
-            lines.shift();
-            dropped++;
-          }
-          return lines.join('\n');
-        })
-        .join('\n\n');
-    }
+    const resolvedText = text.slice(startIdx, endIdx).trim();
 
-    // Footnote markers came through the page-by-page transcription as
-    // <sup>N</sup> tags where the source had a clear superscript — convert
-    // those to {{fn:N}} tokens directly (deterministic, instant). Footnotes
-    // referenced by a plain trailing number (no <sup>) aren't auto-linked
-    // yet — a known limitation, safer than a fragile regex that risks
-    // mismatching ordinary numbers in the text.
-    const headerStripped = stripPageArtifacts(resolvedText);
-    const withFnTokens = headerStripped.replace(/<sup>(\w+)<\/sup>/g, '{{fn:$1}}');
-    const referencedMarkers = [...new Set([...withFnTokens.matchAll(/\{\{fn:(\w+)\}\}/g)].map(m => m[1]))];
-
-    let titleEn = null, summaryEn = null, tags = [], footnotes = [];
+    // Footnote/header cleanup now happens entirely at DISPLAY time on the
+    // frontend (pure pattern-matching, no API call) — so we just store the
+    // raw resolved text here. This is simpler, faster, and also means any
+    // improvement to the display-side cleanup applies retroactively to
+    // everything already saved, without needing to re-run this endpoint.
+    let titleEn = null, summaryEn = null, tags = [];
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (apiKey) {
       try {
@@ -96,18 +67,10 @@ export default async function handler(req, res) {
           headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({
             model: 'claude-sonnet-4-5',
-            max_tokens: 2048,
+            max_tokens: 1024,
             messages: [{
               role: 'user',
-              content: `This is a section of a chassidic sicha/farbrengen transcript. Do NOT reproduce or repeat the body text back — respond ONLY with this JSON:
-
-{"titleEn": "short English title (5-8 words)", "summaryEn": "2-3 sentence English summary", "tags": ["4-8 short lowercase tags: topics, dates/occasions, chassidic concepts, sources cited"], "footnotes": [{"marker": "N", "text": "the footnote's actual text, found elsewhere in this excerpt (often near the bottom of the page it was referenced on)"}]}
-
-Provide footnote text for exactly these marker numbers, in this order, if you can find each one's corresponding text in the excerpt: ${referencedMarkers.join(', ') || '(none found)'}
-
-Text:
-
-${withFnTokens.slice(0, 14000)}`
+              content: `This is a section of a chassidic sicha/farbrengen transcript. Respond ONLY with valid JSON, no other text:\n{"titleEn": "short English title (5-8 words)", "summaryEn": "2-3 sentence English summary", "tags": ["4-8 short lowercase tags: topics, dates/occasions, chassidic concepts, sources cited"]}\n\nText:\n\n${resolvedText.slice(0, 12000)}`
             }]
           })
         });
@@ -118,7 +81,6 @@ ${withFnTokens.slice(0, 14000)}`
           titleEn = parsed.titleEn || null;
           summaryEn = parsed.summaryEn || null;
           tags = parsed.tags || [];
-          footnotes = parsed.footnotes || [];
         }
       } catch (e) { /* enrichment is best-effort — a failed call shouldn't block saving the link */ }
     }
@@ -137,16 +99,15 @@ ${withFnTokens.slice(0, 14000)}`
         farbrengen_id: farbrengenId,
         start_snippet: startSnippet,
         end_snippet: endSnippet || null,
-        resolved_text: withFnTokens,
+        resolved_text: resolvedText,
         title_en: titleEn,
         summary_en: summaryEn,
-        tags,
-        footnotes
+        tags
       });
 
     if (saveErr) return res.status(500).json({ error: saveErr.message });
 
-    return res.status(200).json({ saved: true, titleEn, summaryEn, tags, footnoteCount: footnotes.length, resolvedTextLength: withFnTokens.length, resolvedTextPreview: withFnTokens.slice(0, 300) });
+    return res.status(200).json({ saved: true, titleEn, summaryEn, tags, resolvedTextLength: resolvedText.length, resolvedTextPreview: resolvedText.slice(0, 300) });
   }
 
   // GET
@@ -167,7 +128,7 @@ ${withFnTokens.slice(0, 14000)}`
         return res.status(200).json({
           hasText: true,
           precise: true,
-          segments: [{ title_en: link.title_en, summary_en: link.summary_en, tags: link.tags || [], source_text: link.resolved_text, footnotes: link.footnotes || [] }]
+          segments: [{ title_en: link.title_en, summary_en: link.summary_en, tags: link.tags || [], source_text: link.resolved_text }]
         });
       }
     }
