@@ -165,8 +165,10 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
   font-display: swap;
 }
 
-.read-fulltext{font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:16px;color:var(--ink);line-height:2;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);white-space:pre-wrap;max-height:0;overflow:hidden;transition:max-height .3s ease}
-.read-fulltext.expanded{max-height:8000px}
+.read-fulltext{font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:16px;color:var(--ink);line-height:2;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);max-height:0;overflow:hidden;transition:max-height .3s ease}
+.read-fulltext.expanded{max-height:20000px}
+.read-fulltext p{text-align:justify;text-align-last:right;margin:0 0 1.1em 0}
+.read-fulltext p:last-child{margin-bottom:0}
 .fn-marker{color:var(--gold-dim);cursor:pointer;font-weight:700;padding:0 1px;font-family:'Inter',sans-serif}
 .fn-marker:hover{text-decoration:underline}
 .fn-popup{position:absolute;max-width:280px;background:#1b1712;color:#f3ede0;font-family:'DachHeilig','David Libre',serif;font-size:13.5px;padding:12px 14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.35);z-index:100;direction:rtl;line-height:1.7}
@@ -991,15 +993,35 @@ const readCache = {}; // avoid re-fetching the same farbrengen's text repeatedly
 
 // ── Footnote popovers ──
 window.footnoteStore = {};
+
+// The transcript preserves the PRINTED page's line breaks (OCR reads line
+// by line), which is meaningless for on-screen reflow at a different width.
+// This turns that into real paragraphs: a blank line = a new paragraph;
+// anything else collapses into flowing text. Page-break markers are hidden
+// entirely — they're for our own processing, not for reading.
+function reflowToParagraphs(text) {
+  if (!text) return [];
+  return text
+    .split(/---\s*page break\s*---/g)
+    .join('\n\n')
+    .split(/\n\s*\n+/)
+    .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
+    .filter(p => p.length > 0);
+}
+
 function renderTextWithFootnotes(text, footnotes, keyPrefix) {
   if (!text) return '';
   const fnMap = {};
   (footnotes||[]).forEach(f => { fnMap[f.marker] = f.text; });
-  return esc(text).replace(/\{\{fn:(\w+)\}\}/g, (m, num) => {
-    const key = keyPrefix + '-fn' + num;
-    window.footnoteStore[key] = fnMap[num] || '(footnote text unavailable)';
-    return '<sup class="fn-marker" onclick="toggleFootnote(event,\'' + key + '\')">[' + esc(num) + ']</sup>';
-  });
+  const paragraphs = reflowToParagraphs(text);
+  return paragraphs.map(p => {
+    const withFn = esc(p).replace(/\{\{fn:(\w+)\}\}/g, (m, num) => {
+      const key = keyPrefix + '-fn' + num;
+      window.footnoteStore[key] = fnMap[num] || '(footnote text unavailable)';
+      return '<sup class="fn-marker" onclick="toggleFootnote(event,\'' + key + '\')">[' + esc(num) + ']</sup>';
+    });
+    return '<p>' + withFn + '</p>';
+  }).join('');
 }
 function toggleFootnote(e, key) {
   e.stopPropagation();
