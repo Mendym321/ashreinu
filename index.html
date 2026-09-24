@@ -26,10 +26,33 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 /* ═══ Header ═══ */
 header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 28px 22px;position:sticky;top:0;z-index:20;box-shadow:var(--shadow-lg)}
 .header-inner{max-width:720px;margin:0 auto}
-.wordmark{display:flex;align-items:center;gap:12px;margin-bottom:22px;transition:opacity .15s}
+.wordmark{display:flex;align-items:center;gap:12px;transition:opacity .15s}
 .wordmark:hover{opacity:0.8}
 .wordmark:hover .wordmark-icon{transform:scale(1.05)}
 .wordmark-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#c9962f,#8a6420);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.3);transition:transform .15s}
+
+/* ═══ Header top row + Browse menu ═══ */
+.header-top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.browse-menu-wrap{position:relative}
+.browse-menu-btn{
+  display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#e8ddc8;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:9px;
+  padding:8px 14px;cursor:pointer;transition:all .15s;
+}
+.browse-menu-btn:hover{background:rgba(255,255,255,0.1)}
+.browse-menu-btn svg{width:15px;height:15px}
+.browse-menu-dropdown{
+  position:absolute;top:calc(100% + 8px);left:0;background:var(--surface);border-radius:12px;
+  box-shadow:var(--shadow-lg);border:1px solid var(--border);min-width:220px;padding:8px;z-index:50;
+  display:none;
+}
+.browse-menu-dropdown.open{display:block}
+.browse-menu-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;
+  font-size:13.5px;color:var(--ink-mid);transition:background .15s;
+}
+.browse-menu-item:hover{background:var(--bg);color:var(--ink)}
+.browse-menu-item svg{width:16px;height:16px;flex-shrink:0;color:var(--gold-dim)}
 .wordmark-icon svg{width:16px;height:16px;fill:#1a1408}
 .wordmark-text h1{font-family:'Fraunces',serif;font-weight:500;font-size:22px;color:#f3e9d2;letter-spacing:0.005em;line-height:1}
 .wordmark-text span{font-size:10px;color:#8a8270;text-transform:uppercase;letter-spacing:0.14em;font-weight:600;display:block;margin-top:3px}
@@ -65,6 +88,9 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 }
 .mini-field input{width:64px;cursor:text}
 .mini-field input::placeholder{color:#7a7364}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
 .mini-field select{appearance:none;-webkit-appearance:none;padding-right:28px;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7364' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 10px center;
@@ -120,6 +146,7 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
   font-family:'Fraunces',serif;font-size:17.5px;font-weight:500;color:var(--ink);
   text-decoration:none;line-height:1.4;display:block;letter-spacing:-0.005em;
 }
+.cname-playable{cursor:pointer}
 .cname:hover{color:var(--gold-dim)}
 .ctype-label{
   font-size:10px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.08em;font-weight:700;
@@ -331,13 +358,43 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 
 <header>
   <div class="header-inner">
-    <div class="wordmark" onclick="goHome()" style="cursor:pointer" title="Back to home">
-      <div class="wordmark-icon">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.2L19.5 8 12 11.8 4.5 8 12 4.2zM4 9.7l7 3.5v7.1l-7-3.5V9.7zm9 10.6v-7.1l7-3.5v7.1l-7 3.5z"/></svg>
+    <div class="header-top-row">
+      <div class="wordmark" onclick="goHome()" style="cursor:pointer" title="Back to home">
+        <div class="wordmark-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.2L19.5 8 12 11.8 4.5 8 12 4.2zM4 9.7l7 3.5v7.1l-7-3.5V9.7zm9 10.6v-7.1l7-3.5v7.1l-7 3.5z"/></svg>
+        </div>
+        <div class="wordmark-text">
+          <h1>Ashreinu</h1>
+          <span>Archive Search</span>
+        </div>
       </div>
-      <div class="wordmark-text">
-        <h1>Ashreinu</h1>
-        <span>Archive Search</span>
+      <div class="browse-menu-wrap">
+        <button class="browse-menu-btn" onclick="toggleBrowseMenu(event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          Browse
+        </button>
+        <div class="browse-menu-dropdown" id="browseMenuDropdown">
+          <div class="browse-menu-item" onclick="closeBrowseMenuAnd(() => goHome())">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            Home
+          </div>
+          <div class="browse-menu-item" onclick="closeBrowseMenuAnd(() => browseByType('sicha'))">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="10 8 16 12 10 16 10 8"/></svg>
+            Sichos
+          </div>
+          <div class="browse-menu-item" onclick="closeBrowseMenuAnd(() => browseByType('maamar'))">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Ma'amarim
+          </div>
+          <div class="browse-menu-item" onclick="closeBrowseMenuAnd(() => browseByType('nigun'))">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            Nigunim
+          </div>
+          <div class="browse-menu-item" onclick="closeBrowseMenuAnd(() => scrollToLandingSection())">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Collections &amp; Months
+          </div>
+        </div>
       </div>
     </div>
     <div class="today-strip" id="todayStrip"></div>
@@ -430,7 +487,7 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
         <svg id="npPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       </button>
       <button class="np-skip-btn" id="npNextBtn" onclick="playNext()" title="Next">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zm-9.5 6L15 6v12z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
       </button>
       <div class="np-progress-col">
         <div class="np-progress-row">
@@ -509,6 +566,34 @@ const calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const extIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const playIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const bookIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+
+// ── Browse menu (persistent navigation, available in every state) ──
+function toggleBrowseMenu(e) {
+  e.stopPropagation();
+  const dropdown = document.getElementById('browseMenuDropdown');
+  const isOpen = dropdown.classList.contains('open');
+  dropdown.classList.toggle('open', !isOpen);
+  if (!isOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', function closeOnce(ev) {
+        if (!dropdown.contains(ev.target)) {
+          dropdown.classList.remove('open');
+          document.removeEventListener('click', closeOnce);
+        }
+      });
+    }, 0);
+  }
+}
+function closeBrowseMenuAnd(fn) {
+  document.getElementById('browseMenuDropdown').classList.remove('open');
+  fn();
+}
+function scrollToLandingSection() {
+  goHome();
+  setTimeout(() => {
+    document.getElementById('collectionsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
+}
 
 function goHome() {
   currentType = '';
@@ -698,7 +783,7 @@ async function showLanding() {
     </div>`;
 
   const collectionsHtml = `
-    <div class="home-section">
+    <div class="home-section" id="collectionsSection">
       <div class="home-section-head"><h3>Collections</h3><span>Browse by occasion</span></div>
       <div class="browse-grid">
         ${COLLECTIONS.map((c, i) => `<div class="collection-tile" onclick="browseByCollection(${i})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`).join('')}
@@ -798,7 +883,9 @@ function cardHtml(row) {
       +'<div class="type-badge '+typeDot(row.type)+'"></div>'
       +'<div class="card-body">'
         +'<div class="card-toprow">'
-          +'<a class="cname" href="'+link+'" target="_blank">'+esc(row.name||'(untitled)')+'</a>'
+          +(audioUrl
+              ? '<span class="cname cname-playable" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+esc(row.name||'(untitled)')+'</span>'
+              : '<span class="cname">'+esc(row.name||'(untitled)')+'</span>')
           +(lbl?'<span class="ctype-label">'+esc(lbl)+'</span>':'')
         +'</div>'
         +(row.parent_name?'<div class="cpar">In <span>'+esc(row.parent_name)+'</span></div>':'')
@@ -882,12 +969,10 @@ function playTrack(id, url, title) {
   document.getElementById('playerBar').classList.add('open');
   setPlayIcon(true);
 
-  // If the Now Playing view happens to already be open (switched tracks
-  // without minimizing first), refresh it immediately for the new track.
-  if (document.getElementById('npOverlay').classList.contains('open')) {
-    populateNowPlaying(id);
-    updateSkipButtons();
-  }
+  // Open the full Now Playing view immediately — pressing play is the
+  // moment of intent; minimizing afterward is the user's choice, not the
+  // default. Also handles refreshing an already-open view for a new track.
+  openNowPlaying();
 }
 
 function togglePlayPause() {
