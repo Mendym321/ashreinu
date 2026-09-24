@@ -21,30 +21,49 @@ export default async function handler(req, res) {
   // gap-finder tool can diff against the full 1–14000 range and discover
   // exactly which IDs were missed (e.g. from rate-limiting during the
   // original bulk scan) without re-scanning everything from scratch.
+  // Supabase's PostgREST layer caps any single query at a default max-rows
+  // limit (commonly 1000) regardless of what .limit() the client requests —
+  // so we page through in batches of 1000 to get the true full set.
   if (distinct === 'allIds') {
-    const { data, error } = await supabase
-      .from('ashreinu_events')
-      .select('id')
-      .order('id', { ascending: true })
-      .limit(20000);
-    if (error) return res.status(500).json({ error: error.message });
+    let allIds = [];
+    let offset = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from('ashreinu_events')
+        .select('id')
+        .order('id', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) return res.status(500).json({ error: error.message });
+      allIds.push(...data.map(r => r.id));
+      if (data.length < pageSize) break;
+      offset += pageSize;
+    }
     res.setHeader('Cache-Control', 's-maxage=60');
-    return res.status(200).json({ ids: data.map(r => r.id) });
+    return res.status(200).json({ ids: allIds });
   }
 
   // Special mode: return distinct Hebrew years present in the data, for the
   // "Browse by year" homepage row — earliest first, so the scroll reads
   // left-to-right in real chronological order.
   if (distinct === 'years') {
-    const { data, error } = await supabase
-      .from('ashreinu_events')
-      .select('hebrew_year')
-      .eq('type', 'Farbrengen')
-      .not('hebrew_year', 'is', null)
-      .order('hebrew_year', { ascending: true })
-      .limit(2000);
-    if (error) return res.status(500).json({ error: error.message });
-    const years = [...new Set(data.map(r => r.hebrew_year))];
+    let allYears = [];
+    let offset = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from('ashreinu_events')
+        .select('hebrew_year')
+        .eq('type', 'Farbrengen')
+        .not('hebrew_year', 'is', null)
+        .order('hebrew_year', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) return res.status(500).json({ error: error.message });
+      allYears.push(...data.map(r => r.hebrew_year));
+      if (data.length < pageSize) break;
+      offset += pageSize;
+    }
+    const years = [...new Set(allYears)].sort((a, b) => a - b);
     res.setHeader('Cache-Control', 's-maxage=3600');
     return res.status(200).json({ years });
   }
