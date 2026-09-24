@@ -25,33 +25,41 @@ export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
   if (req.method === 'POST') {
-    const { eventId, farbrengenId, startSnippet, endSnippet, manualTitle, manualSummary, manualTags } = req.body;
-    if (!eventId || !farbrengenId || !startSnippet) {
-      return res.status(400).json({ error: 'Missing eventId, farbrengenId, or startSnippet' });
+    const { eventId, farbrengenId, startSnippet, endSnippet, manualTitle, manualSummary, manualTags, resolvedText: directText } = req.body;
+    if (!eventId || !farbrengenId || (!startSnippet && !directText)) {
+      return res.status(400).json({ error: 'Missing eventId, farbrengenId, or startSnippet/resolvedText' });
     }
 
-    const { data: transcript, error: tErr } = await supabase
-      .from('raw_transcripts')
-      .select('full_text')
-      .eq('farbrengen_id', farbrengenId)
-      .maybeSingle();
+    let resolvedText;
 
-    if (tErr) return res.status(500).json({ error: tErr.message });
-    if (!transcript) return res.status(404).json({ error: 'No cached transcript found for this farbrengen — run it through finder.html first' });
+    if (directText) {
+      // The assignment tool already has the exact spliced text from
+      // segmentation — no need to re-search the transcript for it at all.
+      resolvedText = directText;
+    } else {
+      const { data: transcript, error: tErr } = await supabase
+        .from('raw_transcripts')
+        .select('full_text')
+        .eq('farbrengen_id', farbrengenId)
+        .maybeSingle();
 
-    const text = transcript.full_text;
-    const startIdx = findBoundary(text, startSnippet, 0);
-    if (startIdx === -1) {
-      return res.status(200).json({ error: 'Could not locate startSnippet in the transcript', hint: 'Check spelling/spacing matches the actual transcript text' });
+      if (tErr) return res.status(500).json({ error: tErr.message });
+      if (!transcript) return res.status(404).json({ error: 'No cached transcript found for this farbrengen — run it through finder.html first' });
+
+      const text = transcript.full_text;
+      const startIdx = findBoundary(text, startSnippet, 0);
+      if (startIdx === -1) {
+        return res.status(200).json({ error: 'Could not locate startSnippet in the transcript', hint: 'Check spelling/spacing matches the actual transcript text' });
+      }
+
+      let endIdx = text.length;
+      if (endSnippet) {
+        const foundEnd = findBoundary(text, endSnippet, startIdx + 1);
+        if (foundEnd !== -1) endIdx = foundEnd;
+      }
+
+      resolvedText = text.slice(startIdx, endIdx).trim();
     }
-
-    let endIdx = text.length;
-    if (endSnippet) {
-      const foundEnd = findBoundary(text, endSnippet, startIdx + 1);
-      if (foundEnd !== -1) endIdx = foundEnd;
-    }
-
-    const resolvedText = text.slice(startIdx, endIdx).trim();
 
     // Footnote/header cleanup now happens entirely at DISPLAY time on the
     // frontend (pure pattern-matching, no API call) — so we just store the
@@ -59,8 +67,12 @@ export default async function handler(req, res) {
     // improvement to the display-side cleanup applies retroactively to
     // everything already saved, without needing to re-run this endpoint.
     let titleEn = null, summaryEn = null, tags = [];
+    // Skip the enrichment call entirely when the caller already supplied
+    // title/summary/tags directly (the assignment tool always does, since
+    // segmentation already generated them) — saves an API call, not just time.
+    const needsEnrichment = !(manualTitle && manualSummary && manualTags?.length);
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (apiKey) {
+    if (apiKey && needsEnrichment) {
       try {
         const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
@@ -97,7 +109,7 @@ export default async function handler(req, res) {
       .upsert({
         ashreinu_event_id: eventId,
         farbrengen_id: farbrengenId,
-        start_snippet: startSnippet,
+        start_snippet: startSnippet || resolvedText.slice(0, 60),
         end_snippet: endSnippet || null,
         resolved_text: resolvedText,
         title_en: titleEn,
