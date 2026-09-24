@@ -684,17 +684,22 @@ function switchBrowseTab(pane, btn) {
   btn.classList.add('active');
   document.getElementById('pane-' + pane).classList.add('active');
 }
-let browseSheetLoaded = false;
+let browseStaticLoaded = false;
 async function loadBrowseSheetContent() {
-  if (browseSheetLoaded) return;
-  browseSheetLoaded = true;
+  // Collections and months are fixed, hand-written lists — safe to build
+  // once per page load. Years actively grows as more indexing happens, so
+  // it must never be skipped on repeat opens — only a stale in-memory flag
+  // was preventing that, not any backend issue.
+  if (!browseStaticLoaded) {
+    browseStaticLoaded = true;
+    document.getElementById('browseCollectionsGrid').innerHTML =
+      COLLECTIONS.map((c, i) => `<div class="collection-tile" onclick="closeBrowseSheet();browseByCollection(${i})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`).join('');
 
-  document.getElementById('browseCollectionsGrid').innerHTML =
-    COLLECTIONS.map((c, i) => `<div class="collection-tile" onclick="closeBrowseSheet();browseByCollection(${i})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`).join('');
+    document.getElementById('browseMonthsGrid').innerHTML =
+      MONTH_LIST.map(m => `<div class="month-tile" onclick="closeBrowseSheet();browseByMonth('${m}')"><div class="mname">${m}</div></div>`).join('');
+  }
 
-  document.getElementById('browseMonthsGrid').innerHTML =
-    MONTH_LIST.map(m => `<div class="month-tile" onclick="closeBrowseSheet();browseByMonth('${m}')"><div class="mname">${m}</div></div>`).join('');
-
+  document.getElementById('browseYearsScroll').innerHTML = '<div class="otd-empty">Loading…</div>';
   try {
     const r = await fetch('/api/search?distinct=years');
     const j = await r.json();
