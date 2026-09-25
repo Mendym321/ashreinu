@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Yiddish ASR Test</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #111; color: #eee; }
+  h1 { font-size: 20px; }
+  input { width: 100%; padding: 10px; font-size: 14px; box-sizing: border-box; margin-bottom: 10px; background: #222; color: #eee; border: 1px solid #444; border-radius: 6px; }
+  button { padding: 10px 20px; font-size: 14px; cursor: pointer; background: #4a7dff; color: white; border: none; border-radius: 6px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status { margin-top: 16px; font-size: 13px; color: #999; }
+  #result { margin-top: 16px; white-space: pre-wrap; background: #1a1a1a; padding: 16px; border-radius: 8px; border: 1px solid #333; direction: rtl; font-size: 16px; line-height: 1.6; }
+  #raw { margin-top: 16px; font-size: 11px; color: #666; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+  <h1>Yiddish ASR prototype test</h1>
+  <p style="color:#999; font-size:14px;">Paste the direct audio URL for one already-verified track (the same kind of link the real player streams from). Click Transcribe. First call can be slow if the model needs to "wake up" on Hugging Face's side — just wait and it'll usually work on a retry.</p>
+
+  <input id="audioUrl" type="text" placeholder="https://.../something.mp3" />
+  <button id="go">Transcribe</button>
+
+  <div id="status"></div>
+  <div id="result"></div>
+  <div id="raw"></div>
+
+<script>
+const btn = document.getElementById('go');
+const statusEl = document.getElementById('status');
+const resultEl = document.getElementById('result');
+const rawEl = document.getElementById('raw');
+
+btn.onclick = async () => {
+  const url = document.getElementById('audioUrl').value.trim();
+  if (!url) { statusEl.textContent = 'Paste an audio URL first.'; return; }
+
+  btn.disabled = true;
+  statusEl.textContent = 'Sending to Whisper... this can take a while, hang tight.';
+  resultEl.textContent = '';
+  rawEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/proxy?whisper=' + encodeURIComponent(url));
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusEl.textContent = 'Error (status ' + res.status + '). See details below.';
+      rawEl.textContent = JSON.stringify(data, null, 2);
+      return;
+    }
+
+    statusEl.textContent = 'Done. Model: ' + (data.model || 'unknown');
+
+    const text = data.result && (data.result.text || data.result.raw);
+    resultEl.textContent = text || '(no text field found — see raw response below)';
+    rawEl.textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    statusEl.textContent = 'Request failed: ' + err;
+  } finally {
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
