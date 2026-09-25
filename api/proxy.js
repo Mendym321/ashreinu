@@ -4,6 +4,11 @@ const ASHREINU = 'https://5qlaecnhel.execute-api.us-east-1.amazonaws.com/prod/as
 const HF_MODEL = 'ivrit-ai/yi-whisper-large-v3-turbo';
 const HF_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
+// Some CDNs reject requests with no User-Agent (server-side fetch sends none by default).
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -11,23 +16,36 @@ export default async function handler(req, res) {
 
   const { path, audio, whisper } = req.query;
 
-  // --- NEW: Yiddish ASR test mode ---
+  // --- Yiddish ASR test mode ---
   // Usage: /api/proxy?whisper=<direct audio URL, e.g. an Ashreinu mp3/opus link>
   if (whisper) {
     if (!process.env.HF_API_TOKEN) {
       return res.status(500).json({ error: 'HF_API_TOKEN not set in Vercel env vars' });
     }
 
+    // Step 1: fetch the actual audio bytes from the CDN
+    let audioBuffer, contentType;
     try {
-      // 1. Fetch the actual audio bytes from Ashreinu
-      const audioRes = await fetch(whisper);
+      const audioRes = await fetch(whisper, { headers: BROWSER_HEADERS });
       if (!audioRes.ok) {
-        return res.status(audioRes.status).json({ error: `Could not fetch audio: ${audioRes.status}` });
+        return res.status(audioRes.status).json({
+          error: `Could not fetch audio from source (status ${audioRes.status})`,
+          url: whisper,
+        });
       }
-      const audioBuffer = await audioRes.arrayBuffer();
-      const contentType = whisper.endsWith('.opus') ? 'audio/ogg' : 'audio/mpeg';
+      audioBuffer = await audioRes.arrayBuffer();
+      contentType = whisper.endsWith('.opus') ? 'audio/ogg' : 'audio/mpeg';
+    } catch (err) {
+      return res.status(502).json({
+        error: 'Could not reach the audio URL',
+        detail: String(err),
+        cause: err && err.cause ? String(err.cause) : null,
+        url: whisper,
+      });
+    }
 
-      // 2. Send it to Hugging Face's hosted Whisper model
+    // Step 2: send it to Hugging Face's hosted Whisper model
+    try {
       const hfRes = await fetch(HF_URL, {
         method: 'POST',
         headers: {
@@ -52,15 +70,19 @@ export default async function handler(req, res) {
         result = { raw };
       }
 
-      return res.status(200).json({ model: HF_MODEL, result });
+      return res.status(200).json({ model: HF_MODEL, audioBytes: audioBuffer.byteLength, result });
     } catch (err) {
-      return res.status(500).json({ error: 'Whisper proxy failed', detail: String(err) });
+      return res.status(502).json({
+        error: 'Could not reach Hugging Face',
+        detail: String(err),
+        cause: err && err.cause ? String(err.cause) : null,
+      });
     }
   }
 
   // --- existing: raw audio streaming (unchanged) ---
   if (audio) {
-    const r = await fetch(audio);
+    const r = await fetch(audio, { headers: BROWSER_HEADERS });
     if (!r.ok) return res.status(r.status).end();
     res.setHeader('Content-Type', audio.endsWith('.opus') ? 'audio/ogg; codecs=opus' : 'audio/mpeg');
     res.setHeader('Cache-Control', 's-maxage=86400');
