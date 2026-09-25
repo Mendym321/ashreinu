@@ -2,7 +2,7 @@ const ASHREINU = 'https://5qlaecnhel.execute-api.us-east-1.amazonaws.com/prod/as
 
 // Hugging Face model for Yiddish speech-to-text (public, ivrit.ai fine-tune of Whisper)
 const HF_MODEL = 'ivrit-ai/yi-whisper-large-v3-turbo';
-const HF_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+const HF_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 
 // Some CDNs reject requests with no User-Agent (server-side fetch sends none by default).
 const BROWSER_HEADERS = {
