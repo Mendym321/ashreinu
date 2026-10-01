@@ -132,6 +132,7 @@ function cardHtml(id, j) {
       + '<div class="chips">' + m.topics.map(t => '<span class="chip">' + esc(t) + '</span>').join('')
         + m.suggested_new_topics.map(t => '<span class="chip new" title="Suggested new topic">+ ' + esc(t) + '</span>').join('')
         + m.occasions.map(t => '<span class="chip occ">' + esc(t) + '</span>').join('') + '</div>'
+      + ((m.keywords || []).length ? '<div class="label" style="margin-top:12px">Search keywords</div><div class="chips" style="margin-top:4px">' + m.keywords.map(k => '<span class="chip kw">' + esc(k) + '</span>').join('') + '</div>' : '')
       + (m.sources.length ? '<div class="meta-line"><b>Sources:</b> ' + esc(m.sources.join('; ')) + '</div>' : '')
       + '<div class="meta-line">Confidence: <b class="conf-' + m.confidence + '">' + m.confidence + '</b>, ' + esc(m.confidence_reason) + '</div>'
       + (previous[id] && previous[id].title_en !== m.title_en

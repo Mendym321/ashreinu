@@ -36,13 +36,14 @@ const TOPICS = [
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['title_en', 'title_he', 'summary_en', 'key_points', 'topics', 'suggested_new_topics',
+  required: ['title_en', 'title_he', 'summary_en', 'key_points', 'keywords', 'topics', 'suggested_new_topics',
              'occasions', 'sources', 'confidence', 'confidence_reason'],
   properties: {
     title_en: { type: 'string', description: 'Natural, clear English title of the idea: 3-8 words, at most ~55 characters' },
     title_he: { type: 'string', description: 'Short Hebrew heading (the outline\'s own heading when it has one)' },
     summary_en: { type: 'string', description: '1-3 natural sentences explaining the idea, within the word limit given' },
     key_points: { type: 'array', items: { type: 'string' }, description: 'For multi-point outlines: one plain-English bullet per main point; otherwise empty' },
+    keywords: { type: 'array', items: { type: 'string' }, description: '3-8 short search terms (1-3 words each) a person would actually type to find this talk' },
     topics: { type: 'array', items: { type: 'string', enum: TOPICS }, description: '1-4 topics from the fixed list' },
     suggested_new_topics: { type: 'array', items: { type: 'string' }, description: 'Important themes missing from the list (often empty)' },
     occasions: { type: 'array', items: { type: 'string' }, description: 'Dates/occasions discussed, e.g. "19 Kislev", "Pesach Sheini"' },
@@ -81,6 +82,8 @@ Good summary: "The Tzemach Tzedek writes that Pesach Sheini, the make-up Pesach 
 Bad title: "Pesach Sheini: Yesod and Malchus" (insider terms, says nothing to most listeners).
 
 Use standard Chabad English transliteration (Moshiach, Geulah, mitzvos, Shabbos, Rebbe, Chassidus, davening).
+Keywords: 3-8 terms a real person would type into a search box hoping to find THIS talk. Test each one: "would someone search for this?" Use specific, recognizable things: people (Mordechai, Rashbi, the Alter Rebbe), events (Six-Day War), occasions (Lag BaOmer, shemittah), mitzvos and practices (tefillin, tzedakah), places, and well-known sayings (lechatchila ariber). 1-3 words each, in common Chabad transliteration or plain English. Not outline jargon ("maaseh gadol"), not long technical phrases ("tzedakas Eretz Yisrael"), not abstract concepts already covered by a topic.
+
 Topics are a browsing menu (like genres): pick 1-4 from the allowed list that a listener browsing that topic would truly want to find here. Fewer, accurate topics beat many loose ones. Put an important theme missing from the list in suggested_new_topics.
 confidence: high if the material clearly covers the talk; medium if brief or partial; low if very thin or unclear.`;
 
@@ -193,6 +196,13 @@ async function enrich(src) {
   if (!text) throw new Error('No text in Claude response');
   const u = response.usage || {};
   const metadata = JSON.parse(text);
+  // Keywords must be short search terms; drop anything longer, and duplicates.
+  const seen = new Set();
+  metadata.keywords = (metadata.keywords || []).map(k => k.trim()).filter(k => {
+    const key = k.toLowerCase();
+    if (!k || k.split(/\s+/).length > 3 || seen.has(key)) return false;
+    seen.add(key); return true;
+  });
   return {
     metadata,
     budget,
