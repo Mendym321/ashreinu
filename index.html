@@ -115,10 +115,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .back-link{display:inline-flex;align-items:center;gap:2px;padding-left:10px}
 .back-link svg{width:18px;height:18px}
 
-.read-seg{background:var(--bg);border-radius:10px;padding:14px 16px;margin-bottom:10px}
-.read-seg h5{font-family:'Inter',sans-serif;font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
-.read-seg .rsummary{font-size:12.5px;color:var(--ink-mid);margin-bottom:8px;line-height:1.6}
-.read-tag{display:inline-block;font-size:10.5px;background:var(--gold-bg);color:var(--gold-dim);padding:2px 9px;border-radius:12px;margin:0 4px 4px 0;font-weight:600}
 @font-face {
   font-family: 'DachHeilig';
   src: url('/fonts/Heilig.OTF') format('opentype');
@@ -127,15 +123,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
   font-display: swap;
 }
 
-.read-fulltext{font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:16px;color:var(--ink);line-height:2;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);max-height:0;overflow:hidden;transition:max-height .3s ease}
-.read-fulltext.expanded{max-height:20000px}
-.read-fulltext p{text-align:justify;text-align-last:right;margin:0 0 1.1em 0}
-.read-fulltext p:last-child{margin-bottom:0}
-.fn-marker{color:var(--gold-dim);cursor:pointer;font-weight:700;padding:0 1px;font-family:'Inter',sans-serif}
-.fn-marker:hover{text-decoration:underline}
-.fn-popup{position:absolute;max-width:280px;background:#1b1712;color:#f3ede0;font-family:'DachHeilig','David Libre',serif;font-size:13.5px;padding:12px 14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.35);z-index:100;direction:rtl;line-height:1.7}
-.read-expand{font-size:11.5px;color:var(--ink-light);cursor:pointer;margin-top:6px;display:inline-block}
-.read-expand:hover{color:var(--gold-dim)}
 .read-empty{font-size:13px;color:var(--ink-light);font-style:italic;padding:8px 0}
 
 .empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Inter',sans-serif}
@@ -144,8 +131,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .filters-row-wrap.active{display:flex}
 
 /* ═══ App header — same surface as the page; a shadow appears once you scroll ═══ */
-header{position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;transition:box-shadow .2s}
-header.scrolled{box-shadow:0 1px 0 var(--border-soft),0 8px 24px rgba(0,0,0,.18)}
+#appHeader{position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;transition:box-shadow .2s}
+#appHeader.scrolled{box-shadow:0 1px 0 var(--border-soft),0 8px 24px rgba(0,0,0,.18)}
 .header-inner{max-width:720px;margin:0 auto}
 .appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .wordmark{display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0;-webkit-tap-highlight-color:transparent}
@@ -254,8 +241,6 @@ header.scrolled{box-shadow:0 1px 0 var(--border-soft),0 8px 24px rgba(0,0,0,.18)
 .track.playing .eq{display:flex}
 body.audio-paused .eq i{animation-play-state:paused}
 
-.read-panel{display:none;margin:4px 0 12px}
-.read-panel.open{display:block}
 
 /* ═══ Skeleton rows while loading ═══ */
 .skel-row{display:flex;align-items:center;gap:12px;padding:7px 0}
@@ -351,6 +336,90 @@ body.audio-paused .eq i{animation-play-state:paused}
 .np-text-card{background:var(--surface);border-radius:16px;padding:18px 18px 8px;margin-top:32px}
 .np-text-label{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px}
 
+/* ═══ Reader — full-screen reading view, above the player ═══ */
+.reader-backdrop{z-index:44}
+.reader{z-index:45}
+.reader-inner{max-width:660px;margin:0 auto;padding:6px 22px calc(120px + env(safe-area-inset-bottom))}
+.text-size-btn{gap:1px;align-items:baseline;font-weight:700;color:var(--ink)}
+.text-size-btn span:first-child{font-size:12px}
+.text-size-btn span:last-child{font-size:18px}
+
+.rd-head{margin:10px 0 28px}
+.rd-kicker{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
+.rd-title{font-size:27px;font-weight:800;letter-spacing:-.025em;line-height:1.18;color:var(--ink);margin-top:6px}
+.rd-badge{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:5px 11px 5px 9px;border-radius:14px;font-size:12.5px;font-weight:700;color:var(--farb);background:var(--hover)}
+.rd-badge svg{width:13px;height:13px}
+.rd-summary{font-size:16.5px;line-height:1.65;color:var(--ink-mid);margin-top:14px}
+.rd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.rd-tags .chip{height:30px;padding:0 12px;font-size:13px}
+
+.rd-text{
+  font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:var(--rd-size,19px);line-height:2;
+  color:var(--ink);text-align:justify;text-align-last:right;
+}
+.rd-text p{margin:0 0 1.05em}
+.rd-point{
+  font-family:'Inter',sans-serif;font-weight:800;font-size:.68em;color:var(--gold);
+  display:inline-block;min-width:1.5em;margin-left:.45em;vertical-align:.12em;
+}
+.rd-divider{text-align:center;color:var(--gold);letter-spacing:.5em;font-size:12px;margin:1.8em 0;opacity:.85}
+.rd-aside{font-size:.86em;color:var(--ink-light);text-align:center !important;text-align-last:center !important}
+.fn{
+  font-family:'Inter',sans-serif;font-size:.58em;font-weight:800;color:var(--gold);cursor:pointer;
+  padding:.1em .22em;margin:0;border-radius:6px;vertical-align:super;line-height:1;transition:background .15s,color .15s;
+}
+.fn:hover{background:var(--hover)}
+.fn.active{background:var(--gold);color:#1a1408}
+.rd-notes{margin-top:32px;padding-top:18px;border-top:1px solid var(--border)}
+.rd-notes h4{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin-bottom:12px}
+.rd-notes ol{list-style:none;padding:0;margin:0;direction:rtl}
+.rd-notes li{display:flex;gap:.7em;font-family:'DachHeilig','David Libre',serif;font-size:calc(var(--rd-size,19px) * .8);line-height:1.75;color:var(--ink-mid);margin-bottom:.6em}
+.rd-notes li b{font-family:'Inter',sans-serif;font-size:.72em;font-weight:800;color:var(--gold);min-width:1.6em;padding-top:.25em}
+.rd-seg-sep{height:1px;background:var(--border);margin:44px 0 34px}
+.rd-toc{margin:10px 0 36px}
+.rd-toc ol{list-style:none;padding:0;margin:16px 0 0}
+.rd-toc a{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--border-soft);color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:600}
+.rd-toc a b{font-size:13px;color:var(--gold);min-width:16px}
+
+/* Play bar inside the Reader, for reading along */
+.reader-bar{
+  position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;
+  display:none;align-items:center;gap:10px;background:var(--elevated);border-radius:28px;padding:6px 16px 6px 6px;
+  box-shadow:0 8px 26px rgba(0,0,0,.35);z-index:1;
+}
+.reader-bar.show{display:flex}
+.reader-bar-play{width:42px;height:42px;border-radius:50%;border:none;background:var(--gold);color:#1a1408;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.reader-bar-play svg{width:20px;height:20px}
+.reader-bar-title{flex:1;min-width:0;font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reader-bar-time{font-size:12px;color:var(--ink-light);font-variant-numeric:tabular-nums;flex-shrink:0}
+
+/* Footnote sheet — slides up over the bottom of the Reader */
+.fn-sheet{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;max-width:700px;margin:0 auto;background:var(--elevated);
+  border-radius:18px 18px 0 0;box-shadow:0 -10px 34px rgba(0,0,0,.35);padding:8px 20px calc(22px + env(safe-area-inset-bottom));
+  max-height:52vh;display:flex;flex-direction:column;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
+}
+.fn-sheet.open{transform:none}
+.fn-sheet-head{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.fn-sheet-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
+.fn-sheet-text{overflow-y:auto;font-family:'DachHeilig','David Libre',serif;font-size:calc(var(--rd-size,19px) * .92);line-height:1.85;color:var(--ink);padding:2px 0 4px}
+.fn-sheet-text.missing{font-family:'Inter',sans-serif;direction:ltr;font-size:14px;color:var(--ink-light)}
+
+/* Preview card in the full player */
+.pv-summary{font-size:15px;line-height:1.6;color:var(--ink-mid);margin-top:10px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.pv-excerpt{
+  font-family:'DachHeilig','David Libre',serif;font-size:18px;line-height:1.9;color:var(--ink);margin-top:16px;
+  max-height:5.7em;overflow:hidden;text-align:justify;
+  -webkit-mask-image:linear-gradient(#000 35%,transparent);mask-image:linear-gradient(#000 35%,transparent);
+}
+.pv-btn{
+  display:block;width:100%;height:46px;border-radius:23px;border:none;margin-top:16px;cursor:pointer;
+  background:var(--ink);color:var(--bg);font:inherit;font-size:15px;font-weight:700;transition:transform .12s;
+}
+.pv-btn:active{transform:scale(.98)}
+.pv-btn.ghost{background:var(--hover);color:var(--ink)}
+.pv-note{font-size:14.5px;line-height:1.6;color:var(--ink-light)}
+.np-text-card .rd-badge{margin-top:0}
 </style>
 </head>
 <body>
@@ -475,6 +544,41 @@ body.audio-paused .eq i{animation-play-state:paused}
         <div id="npReadContent"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="np-backdrop reader-backdrop" id="readerBackdrop" onclick="closeReader()"></div>
+<div class="np reader" id="reader" role="dialog" aria-label="Source text">
+  <div class="np-top">
+    <button class="icon-btn" onclick="closeReader()" aria-label="Close reader">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="np-top-mid">
+      <div class="np-top-label" id="readerKicker">Source text</div>
+      <div class="np-top-parent" id="readerParent"></div>
+    </div>
+    <button class="icon-btn sm text-size-btn" onclick="cycleTextSize()" aria-label="Change text size" title="Text size">
+      <span>A</span><span>A</span>
+    </button>
+  </div>
+  <div class="np-scroll" id="readerScroll"><div class="reader-inner" id="readerBody"></div></div>
+
+  <div class="reader-bar" id="readerBar">
+    <button class="reader-bar-play" onclick="togglePlayPause()" aria-label="Play or pause">
+      <svg id="readerPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <div class="reader-bar-title" id="readerBarTitle"></div>
+    <span class="reader-bar-time" id="readerBarTime"></span>
+  </div>
+
+  <div class="fn-sheet" id="fnSheet" role="dialog" aria-label="Footnote">
+    <div class="fn-sheet-head">
+      <span class="fn-sheet-label" id="fnLabel">Footnote</span>
+      <button class="icon-btn sm" onclick="closeFootnote()" aria-label="Close footnote">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="fn-sheet-text" id="fnText" dir="rtl" lang="he"></div>
   </div>
 </div>
 
@@ -637,7 +741,7 @@ function closeBrowseSheet(fromBackButton) {
   if (!browseIsOpen()) return;
   document.getElementById('browseSheet').classList.remove('open');
   document.getElementById('browseBackdrop').classList.remove('open');
-  if (!fromBackButton && history.state?.browse) history.back();
+  if (!fromBackButton) popOwnHistory('browse');
 }
 function switchBrowseTab(pane) {
   document.querySelectorAll('.browse-tabs .chip').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
@@ -1007,9 +1111,8 @@ function trackRowHtml(row, loose) {
         + '<div class="track-title">' + esc(trackTitle(row)) + '</div>'
         + '<div class="track-sub">' + esc(sub.filter(Boolean).join(' · ')) + '</div>'
       + '</div>'
-      + (isNigun ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();toggleRead(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
-    + '</div>'
-    + '<div class="read-panel" id="readpanel-' + rid + '"></div>';
+      + (isNigun ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
+    + '</div>';
 }
 
 // A farbrengen rendered like an album: cover, title, date, actions, then
@@ -1030,12 +1133,11 @@ function albumHtml(fid, head, tracks) {
       + '</div>'
     + '</div>'
     + '<div class="album-actions">'
-      + '<button class="icon-btn sm" id="readbtn-' + fid + '" onclick="toggleRead(\'' + fid + '\',' + fid + ')" aria-label="Read the farbrengen\'s source text" title="Read source text">' + ICON_BOOK + '</button>'
+      + '<button class="icon-btn sm" id="readbtn-' + fid + '" onclick="openReader(\'' + fid + '\',' + fid + ')" aria-label="Read the farbrengen\'s text" title="Read the text">' + ICON_BOOK + '</button>'
       + '<a class="icon-btn sm" href="https://ashreinu.app/player?parentEvent=' + fid + '" target="_blank" rel="noopener" aria-label="Open in Ashreinu" title="Open in Ashreinu">' + ICON_EXT + '</a>'
       + '<span class="spacer"></span>'
       + '<button class="play-all" onclick="playAlbum(' + fid + ')" aria-label="Play this farbrengen">' + ICON_PLAY + '</button>'
     + '</div>'
-    + '<div class="read-panel" id="readpanel-' + fid + '"></div>'
     + '<div id="album-tracks-' + fid + '">' + tracks.map(r => trackRowHtml(r, false)).join('') + '</div>'
     + '<button class="show-tracks" id="album-more-' + fid + '" onclick="loadAlbumTracks(' + fid + ')">'
       + (tracks.length ? 'Show the whole farbrengen' : 'Show tracks') + '</button>'
@@ -1159,6 +1261,7 @@ function playTrack(id, url, title) {
   document.getElementById('npCur').textContent = '0:00';
   renderDuration();
   updateMediaSession(row, title);
+  syncReaderBar();
 
   // Like Spotify: tapping play keeps you where you are (mini bar only).
   // If the full view is already open (e.g. next/prev), refresh it in place.
@@ -1173,6 +1276,7 @@ function setPlayIcon(playing) {
   const d = playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
   document.getElementById('playerIcon').innerHTML = d;
   document.getElementById('npPlayIcon').innerHTML = d;
+  document.getElementById('readerPlayIcon').innerHTML = d;
 }
 // Icons follow the audio element's real state, so lock-screen/headphone
 // controls keep the on-screen buttons in sync too.
@@ -1186,6 +1290,7 @@ function closePlayer() {
   document.querySelectorAll('.track.playing').forEach(c => c.classList.remove('playing'));
   currentTrackId = null;
   closeNowPlaying();
+  syncReaderBar();
 }
 // Some browsers (notably Safari) can't work out the length of a streamed
 // .opus file and report it as Infinity. The archive already knows every
@@ -1233,6 +1338,7 @@ function renderProgress(time) {
   document.getElementById('playerFill').style.width = pct;
   document.getElementById('npFill').style.width = pct;
   document.getElementById('npCur').textContent = fmtTime(time);
+  document.getElementById('readerBarTime').textContent = fmtTime(time) + ' / ' + fmtTime(total);
 }
 let lastPositionSave = 0;
 audioEl.addEventListener('timeupdate', () => {
@@ -1302,10 +1408,29 @@ function closeNowPlaying(fromBackButton) {
   if (!npIsOpen()) return;
   document.getElementById('npOverlay').classList.remove('open');
   document.getElementById('npBackdrop').classList.remove('open');
-  if (!fromBackButton && history.state?.np) history.back();
+  if (!fromBackButton) popOwnHistory('np');
 }
-window.addEventListener('popstate', () => { closeNowPlaying(true); closeBrowseSheet(true); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeNowPlaying(); closeBrowseSheet(); } });
+// Each open layer (Reader, player, Browse) adds one history entry, so the
+// phone's Back button closes just the top layer. When we close a layer
+// ourselves (✕, swipe), we step history back too — and must ignore that
+// one popstate, or it would close the layer underneath as well.
+let ignoreNextPop = false;
+function popOwnHistory(key) {
+  if (history.state?.[key]) { ignoreNextPop = true; history.back(); }
+}
+function closeTopLayer(fromBackButton) {
+  if (readerIsOpen()) closeReader(fromBackButton);
+  else if (npIsOpen()) closeNowPlaying(fromBackButton);
+  else closeBrowseSheet(fromBackButton);
+}
+window.addEventListener('popstate', () => {
+  if (ignoreNextPop) { ignoreNextPop = false; return; }
+  closeTopLayer(true);
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (footnoteIsOpen()) closeFootnote(); else closeTopLayer();
+});
 
 // Swipe down anywhere on a sheet (while scrolled to the top) to close —
 // the sheet follows your finger, and closes if you pull far enough.
@@ -1315,7 +1440,7 @@ function enableDragToClose(sheetId, scrollerId, closeFn) {
   const scroller = document.getElementById(scrollerId);
   let startY = null, dy = 0, dragging = false;
   sheet.addEventListener('touchstart', e => {
-    startY = (scroller.scrollTop > 0 || e.target.closest('.seek')) ? null : e.touches[0].clientY;
+    startY = (scroller.scrollTop > 0 || e.target.closest('.seek, .fn-sheet')) ? null : e.touches[0].clientY;
     dy = 0; dragging = false;
   }, { passive: true });
   sheet.addEventListener('touchmove', e => {
@@ -1386,165 +1511,279 @@ function populateNowPlaying(rid) {
   document.getElementById('npExt').href = lnk(row);
   renderDuration();
 
-  const farbrengenId = row.parent_id || row.id;
-  loadReadContent(farbrengenId, 'npReadContent', true, rid);
+  loadTextPreview(rid);
 }
 
-// ── Read source text (shared between inline card panels and the expanded Now Playing view) ──
-const readCache = {}; // avoid re-fetching the same farbrengen's text repeatedly
-
-// ── Footnote popovers ──
-window.footnoteStore = {};
-
-// This handles everything needed to turn raw, page-by-page OCR'd text into
-// a clean reading view — entirely via pattern-matching, no AI call needed,
-// so it's instant and works retroactively on anything already saved:
-//   1. Strip page-break markers and running headers/page-numbers
-//   2. Detect footnote-DEFINITION blocks (paragraphs of "1) ... 2) ...")
-//      and pull them out of the reading flow entirely
-//   3. Detect in-body footnote MARKERS in three styles this OCR produces —
-//      bare digits stuck to a Hebrew word/punctuation, Unicode superscript
-//      digits, and <sup>N</sup> tags — and make them clickable
+// ── Source text: parsing raw OCR into a clean, structured reading view ──
+// Entirely pattern-matching (no AI call), so it's instant and applies
+// retroactively to everything already saved. Turns page-by-page OCR text into:
+//   blocks:    paragraphs (with section letters like א / ב), dividers (* * *),
+//              and asides ([... ניגון ...] stage notes)
+//   footnotes: every footnote definition, in the order it appears
+// Footnote numbers can restart (e.g. per page), so a marker is matched to
+// the n-th definition with that number — never just "the" definition.
 const SUPER_MAP = {'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
 function superToPlain(s) { return s.split('').map(c => SUPER_MAP[c] !== undefined ? SUPER_MAP[c] : c).join(''); }
 
-function extractFootnotesAndClean(rawText) {
-  if (!rawText) return { bodyParagraphs: [], footnotesMap: {} };
+function parseSourceText(rawText, savedFootnotes) {
+  if (!rawText) return { blocks: [], footnotes: [] };
 
   let paragraphs = rawText
-    .split(/---\s*page break\s*---/g)
-    .join('\n\n')
+    .split(/---\s*page break\s*---/gi).join('\n\n')
     .split(/\n\s*\n+/)
     .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
-    .filter(p => p.length > 0);
+    .filter(Boolean);
 
-  // Drop obvious running-header / bare-page-number paragraphs
+  // Drop running headers ("טו תמוז ה'תשט"ו 45") and bare page numbers.
   const HEADER_WORDS = /תשרי|חשון|כסלו|טבת|שבט|אדר|ניסן|אייר|סיון|תמוז|אב|אלול|ה['׳]תש|ה["״]תש/;
   paragraphs = paragraphs.filter(p => {
     if (/^\d{1,4}$/.test(p)) return false;
-    if (p.length < 70 && HEADER_WORDS.test(p) && /^\d/.test(p)) return false;
+    if (p.length < 70 && HEADER_WORDS.test(p) && (/^\d/.test(p) || /\d{1,4}$/.test(p))) return false;
     return true;
   });
 
-  // Separate footnote-definition blocks from real body paragraphs
-  const footnotesMap = {};
-  const bodyParagraphs = [];
-  paragraphs.forEach(p => {
-    const positions = [...p.matchAll(/(?:^|\s)(\d{1,3})\)\s*/g)];
-    const looksLikeFootnoteBlock = positions.length >= 2 || (positions.length === 1 && /^\s*\d{1,3}\)/.test(p));
-    if (looksLikeFootnoteBlock) {
-      for (let i = 0; i < positions.length; i++) {
-        const marker = positions[i][1];
-        const start = positions[i].index + positions[i][0].length;
-        const end = i + 1 < positions.length ? positions[i+1].index : p.length;
+  const footnotes = [];   // [{ n: '12', text }] in document order
+  const blocks = [];
+  for (const p of paragraphs) {
+    // A footnote-definition block: "1) ... 2) ..." (or a single "12) ...")
+    const defs = [...p.matchAll(/(?:^|\s)(\d{1,3})\)\s*/g)];
+    if (defs.length >= 2 || (defs.length === 1 && /^\s*\d{1,3}\)/.test(p))) {
+      defs.forEach((m, i) => {
+        const start = m.index + m[0].length;
+        const end = i + 1 < defs.length ? defs[i + 1].index : p.length;
         const text = p.slice(start, end).trim();
-        if (text) footnotesMap[marker] = text;
-      }
-    } else {
-      bodyParagraphs.push(p);
+        if (text) footnotes.push({ n: m[1], text });
+      });
+      continue;
     }
-  });
+    if (/^[\s*•·—–\-]+$/.test(p) && /[*•]/.test(p)) { blocks.push({ kind: 'divider' }); continue; }
+    const clean = p.replace(/\*\*/g, '').trim();
+    if (/^[\[(][^\])]{2,200}[\])]$/.test(clean)) { blocks.push({ kind: 'aside', text: clean }); continue; }
+    // Section letter at the start: "א." / "יח." / "ב׳"
+    const point = clean.match(/^([א-ת]{1,3})[.׳']\s+/);
+    blocks.push({ kind: 'p', point: point ? point[1] : null, text: point ? clean.slice(point[0].length) : clean });
+  }
 
-  // Wrap in-body markers, all three styles, with a common {{fn:N}} token
-  const wrapped = bodyParagraphs.map(p => {
-    p = p.replace(/[\u2070\u00B9\u00B2\u00B3\u2074-\u2079]+/g, m => `{{fn:${superToPlain(m)}}}`);
-    p = p.replace(/<sup>(\w+)<\/sup>/g, '{{fn:$1}}');
-    p = p.replace(/([\u0590-\u05FF])(\d{1,3})(?=[\s,\.\)\]\u05F3\u05F4"'׳״]|$)/g, (m, letter, num) => `${letter}{{fn:${num}}}`);
-    return p;
-  });
+  // Footnotes saved by the older backend extraction fill any gaps.
+  (savedFootnotes || []).forEach(f => { if (!footnotes.some(x => x.n === String(f.marker))) footnotes.push({ n: String(f.marker), text: f.text }); });
 
-  return { bodyParagraphs: wrapped, footnotesMap };
+  // Mark in-body footnote markers (three OCR styles) with a {{fn:N}} token.
+  for (const b of blocks) {
+    if (b.kind !== 'p') continue;
+    b.text = b.text
+      .replace(/[⁰¹²³⁴-⁹]+/g, m => `{{fn:${superToPlain(m)}}}`)
+      .replace(/<sup>(\w+)<\/sup>/g, '{{fn:$1}}')
+      .replace(/([֐-׿"'׳״])(\d{1,3})(?=[\s,.:;)\]׳״"'׳״?!]|$)/g, (m, ch, num) => `${ch}{{fn:${num}}}`);
+  }
+  return { blocks, footnotes };
 }
 
-function renderTextWithFootnotes(text, savedFootnotes, keyPrefix) {
-  if (!text) return '';
-  const { bodyParagraphs, footnotesMap } = extractFootnotesAndClean(text);
-  // Merge any footnotes already saved in the DB (from the older backend
-  // extraction) with whatever this pass found fresh — the fresh pass wins
-  // since it sees the raw text directly.
-  (savedFootnotes || []).forEach(f => { if (!footnotesMap[f.marker]) footnotesMap[f.marker] = f.text; });
-
-  return bodyParagraphs.map(p => {
-    const withFn = esc(p).replace(/\{\{fn:(\w+)\}\}/g, (m, num) => {
-      const key = keyPrefix + '-fn' + num;
-      window.footnoteStore[key] = footnotesMap[num] || '(footnote text not found)';
-      return '<sup class="fn-marker" onclick="toggleFootnote(event,\'' + key + '\')">[' + esc(num) + ']</sup>';
+// Render a parsed text. Returns { html, notesHtml }. `prefix` keeps
+// footnote ids unique when several sichos are shown together.
+function renderSourceText(rawText, savedFootnotes, prefix) {
+  const { blocks, footnotes } = parseSourceText(rawText, savedFootnotes);
+  const seen = {}; // how many times each number has appeared so far
+  const used = new Set();
+  const html = blocks.map(b => {
+    if (b.kind === 'divider') return '<div class="rd-divider" aria-hidden="true">✦ ✦ ✦</div>';
+    if (b.kind === 'aside') return '<p class="rd-aside">' + esc(b.text) + '</p>';
+    const body = esc(b.text).replace(/\{\{fn:(\w+)\}\}/g, (m, n) => {
+      seen[n] = (seen[n] || 0) + 1;
+      // the seen[n]-th definition with this number, else the first one
+      const matches = footnotes.map((f, i) => f.n === n ? i : -1).filter(i => i >= 0);
+      const idx = matches[seen[n] - 1] ?? matches[0];
+      if (idx !== undefined) used.add(idx);
+      const id = prefix + '-' + (idx ?? 'x' + n);
+      FOOTNOTES[id] = { n, text: idx !== undefined ? footnotes[idx].text : null };
+      return '<sup class="fn" role="button" tabindex="0" data-fn="' + id + '">' + esc(n) + '</sup>';
     });
-    return '<p>' + withFn + '</p>';
+    return '<p>' + (b.point ? '<span class="rd-point">' + esc(b.point) + '</span>' : '') + body + '</p>';
   }).join('');
+  const notesHtml = footnotes.length
+    ? '<section class="rd-notes"><h4>Footnotes</h4><ol>' + footnotes.map(f =>
+        '<li><b>' + esc(f.n) + '</b><span>' + esc(f.text) + '</span></li>').join('') + '</ol></section>'
+    : '';
+  return { html, notesHtml, firstText: (blocks.find(b => b.kind === 'p')?.text || '').replace(/\{\{fn:\w+\}\}/g, '') };
 }
-function toggleFootnote(e, key) {
-  e.stopPropagation();
-  document.querySelectorAll('.fn-popup').forEach(el => el.remove());
-  const popup = document.createElement('div');
-  popup.className = 'fn-popup';
-  popup.textContent = window.footnoteStore[key] || '';
-  document.body.appendChild(popup);
-  const rect = e.target.getBoundingClientRect();
-  popup.style.left = Math.max(10, Math.min(rect.left, window.innerWidth - 300)) + 'px';
-  popup.style.top = (rect.bottom + window.scrollY + 6) + 'px';
-  setTimeout(() => {
-    document.addEventListener('click', function closeOnce(ev) {
-      if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('click', closeOnce); }
-    });
-  }, 0);
+const FOOTNOTES = {};
+
+// ── Fetching (cached per farbrengen + track) ──
+const textCache = {};
+async function fetchSourceText(farbrengenId, eventId) {
+  const key = farbrengenId + ':' + (eventId || '');
+  if (!textCache[key]) {
+    textCache[key] = fetch('/api/get-farbrengen-text?farbrengenId=' + farbrengenId + (eventId ? '&eventId=' + eventId : ''))
+      .then(r => r.json())
+      .then(j => { if (j.error) throw new Error(j.error); return j; })
+      .catch(e => { delete textCache[key]; throw e; });
+  }
+  return textCache[key];
 }
 
-async function loadReadContent(farbrengenId, targetElId, autoExpandText, eventId) {
-  const target = document.getElementById(targetElId);
-  const cacheKey = farbrengenId + ':' + (eventId || '');
-  if (readCache[cacheKey]) { target.innerHTML = readCache[cacheKey]; return; }
-
-  target.innerHTML = '<div class="read-empty">Loading source text…</div>';
+// ── Preview card inside the full player ──
+async function loadTextPreview(rid) {
+  const row = rowsById[rid];
+  const el = document.getElementById('npReadContent');
+  if (!row) return;
+  const fid = row.parent_id || row.id;
+  if (typeKey(row.type) === 'niggun') {
+    el.innerHTML = '<p class="pv-note">Niggunim have no written text.</p>';
+    return;
+  }
+  el.innerHTML = '<div class="skel-line title"></div><div class="skel-line"></div><div class="skel-line meta"></div>';
   try {
-    const url = '/api/get-farbrengen-text?farbrengenId=' + farbrengenId + (eventId ? '&eventId=' + eventId : '');
-    const r = await fetch(url);
-    const j = await r.json();
-
-    let html;
+    const j = await fetchSourceText(fid, rid);
+    if (currentTrackId !== rid) return; // track changed while loading
     if (j.unconfirmed) {
-      html = '<div class="read-empty">' + (j.candidateCount
-        ? 'This farbrengen has ' + j.candidateCount + ' transcribed ' + (j.candidateCount !== 1 ? 'sichos' : 'sicha') + ', but none has been matched to this specific track yet.'
-        : 'No transcribed source text available yet for this farbrengen.') + '</div>';
-    } else if (!j.hasText || !j.segments?.length) {
-      html = '<div class="read-empty">No transcribed source text available yet for this farbrengen.</div>';
-    } else {
-      const preciseNote = j.precise
-        ? '<div style="font-size:11.5px;color:#1f7a4a;font-weight:600;margin-bottom:10px">✓ Verified exact match for this track</div>'
-        : '';
-      html = preciseNote + j.segments.map((s, i) => {
-        const textId = 'fulltext-' + cacheKey.replace(/[^\w]/g,'_') + '-' + i;
-        return '<div class="read-seg">'
-          + (s.title_en ? '<h5>' + esc(s.title_en) + '</h5>' : '')
-          + (s.summary_en ? '<div class="rsummary">' + esc(s.summary_en) + '</div>' : '')
-          + (s.tags||[]).map(t => '<span class="read-tag">' + esc(t) + '</span>').join('')
-          + '<div class="read-expand" onclick="document.getElementById(\'' + textId + '\').classList.toggle(\'expanded\')">Show full Hebrew text ▾</div>'
-          + '<div class="read-fulltext' + (autoExpandText ? ' expanded' : '') + '" id="' + textId + '">' + renderTextWithFootnotes(s.source_text, s.footnotes, textId) + '</div>'
-        + '</div>';
-      }).join('');
+      el.innerHTML = '<p class="pv-note">' + (j.candidateCount
+          ? 'This track hasn\'t been matched to its written text yet. The farbrengen has ' + j.candidateCount + ' transcribed ' + (j.candidateCount !== 1 ? 'sichos' : 'sicha') + '.'
+          : 'No transcribed text for this farbrengen yet.') + '</p>'
+        + (j.candidateCount ? '<button class="pv-btn ghost" onclick="openReader(\'' + fid + '\',' + fid + ')">Read the whole farbrengen\'s text</button>' : '');
+      return;
     }
-    readCache[cacheKey] = html;
-    target.innerHTML = html;
+    if (!j.hasText || !j.segments?.length) { el.innerHTML = '<p class="pv-note">No transcribed text for this farbrengen yet.</p>'; return; }
+    const s = j.segments[0];
+    const { firstText } = renderSourceText(s.source_text, s.footnotes, 'pv');
+    el.innerHTML =
+      (j.precise ? '<span class="rd-badge">' + ICON_CHECK + 'Verified match</span>' : '')
+      + (s.summary_en ? '<p class="pv-summary">' + esc(s.summary_en) + '</p>' : '')
+      + tagChipsHtml(s.tags)
+      + (firstText ? '<div class="pv-excerpt" dir="rtl" lang="he">' + esc(firstText) + '</div>' : '')
+      + '<button class="pv-btn" onclick="openReader(\'' + rid + '\',' + fid + ')">Read full text</button>';
   } catch (e) {
-    target.innerHTML = '<div class="read-empty">Could not load source text: ' + esc(e.message) + '</div>';
+    el.innerHTML = '<p class="pv-note">Could not load the text. <button class="see-all" onclick="loadTextPreview(\'' + rid + '\')">Retry</button></p>';
   }
 }
-
-async function toggleRead(rid, farbrengenId) {
-  const panel = document.getElementById('readpanel-' + rid);
-  const btn = document.getElementById('readbtn-' + rid);
-  const isOpen = panel.classList.contains('open');
-
-  if (isOpen) { panel.classList.remove('open'); btn?.classList.remove('on'); return; }
-
-  panel.classList.add('open');
-  btn?.classList.add('on');
-  panel.innerHTML = '<div class="read-empty">Loading…</div>';
-
-  const tempId = 'temp-' + rid;
-  panel.innerHTML = '<div id="' + tempId + '"></div>';
-  await loadReadContent(farbrengenId, tempId, false, rid);
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+function tagChipsHtml(tags) {
+  if (!tags || !tags.length) return '';
+  return '<div class="rd-tags">' + tags.map(t =>
+    '<button class="chip" onclick="searchTag(this.dataset.tag)" data-tag="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>';
 }
+// Tapping a tag searches the archive for it.
+function searchTag(tag) {
+  closeReader(); closeNowPlaying();
+  currentType = ''; currentDates = null;
+  document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.toggle('active', c.dataset.type === ''));
+  document.getElementById('q').value = tag;
+  window.scrollTo(0, 0);
+  search();
+}
+
+// ── Reader: a full-screen reading view ──
+const TEXT_SIZES = [17, 19, 22, 25];
+let textSize = 19;
+try { textSize = parseInt(localStorage.getItem('ashreinu-text-size'), 10) || 19; } catch (e) {}
+function applyTextSize() { document.getElementById('reader').style.setProperty('--rd-size', textSize + 'px'); }
+function cycleTextSize() {
+  textSize = TEXT_SIZES[(TEXT_SIZES.indexOf(textSize) + 1) % TEXT_SIZES.length];
+  try { localStorage.setItem('ashreinu-text-size', textSize); } catch (e) {}
+  applyTextSize();
+}
+applyTextSize();
+
+function readerIsOpen() { return document.getElementById('reader').classList.contains('open'); }
+// eventId === farbrengenId means "the whole farbrengen's text".
+async function openReader(eventId, farbrengenId) {
+  eventId = String(eventId);
+  const whole = eventId === String(farbrengenId);
+  const row = rowsById[eventId];
+  const reader = document.getElementById('reader');
+  if (!readerIsOpen()) {
+    if (!history.state?.reader) history.pushState({ reader: true }, '');
+  }
+  closeFootnote();
+  reader.style.setProperty('--np-tint', 'var(--tint-' + (row ? typeKey(row.type) : 'farb') + ')');
+  document.getElementById('readerParent').textContent = whole
+    ? (row ? trackTitle(row) : 'Farbrengen')
+    : (row?.parent_name || (row ? trackTitle(row) : ''));
+  document.getElementById('readerKicker').textContent = whole ? 'Farbrengen text' : 'Source text';
+  document.getElementById('readerScroll').scrollTop = 0;
+  const body = document.getElementById('readerBody');
+  body.innerHTML = '<div class="rd-head"><div class="skel-line meta"></div><div class="skel-line title" style="height:26px;margin:12px 0"></div><div class="skel-line"></div><div class="skel-line"></div></div>';
+  reader.classList.add('open');
+  document.getElementById('readerBackdrop').classList.add('open');
+  syncReaderBar();
+
+  try {
+    const j = await fetchSourceText(farbrengenId, whole ? farbrengenId : eventId);
+    if (j.unconfirmed) {
+      body.innerHTML = '<div class="rd-head"><h2 class="rd-title">' + esc(row ? trackTitle(row) : '') + '</h2>'
+        + '<p class="rd-summary">This track hasn\'t been matched to its written text yet.</p>'
+        + (j.candidateCount ? '<button class="pv-btn" onclick="openReader(\'' + farbrengenId + '\',' + farbrengenId + ')">Read the whole farbrengen\'s text</button>' : '') + '</div>';
+      return;
+    }
+    if (!j.hasText || !j.segments?.length) {
+      body.innerHTML = '<div class="rd-head"><p class="rd-summary">No transcribed text for this farbrengen yet.</p></div>';
+      return;
+    }
+    const segs = j.segments;
+    const many = segs.length > 1;
+    const kicker = row && !whole ? trackSubtitle(row) : (row ? hebDate(row) : '');
+    body.innerHTML =
+      (many ? '<nav class="rd-toc"><div class="rd-kicker">' + esc(kicker) + '</div><h2 class="rd-title">' + segs.length + ' sichos</h2><ol>'
+          + segs.map((s, i) => '<li><a href="#rd-seg-' + i + '" onclick="event.preventDefault();document.getElementById(\'rd-seg-' + i + '\').scrollIntoView({behavior:\'smooth\'})"><b>' + (i + 1) + '</b>' + esc(s.title_en || 'Sicha ' + (i + 1)) + '</a></li>').join('')
+          + '</ol></nav>' : '')
+      + segs.map((s, i) => {
+        const { html, notesHtml } = renderSourceText(s.source_text, s.footnotes, 'rd' + i);
+        return '<section class="rd-seg" id="rd-seg-' + i + '">'
+          + '<header class="rd-head">'
+            + (!many && kicker ? '<div class="rd-kicker">' + esc(kicker) + '</div>' : (many ? '<div class="rd-kicker">Sicha ' + (i + 1) + ' of ' + segs.length + '</div>' : ''))
+            + '<h2 class="rd-title">' + esc(s.title_en || (row ? trackTitle(row) : 'Source text')) + '</h2>'
+            + (j.precise ? '<span class="rd-badge">' + ICON_CHECK + 'Verified match for this track</span>' : '')
+            + (s.summary_en ? '<p class="rd-summary">' + esc(s.summary_en) + '</p>' : '')
+            + tagChipsHtml(s.tags)
+          + '</header>'
+          + '<article class="rd-text" dir="rtl" lang="he">' + html + '</article>'
+          + notesHtml
+        + '</section>';
+      }).join('<div class="rd-seg-sep"></div>');
+  } catch (e) {
+    body.innerHTML = '<div class="rd-head"><p class="rd-summary">Could not load the text: ' + esc(e.message) + '</p>'
+      + '<button class="pv-btn" onclick="openReader(\'' + eventId + '\',' + farbrengenId + ')">Try again</button></div>';
+  }
+}
+function closeReader(fromBackButton) {
+  if (!readerIsOpen()) return;
+  closeFootnote();
+  document.getElementById('reader').classList.remove('open');
+  document.getElementById('readerBackdrop').classList.remove('open');
+  if (!fromBackButton) popOwnHistory('reader');
+}
+// The small play bar at the bottom of the Reader, for reading along.
+function syncReaderBar() {
+  const bar = document.getElementById('readerBar');
+  const row = currentTrackId ? rowsById[currentTrackId] : null;
+  bar.classList.toggle('show', !!row);
+  if (row) document.getElementById('readerBarTitle').textContent = trackTitle(row);
+}
+
+// ── Footnotes: tap a number, the note slides up from the bottom ──
+function openFootnote(id, marker) {
+  const f = FOOTNOTES[id];
+  if (!f) return;
+  document.querySelectorAll('.fn.active').forEach(el => el.classList.remove('active'));
+  marker?.classList.add('active');
+  document.getElementById('fnLabel').textContent = 'Footnote ' + f.n;
+  const text = document.getElementById('fnText');
+  text.textContent = f.text || 'This footnote\'s text wasn\'t captured in the transcription.';
+  text.classList.toggle('missing', !f.text);
+  document.getElementById('fnSheet').classList.add('open');
+}
+function closeFootnote() {
+  document.getElementById('fnSheet').classList.remove('open');
+  document.querySelectorAll('.fn.active').forEach(el => el.classList.remove('active'));
+}
+function footnoteIsOpen() { return document.getElementById('fnSheet').classList.contains('open'); }
+document.getElementById('readerScroll').addEventListener('click', e => {
+  const fn = e.target.closest('.fn');
+  if (fn) { e.stopPropagation(); openFootnote(fn.dataset.fn, fn); return; }
+  if (footnoteIsOpen()) closeFootnote();
+});
+document.getElementById('readerScroll').addEventListener('keydown', e => {
+  const fn = e.target.closest?.('.fn');
+  if (fn && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openFootnote(fn.dataset.fn, fn); }
+});
 
 document.getElementById('q').addEventListener('input', () => { syncSearchClear(); debouncedSearch(); });
 
@@ -1584,6 +1823,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
 (async function init() {
   initTheme();
   enableDragToClose('browseSheet', 'browseScroll', () => closeBrowseSheet());
+  enableDragToClose('reader', 'readerScroll', () => closeReader());
   loadYearOptions();
   await loadTodayHebrewDate();
   showLanding();
