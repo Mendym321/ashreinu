@@ -36,15 +36,14 @@ const TOPICS = [
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['title_en', 'title_he', 'summary_en', 'key_points', 'keywords', 'topics', 'suggested_new_topics',
+  required: ['title_en', 'title_he', 'summary_en', 'key_points', 'topics', 'suggested_new_topics',
              'occasions', 'sources', 'confidence', 'confidence_reason'],
   properties: {
     title_en: { type: 'string', description: 'Natural, clear English title of the idea: 3-8 words, at most ~55 characters' },
     title_he: { type: 'string', description: 'Short Hebrew heading (the outline\'s own heading when it has one)' },
     summary_en: { type: 'string', description: '1-3 natural sentences explaining the idea, within the word limit given' },
     key_points: { type: 'array', items: { type: 'string' }, description: 'For multi-point outlines: one plain-English bullet per main point; otherwise empty' },
-    keywords: { type: 'array', items: { type: 'string' }, description: '4-10 search terms people might type: key Hebrew/Yiddish terms AND their English equivalents, names, places' },
-    topics: { type: 'array', items: { type: 'string', enum: TOPICS }, description: '2-6 topics from the fixed list' },
+    topics: { type: 'array', items: { type: 'string', enum: TOPICS }, description: '1-4 topics from the fixed list' },
     suggested_new_topics: { type: 'array', items: { type: 'string' }, description: 'Important themes missing from the list (often empty)' },
     occasions: { type: 'array', items: { type: 'string' }, description: 'Dates/occasions discussed, e.g. "19 Kislev", "Pesach Sheini"' },
     sources: { type: 'array', items: { type: 'string' }, description: 'Sources cited, e.g. "Tanya ch. 37", "Bamidbar 26:2"' },
@@ -75,8 +74,6 @@ Summary: 1-3 natural sentences (up to 4 for long multi-point outlines), within t
 
 Key points: only for outlines with several distinct points: one plain-English bullet per main point, in order.
 
-Keywords: 4-10 terms people might search: the key Hebrew/Yiddish terms in Chabad transliteration AND their English equivalents (e.g. "galus", "exile"), plus names, places and occasions mentioned.
-
 Worked example (a different track, to show the style):
 Outline: "ביאור במאמר הצ"צ 'להבין ענין פסח שני' מבאר שפסח שני (יסוד) הוא למע' מפסח ראשון (מלכות) – לכאורה ה"ז סתירה לפשטות הענין, ולתורת אדמו"ר מוהריי"צ 'ניטאָ קיין פאַרפאַלן'; והביאור – פסח שני הוא תיקון לקרבן פסח, אבל ביחס לשאר עניני העבודה דפסח … הוא למע' מהם"
 Good title: "Is the Second Pesach Greater Than the First?"
@@ -84,7 +81,7 @@ Good summary: "The Tzemach Tzedek writes that Pesach Sheini, the make-up Pesach 
 Bad title: "Pesach Sheini: Yesod and Malchus" (insider terms, says nothing to most listeners).
 
 Use standard Chabad English transliteration (Moshiach, Geulah, mitzvos, Shabbos, Rebbe, Chassidus, davening).
-Topics: choose only from the allowed list; put important missing themes in suggested_new_topics.
+Topics are a browsing menu (like genres): pick 1-4 from the allowed list that a listener browsing that topic would truly want to find here. Fewer, accurate topics beat many loose ones. Put an important theme missing from the list in suggested_new_topics.
 confidence: high if the material clearly covers the talk; medium if brief or partial; low if very thin or unclear.`;
 
 function htmlToText(html) {
