@@ -1,19 +1,33 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Attach the human-confirmed title (if any) to each row, so the UI can show
+// it as the main heading instead of the generic "Sicha 1" label.
+async function attachConfirmedTitles(supabase, rows) {
+  if (!rows.length) return;
+  const { data: links } = await supabase
+    .from('audio_text_links')
+    .select('ashreinu_event_id, title_en')
+    .in('ashreinu_event_id', rows.map(r => r.id));
+  const titleById = Object.fromEntries((links || []).filter(l => l.title_en).map(l => [l.ashreinu_event_id, l.title_en]));
+  for (const row of rows) row.confirmed_title = titleById[row.id] || null;
+}
+
 export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
   const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '', parentId = '' } = req.query;
 
   // Special mode: return the actual audio children of a farbrengen, in
   // recording order — Sicha 1, Nigun 1, Sicha 2... — for the assignment
-  // tool that maps written segments to specific audio tracks.
+  // tool that maps written segments to specific audio tracks, and for the
+  // main app's "show all tracks" on a farbrengen.
   if (parentId) {
     const { data, error } = await supabase
       .from('ashreinu_events')
-      .select('id, name, type, duration_ms')
+      .select('id, name, type, duration_ms, audio_uri, parent_id, parent_name, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day')
       .eq('parent_id', parseInt(parentId, 10))
       .order('id', { ascending: true });
     if (error) return res.status(500).json({ error: error.message });
+    await attachConfirmedTitles(supabase, data);
     return res.status(200).json({ results: data });
   }
 
@@ -84,12 +98,27 @@ export default async function handler(req, res) {
       tagFarbrengenIds = [...new Set((tagMatches || []).map(r => r.farbrengen_id))];
     } catch (e) { /* tags table may not have matches — fine, just skip */ }
 
+    // Confirmed-track search: a human-verified title/summary/tag match
+    // points at one exact audio track, so include just that track (not its
+    // whole farbrengen like the tag search above).
+    let confirmedEventIds = [];
+    try {
+      const [byText, byTag] = await Promise.all([
+        supabase.from('audio_text_links').select('ashreinu_event_id')
+          .or(`title_en.ilike.%${safe}%,summary_en.ilike.%${safe}%`),
+        supabase.from('audio_text_links').select('ashreinu_event_id')
+          .contains('tags', [safe.toLowerCase()])
+      ]);
+      confirmedEventIds = [...new Set([...(byText.data || []), ...(byTag.data || [])].map(r => r.ashreinu_event_id))];
+    } catch (e) { /* no confirmed links yet — fine, just skip */ }
+
+    const clauses = [`name.ilike.%${safe}%`, `parent_name.ilike.%${safe}%`];
     if (tagFarbrengenIds.length) {
       const idList = tagFarbrengenIds.join(',');
-      query = query.or(`name.ilike.%${safe}%,parent_name.ilike.%${safe}%,id.in.(${idList}),parent_id.in.(${idList})`);
-    } else {
-      query = query.or(`name.ilike.%${safe}%,parent_name.ilike.%${safe}%`);
+      clauses.push(`id.in.(${idList})`, `parent_id.in.(${idList})`);
     }
+    if (confirmedEventIds.length) clauses.push(`id.in.(${confirmedEventIds.join(',')})`);
+    query = query.or(clauses.join(','));
   }
 
   // Type matching: Ashreinu's real field spellings are "Nigun" (one g) and
@@ -133,6 +162,8 @@ export default async function handler(req, res) {
 
   const { data, error, count } = await query;
   if (error) return res.status(500).json({ error: error.message });
+
+  await attachConfirmedTitles(supabase, data);
 
   res.setHeader('Cache-Control', 's-maxage=30');
   res.status(200).json({ results: data, count });

@@ -6,7 +6,7 @@
 <title>Ashreinu Search</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=David+Libre:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=David+Libre:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -22,6 +22,8 @@
   --shadow-lg:0 8px 30px rgba(0,0,0,0.45),0 2px 8px rgba(0,0,0,0.3);
   --radius:14px;--radius-sm:9px;
   --sicha:#5b8ce8;--maamar:#b478e8;--farb:#4fbf82;--niggun:#e0a24f;
+  --elevated:#2b261f;--hover:rgba(255,255,255,0.08);--track:rgba(255,255,255,0.18);
+  --tint-sicha:#1c2a4d;--tint-maamar:#2c1d45;--tint-farb:#16352a;--tint-niggun:#3d2a12;--tint-other:#2b261f;
 }
 :root[data-theme="light"]{
   /* Light theme — the original warm archival palette, opt-in via the toggle. */
@@ -33,208 +35,86 @@
   --shadow-md:0 4px 16px rgba(27,23,18,0.06),0 1px 3px rgba(27,23,18,0.04);
   --shadow-lg:0 8px 30px rgba(27,23,18,0.10),0 2px 8px rgba(27,23,18,0.05);
   --sicha:#2f5fb8;--maamar:#8a3ab8;--farb:#2e7d4f;--niggun:#b8721a;
+  --elevated:#ffffff;--hover:rgba(27,23,18,0.06);--track:rgba(27,23,18,0.14);
+  --tint-sicha:#dde6f7;--tint-maamar:#ebdff5;--tint-farb:#dcefe3;--tint-niggun:#f6e6cc;--tint-other:#efe9dd;
 }
 html{scroll-behavior:smooth;transition:background-color .2s}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:96px;-webkit-font-smoothing:antialiased;transition:background-color .2s,color .2s}
 
-/* ═══ Header ═══ */
-header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 28px 22px;position:sticky;top:0;z-index:20;box-shadow:var(--shadow-lg)}
-.header-inner{max-width:720px;margin:0 auto}
-.wordmark{display:flex;align-items:center;gap:12px;transition:opacity .15s}
-.wordmark:hover{opacity:0.8}
-.wordmark:hover .wordmark-icon{transform:scale(1.05)}
-.wordmark-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#c9962f,#8a6420);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.3);transition:transform .15s}
-
-/* ═══ Header top row + Browse menu ═══ */
-.header-top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
-.browse-menu-wrap{position:relative}
-.browse-menu-btn{
-  display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#e8ddc8;
-  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:9px;
-  padding:8px 14px;cursor:pointer;transition:all .15s;
-}
-.browse-menu-btn:hover{background:rgba(255,255,255,0.1)}
-.browse-menu-btn svg{width:15px;height:15px}
-.browse-menu-dropdown{
-  position:absolute;top:calc(100% + 8px);left:0;background:var(--surface);border-radius:12px;
-  box-shadow:var(--shadow-lg);border:1px solid var(--border);min-width:220px;padding:8px;z-index:50;
-  display:none;
-}
-.browse-menu-dropdown.open{display:block}
-.browse-menu-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;
-  font-size:13.5px;color:var(--ink-mid);transition:background .15s;
-}
-.browse-menu-item:hover{background:var(--bg);color:var(--ink)}
-.browse-menu-item svg{width:16px;height:16px;flex-shrink:0;color:var(--gold-dim)}
-
-/* ═══ Bottom sheets (shared mechanic: Now Playing + Browse) ═══ */
-.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:39;display:none}
-.sheet-backdrop.open{display:block}
+/* ═══ Bottom sheet (Browse) — slides up and swipes away like the player ═══ */
+.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;pointer-events:none;transition:opacity .3s}
+.sheet-backdrop.open{opacity:1;pointer-events:auto}
 .sheet{
-  position:fixed;left:0;right:0;bottom:0;top:10vh;background:var(--bg);z-index:40;
-  display:none;flex-direction:column;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,0.35);
-  overflow:hidden;
+  position:fixed;left:0;right:0;bottom:0;top:6vh;max-width:760px;margin:0 auto;background:var(--bg);z-index:40;
+  display:flex;flex-direction:column;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.35);overflow:hidden;
+  transform:translateY(100%);visibility:hidden;
+  transition:transform .34s cubic-bezier(.2,.8,.2,1),visibility 0s linear .34s;
 }
-.sheet.open{display:flex}
-.sheet-handle-row{flex-shrink:0;padding:10px 0 4px;display:flex;justify-content:center;cursor:grab;touch-action:none}
-.sheet-handle{width:40px;height:5px;border-radius:3px;background:var(--border);transition:background .15s}
-.sheet-handle-row:hover .sheet-handle{background:var(--ink-light)}
-.sheet-topbar{display:flex;justify-content:space-between;align-items:center;padding:4px 22px 14px;flex-shrink:0}
-.sheet-topbar .sheet-title{font-family:'Fraunces',serif;font-size:16px;font-weight:500;color:var(--ink)}
-.sheet-topbar button{background:none;border:none;color:var(--ink-light);cursor:pointer;padding:8px;border-radius:8px;display:flex;transition:background .15s}
-.sheet-topbar button:hover{background:var(--border-soft);color:var(--ink)}
-.sheet-topbar button svg{width:20px;height:20px}
-.sheet-scroll{flex:1;overflow-y:auto;padding:0 24px 32px}
-
-/* Browse sheet specific content */
-.browse-tabs{display:flex;gap:6px;margin-bottom:20px;overflow-x:auto;padding-bottom:2px}
-.browse-tab{flex-shrink:0;font-size:13px;font-weight:600;padding:7px 15px;border-radius:20px;background:var(--surface);color:var(--ink-mid);border:1px solid var(--border-soft);cursor:pointer;transition:all .15s}
-.browse-tab:hover{border-color:var(--gold)}
-.browse-tab.active{background:var(--gold);color:#1a1408;border-color:var(--gold)}
+.sheet.open{transform:none;visibility:visible;transition:transform .34s cubic-bezier(.2,.8,.2,1),visibility 0s}
+.sheet.dragging{transition:none}
+.sheet-handle-row{flex-shrink:0;padding:10px 0 2px;display:flex;justify-content:center}
+.sheet-handle{width:40px;height:5px;border-radius:3px;background:var(--track)}
+.sheet-topbar{display:flex;justify-content:space-between;align-items:center;padding:4px 10px 6px 20px;flex-shrink:0}
+.sheet-title{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+.sheet-scroll{flex:1;overflow-y:auto;padding:6px 20px calc(32px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+.browse-tabs{display:flex;gap:8px;margin:0 -20px 18px;padding:0 20px 2px;overflow-x:auto;scrollbar-width:none}
+.browse-tabs::-webkit-scrollbar{display:none}
 .browse-pane{display:none}
 .browse-pane.active{display:block}
 
-.browse-prompt{
-  display:flex;align-items:center;justify-content:space-between;gap:16px;
-  background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;
-  padding:20px 22px;cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm);margin-top:8px;
+/* ═══ Home — horizontal "shelves", like a music app's home screen ═══ */
+.home-section{margin-bottom:32px}
+#res > .home-section:first-child{margin-top:10px}
+.home-section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
+.home-section-head h3{font-size:21px;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.2}
+.see-all{font:inherit;font-size:13px;font-weight:700;color:var(--ink-light);background:none;border:none;cursor:pointer;white-space:nowrap;padding:4px 0}
+.see-all:hover{color:var(--ink)}
+.home-sub{font-size:13px;color:var(--ink-light);margin:-8px 0 12px}
+.shelf{display:flex;gap:14px;overflow-x:auto;margin:0 -16px;padding:0 16px 6px;scroll-snap-type:x proximity;scroll-padding:0 16px;scrollbar-width:none}
+.shelf::-webkit-scrollbar{display:none}
+.shelf-card{flex:0 0 140px;width:140px;cursor:pointer;scroll-snap-align:start;-webkit-tap-highlight-color:transparent}
+.shelf-cover{width:140px;height:140px;border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.22);transition:transform .15s}
+.shelf-card:hover .shelf-cover{transform:translateY(-3px)}
+.shelf-card:active .shelf-cover{transform:scale(.97)}
+.shelf-cover svg{width:38%;height:38%}
+.shelf-cover .np-cover-label{left:11px;right:11px;bottom:9px}
+.shelf-cover .np-cover-label span{font-size:9.5px}
+.shelf-cover .np-cover-label strong{font-size:17px}
+.shelf-title{font-size:14px;font-weight:600;color:var(--ink);line-height:1.3;margin-top:9px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.shelf-sub{font-size:12.5px;color:var(--ink-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shelf-progress{height:3px;border-radius:2px;background:var(--track);margin-top:8px;overflow:hidden}
+.shelf-progress i{display:block;height:100%;background:var(--gold)}
+.shelf-empty{font-size:13.5px;color:var(--ink-light);padding:4px 0}
+.skel-shelf{flex:0 0 140px}
+.skel-shelf .skel-cover{width:140px;height:140px;border-radius:10px;margin-bottom:10px}
+
+/* Type tiles (home "Browse all" + Browse sheet) reuse the cover gradients */
+.tile-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media (min-width:560px){.tile-grid{grid-template-columns:repeat(4,1fr)}}
+.type-tile{
+  position:relative;overflow:hidden;border-radius:12px;min-height:96px;padding:14px 15px;color:#fff;cursor:pointer;
+  font-size:16.5px;font-weight:700;letter-spacing:-.01em;transition:transform .15s;-webkit-tap-highlight-color:transparent;
 }
-.browse-prompt:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-1px)}
-.browse-prompt-text strong{display:block;font-family:'Fraunces',serif;font-size:16px;color:var(--ink);margin-bottom:3px}
-.browse-prompt-text span{font-size:12.5px;color:var(--ink-light)}
-.browse-prompt svg{width:20px;height:20px;color:var(--gold-dim);flex-shrink:0}
-.wordmark-icon svg{width:16px;height:16px;color:#1a1408}
-.wordmark-text h1{font-family:'Fraunces',serif;font-weight:500;font-size:22px;color:#f3e9d2;letter-spacing:0.005em;line-height:1}
-.wordmark-text span{font-size:10px;color:#8a8270;text-transform:uppercase;letter-spacing:0.14em;font-weight:600;display:block;margin-top:3px}
+.type-tile:hover{transform:translateY(-2px)}
+.type-tile:active{transform:scale(.97)}
+.type-tile svg{position:absolute;right:-6px;bottom:-8px;width:64px;height:64px;transform:rotate(16deg);opacity:.4}
 
-.search-box{position:relative}
-.search-box input{
-  width:100%;font-family:'Inter',sans-serif;font-size:16px;padding:15px 48px 15px 18px;
-  border:1px solid rgba(255,255,255,0.08);border-radius:11px;background:rgba(255,255,255,0.06);
-  color:#f3ede0;outline:none;transition:all .18s;
+/* Occasion / month cards and year chips */
+.card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media (min-width:560px){.card-grid{grid-template-columns:repeat(3,1fr)}}
+.occasion{
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:14px;cursor:pointer;
+  transition:background .15s;-webkit-tap-highlight-color:transparent;
 }
-.search-box input::placeholder{color:#7a7364}
-.search-box input:focus{background:rgba(255,255,255,0.1);border-color:rgba(201,150,47,0.5);box-shadow:0 0 0 3px rgba(201,150,47,0.12)}
-.search-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);color:#8a8270;pointer-events:none}
-.search-icon svg{width:18px;height:18px;display:block}
-.search-icon.loading svg{animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.occasion:hover{background:var(--hover)}
+.occasion strong{display:block;font-size:14.5px;font-weight:700;color:var(--ink);line-height:1.3}
+.occasion span{display:block;font-size:12.5px;color:var(--ink-light);margin-top:3px}
+.chip-scroll{display:flex;gap:8px;overflow-x:auto;margin:0 -16px;padding:0 16px 2px;scrollbar-width:none}
+.chip-scroll::-webkit-scrollbar{display:none}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:8px}
+.back-link{display:inline-flex;align-items:center;gap:2px;padding-left:10px}
+.back-link svg{width:18px;height:18px}
 
-/* ═══ Filter row ═══ */
-.filter-row{display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap}
-.segmented{display:inline-flex;background:rgba(255,255,255,0.06);border-radius:9px;padding:3px;gap:2px}
-.seg-btn{
-  font-family:inherit;font-size:12.5px;font-weight:500;padding:7px 13px;border-radius:7px;
-  border:none;background:none;color:#a39a86;cursor:pointer;transition:all .15s;white-space:nowrap;
-}
-.seg-btn:hover{color:#e8ddc8}
-.seg-btn.active{background:#c9962f;color:#211705;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
-
-.mini-field{display:flex;align-items:center;background:rgba(255,255,255,0.06);border-radius:9px;overflow:hidden;border:1px solid transparent;transition:border-color .15s}
-.mini-field:focus-within{border-color:rgba(201,150,47,0.4)}
-.mini-field input, .mini-field select{
-  background:none;border:none;color:#e8ddc8;font-family:inherit;font-size:12.5px;font-weight:500;
-  padding:8px 12px;outline:none;cursor:pointer;
-}
-.mini-field input{width:64px;cursor:text}
-.mini-field input::placeholder{color:#7a7364}
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-input[type=number]{-moz-appearance:textfield}
-.mini-field select{appearance:none;-webkit-appearance:none;padding-right:28px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7364' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 10px center;
-}
-
-/* ═══ Body ═══ */
-.wrap{max-width:720px;margin:0 auto;padding:26px 28px}
-#rmeta{font-size:13px;color:var(--ink-light);margin-bottom:16px;min-height:20px;display:flex;align-items:center;gap:7px;font-weight:500}
-
-/* ═══ Landing ═══ */
-.landing{padding:70px 8px 30px;text-align:center}
-.landing-mark{width:52px;height:52px;margin:0 auto 22px;border-radius:14px;background:linear-gradient(135deg,#e9dcb8,#c9962f22);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
-.landing-mark svg{width:24px;height:24px;color:var(--gold)}
-.landing h2{font-family:'Fraunces',serif;font-weight:500;font-size:25px;color:var(--ink);margin-bottom:10px;letter-spacing:-0.01em}
-.landing p{font-size:14.5px;color:var(--ink-light);max-width:400px;margin:0 auto;line-height:1.75}
-.landing-examples{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:26px}
-.example-pill{
-  font-size:13px;font-weight:500;padding:8px 16px;border-radius:20px;background:var(--surface);
-  border:1px solid var(--border);color:var(--ink-mid);cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm);
-}
-.example-pill:hover{border-color:var(--gold);color:var(--gold-dim);box-shadow:var(--shadow-md);transform:translateY(-1px)}
-
-/* ═══ Skeleton ═══ */
-.skel-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:18px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
-.skel-line{height:12px;border-radius:4px;background:linear-gradient(90deg,var(--border-soft) 25%,var(--border) 50%,var(--border-soft) 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
-@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
-.skel-line.title{width:58%;height:17px;margin-bottom:11px}
-.skel-line.meta{width:32%}
-
-/* ═══ Result cards ═══ */
-.results-list{display:flex;flex-direction:column;gap:9px}
-.card{
-  background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
-  padding:17px 19px;margin-bottom:10px;transition:all .16s;box-shadow:var(--shadow-sm);
-}
-.card:hover{border-color:var(--border);box-shadow:var(--shadow-md);transform:translateY(-1px)}
-.card.playing{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),var(--shadow-md);background:var(--gold-bg)}
-
-.ctop{display:flex;align-items:flex-start;gap:12px}
-.type-badge{
-  flex-shrink:0;margin-top:3px;width:8px;height:8px;border-radius:50%;position:relative;
-}
-.type-badge::after{content:'';position:absolute;inset:-4px;border-radius:50%;background:currentColor;opacity:0.15}
-.dot-sicha{background:var(--sicha);color:var(--sicha)}
-.dot-maamar{background:var(--maamar);color:var(--maamar)}
-.dot-farb{background:var(--farb);color:var(--farb)}
-.dot-niggun{background:var(--niggun);color:var(--niggun)}
-.dot-other{background:var(--ink-faint);color:var(--ink-faint)}
-
-.card-body{flex:1;min-width:0}
-.card-toprow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.cname{
-  font-family:'Fraunces',serif;font-size:17.5px;font-weight:500;color:var(--ink);
-  text-decoration:none;line-height:1.4;display:block;letter-spacing:-0.005em;
-}
-.cname-playable{cursor:pointer}
-.cname:hover{color:var(--gold-dim)}
-.ctype-label{
-  font-size:10px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.08em;font-weight:700;
-  flex-shrink:0;white-space:nowrap;margin-top:5px;padding:3px 9px;background:var(--bg);border-radius:20px;
-}
-
-.cpar{font-family:'Fraunces',serif;font-style:italic;font-size:13px;color:var(--ink-light);margin-top:3px}
-.cpar span{color:var(--ink-mid)}
-
-.cmeta-row{display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}
-.cmeta-item{font-size:12px;color:var(--ink-light);display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
-.cmeta-item svg{width:12px;height:12px;opacity:0.7}
-
-.action-row{display:flex;align-items:center;gap:16px;margin-left:auto}
-.play-toggle{
-  display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
-  color:var(--gold-dim);cursor:pointer;user-select:none;padding:5px 0;transition:color .15s;
-}
-.play-toggle svg{width:13px;height:13px;flex-shrink:0}
-.play-toggle:hover{color:var(--gold)}
-
-.olink{color:var(--ink-light);text-decoration:none;font-weight:500;font-size:12.5px;display:inline-flex;align-items:center;gap:4px;transition:color .15s}
-.olink svg{width:11px;height:11px}
-.olink:hover{color:var(--gold-dim)}
-
-.read-toggle{
-  display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
-  color:#2e7d4f;cursor:pointer;user-select:none;padding:5px 0;transition:color .15s;
-}
-.read-toggle svg{width:13px;height:13px;flex-shrink:0}
-.read-toggle:hover{color:#1f5e3a}
-.read-panel{display:none;margin-top:14px;border-top:1px solid var(--border-soft);padding-top:14px}
-.read-panel.open{display:block}
-.read-seg{background:var(--bg);border-radius:10px;padding:14px 16px;margin-bottom:10px}
-.read-seg h5{font-family:'Fraunces',serif;font-size:15px;font-weight:500;color:var(--ink);margin-bottom:6px}
-.read-seg .rsummary{font-size:12.5px;color:var(--ink-mid);margin-bottom:8px;line-height:1.6}
-.read-tag{display:inline-block;font-size:10.5px;background:var(--gold-bg);color:var(--gold-dim);padding:2px 9px;border-radius:12px;margin:0 4px 4px 0;font-weight:600}
 @font-face {
   font-family: 'DachHeilig';
   src: url('/fonts/Heilig.OTF') format('opentype');
@@ -243,221 +123,353 @@ input[type=number]{-moz-appearance:textfield}
   font-display: swap;
 }
 
-.read-fulltext{font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:16px;color:var(--ink);line-height:2;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);max-height:0;overflow:hidden;transition:max-height .3s ease}
-.read-fulltext.expanded{max-height:20000px}
-.read-fulltext p{text-align:justify;text-align-last:right;margin:0 0 1.1em 0}
-.read-fulltext p:last-child{margin-bottom:0}
-.fn-marker{color:var(--gold-dim);cursor:pointer;font-weight:700;padding:0 1px;font-family:'Inter',sans-serif}
-.fn-marker:hover{text-decoration:underline}
-.fn-popup{position:absolute;max-width:280px;background:#1b1712;color:#f3ede0;font-family:'DachHeilig','David Libre',serif;font-size:13.5px;padding:12px 14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.35);z-index:100;direction:rtl;line-height:1.7}
-.read-expand{font-size:11.5px;color:var(--ink-light);cursor:pointer;margin-top:6px;display:inline-block}
-.read-expand:hover{color:var(--gold-dim)}
 .read-empty{font-size:13px;color:var(--ink-light);font-style:italic;padding:8px 0}
 
-/* ═══ Expanded "Now Playing" — bottom sheet, not a full takeover ═══ */
-.np-backdrop{position:fixed;inset:0;background:rgba(27,23,18,0.4);z-index:39;display:none}
-.np-backdrop.open{display:block}
-.now-playing-overlay{
-  position:fixed;left:0;right:0;bottom:0;top:12vh;background:var(--bg);z-index:40;
-  display:none;flex-direction:column;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,0.25);
-  overflow:hidden;
-}
-.now-playing-overlay.open{display:flex}
-.np-topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;background:var(--ink);flex-shrink:0}
-.np-topbar button{background:none;border:none;color:#e8ddc8;cursor:pointer;padding:8px;border-radius:8px;display:flex;transition:background .15s}
-.np-topbar button:hover{background:rgba(255,255,255,0.08)}
-.np-topbar button svg{width:22px;height:22px}
-.np-topbar .np-label{font-size:11px;color:#8a8270;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
-
-.np-scroll{flex:1;overflow-y:auto;padding:28px 28px 20px;min-height:0}
-.np-inner{max-width:640px;margin:0 auto}
-
-.np-hero{text-align:center;margin-bottom:8px}
-.np-type-badge{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:4px 12px;border-radius:20px;margin-bottom:14px}
-.np-title{font-family:'Fraunces',serif;font-weight:500;font-size:26px;color:var(--ink);line-height:1.25;margin-bottom:8px}
-.np-parent{font-family:'Fraunces',serif;font-style:italic;font-size:15px;color:var(--ink-light);margin-bottom:4px}
-.np-date{font-size:13px;color:var(--ink-light)}
-
-.np-divider{border-top:1px solid var(--border);margin:24px 0}
-.np-section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-light);margin-bottom:14px}
-.np-empty{font-size:14px;color:var(--ink-light);font-style:italic;text-align:center;padding:30px 0}
-
-/* Fixed control bar at the bottom of the sheet — always reachable, never scrolls away */
-.np-controls-bar{flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);padding:14px 28px 18px}
-.np-controls-inner{max-width:420px;margin:0 auto;display:flex;align-items:center;gap:14px}
-.np-skip-btn{background:none;border:none;color:var(--ink-mid);cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all .15s;flex-shrink:0}
-.np-skip-btn:hover{background:var(--bg);color:var(--ink)}
-.np-skip-btn svg{width:20px;height:20px}
-.np-skip-btn:disabled{opacity:0.3;cursor:default}
-.np-skip-btn:disabled:hover{background:none}
-.np-play-btn{
-  width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#d9a63f,#a3762f);border:none;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;box-shadow:0 4px 16px rgba(163,118,47,0.3);
-}
-.np-play-btn:hover{transform:scale(1.05)}
-.np-play-btn svg{width:22px;height:22px;fill:#1a1408}
-.np-progress-col{flex:1;min-width:0}
-.np-progress-row{display:flex;align-items:center;gap:8px}
-.np-time{font-size:11px;color:var(--ink-light);font-variant-numeric:tabular-nums;width:32px;flex-shrink:0}
-.np-scrubber{flex:1;height:5px;background:var(--border);border-radius:3px;position:relative;cursor:pointer}
-.np-scrubber-fill{height:100%;background:var(--gold);border-radius:3px;width:0%}
-
-/* Player bar gets a chevron to expand */
-.player-expand-btn{width:32px;height:32px;border-radius:50%;background:none;border:none;color:#7a7364;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.player-expand-btn:hover{color:#f3ede0;background:rgba(255,255,255,0.06)}
-.player-expand-btn svg{width:16px;height:16px}
-.player-bar-clickable{cursor:pointer}
-
-/* ═══ Group-by-farbrengen results ═══ */
-.farb-group{margin-bottom:18px}
-.farb-group-head{
-  display:flex;align-items:baseline;gap:10px;padding:10px 4px;margin-bottom:6px;
-  border-bottom:1px solid var(--border);cursor:pointer;
-}
-.farb-group-head h4{font-family:'Fraunces',serif;font-weight:500;font-size:16px;color:var(--ink)}
-.farb-group-head .fg-date{font-size:12px;color:var(--ink-light)}
-.farb-group-head .fg-count{font-size:11.5px;color:var(--ink-light);margin-left:auto}
-.farb-group-items{display:flex;flex-direction:column;gap:8px}
-
-.empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Fraunces',serif;font-style:italic}
-
-/* ═══ Today's date strip ═══ */
-.today-strip{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#a39a86;margin-top:2px}
-.today-strip strong{color:#e8ddc8;font-weight:600}
-
-/* ═══ Homepage sections ═══ */
-.home-section{margin-bottom:34px}
-.home-section-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
-.home-section-head h3{font-family:'Fraunces',serif;font-weight:500;font-size:19px;color:var(--ink);letter-spacing:-0.005em}
-.home-section-head span{font-size:12px;color:var(--ink-light)}
-
-.otd-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;margin:0 -28px;padding-left:28px;padding-right:28px;scroll-snap-type:x proximity}
-.otd-scroll::-webkit-scrollbar{height:6px}
-.otd-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.otd-card{flex:0 0 auto;width:200px;background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;scroll-snap-align:start;box-shadow:var(--shadow-sm)}
-.otd-card:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.otd-year{font-family:'Fraunces',serif;font-size:22px;font-weight:500;color:var(--gold-dim);margin-bottom:6px}
-.otd-name{font-size:13px;color:var(--ink-mid);line-height:1.5}
-.otd-empty{font-size:13.5px;color:var(--ink-light);font-style:italic;padding:20px 0}
-
-.browse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
-.month-tile{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px 14px;cursor:pointer;transition:all .15s;text-align:center;box-shadow:var(--shadow-sm)}
-.month-tile:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.month-tile .mname{font-family:'Fraunces',serif;font-size:15px;color:var(--ink);font-weight:500}
-
-.type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.type-tile{border-radius:14px;padding:20px 18px;cursor:pointer;transition:all .15s;color:#fff;position:relative;overflow:hidden;min-height:88px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:var(--shadow-sm)}
-.type-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-.type-tile .ttitle{font-family:'Fraunces',serif;font-size:17px;font-weight:500;position:relative;z-index:1}
-.type-tile .ticon{position:absolute;right:-6px;bottom:-10px;opacity:0.25;width:64px;height:64px}
-.tile-sicha{background:linear-gradient(135deg,#3a63c9,#22397a)}
-.tile-maamar{background:linear-gradient(135deg,#9a4bc9,#5c2a7a)}
-.tile-farb{background:linear-gradient(135deg,#3a9a5f,#1f5e3a)}
-.tile-niggun{background:linear-gradient(135deg,#c98a3a,#8a5a1a)}
-
-.collection-tile{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm)}
-.collection-tile:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.collection-tile .cname{font-family:'Fraunces',serif;font-size:15.5px;color:var(--ink);font-weight:500}
-.collection-tile .cdate{font-size:11.5px;color:var(--ink-light);margin-top:3px}
-
-.year-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin:0 -28px;padding-left:28px;padding-right:28px}
-.year-scroll::-webkit-scrollbar{height:6px}
-.year-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.year-chip-tile{flex:0 0 auto;background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:10px 18px;cursor:pointer;transition:all .15s;font-family:'Fraunces',serif;font-size:15px;color:var(--ink-mid);box-shadow:var(--shadow-sm)}
-.year-chip-tile:hover{border-color:var(--gold);color:var(--gold-dim)}
+.empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Inter',sans-serif}
 
 .filters-row-wrap{display:none}
 .filters-row-wrap.active{display:flex}
 
-/* ═══ Persistent bottom player ═══ */
-.player-bar{
-  position:fixed;bottom:0;left:0;right:0;cursor:pointer;
-  background:linear-gradient(180deg,#1e1a15,#161310);
-  border-top:1px solid rgba(255,255,255,0.08);
-  padding:14px 24px;display:none;align-items:center;gap:16px;z-index:30;
-  box-shadow:0 -8px 30px rgba(0,0,0,0.25);
+/* ═══ App header — same surface as the page; a shadow appears once you scroll ═══ */
+#appHeader{position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;transition:box-shadow .2s}
+#appHeader.scrolled{box-shadow:0 1px 0 var(--border-soft),0 8px 24px rgba(0,0,0,.18)}
+.header-inner{max-width:720px;margin:0 auto}
+.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.wordmark{display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0;-webkit-tap-highlight-color:transparent}
+.wordmark-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(140deg,#e2b456,#8a6420);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.wordmark-icon svg{width:19px;height:19px;color:#1a1408}
+.wordmark-text{min-width:0}
+.wordmark-text h1{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.15}
+.wordmark-text span{font-size:12.5px;color:var(--ink-light);font-weight:500;display:block;white-space:nowrap}
+.appbar-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.appbar-actions .icon-btn{width:40px;height:40px}
+.browse-btn{
+  display:flex;align-items:center;gap:7px;height:40px;padding:0 15px 0 12px;border-radius:20px;border:none;
+  background:var(--hover);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s;
 }
-.player-bar.open{display:flex}
-.player-play-btn{
-  width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#d9a63f,#a3762f);border:none;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;box-shadow:0 2px 8px rgba(0,0,0,0.3);
-}
-.player-play-btn:hover{transform:scale(1.06)}
-.player-play-btn svg{width:16px;height:16px;fill:#1a1408}
-.player-info{flex:1;min-width:0}
-.player-title{font-family:'Fraunces',serif;font-size:14.5px;color:#f3ede0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px}
-.player-progress-row{display:flex;align-items:center;gap:10px}
-.player-time{font-size:10.5px;color:#8a8270;font-variant-numeric:tabular-nums;flex-shrink:0;width:34px}
-.player-scrubber{flex:1;height:4px;background:rgba(255,255,255,0.12);border-radius:2px;position:relative;cursor:pointer}
-.player-scrubber:hover .player-scrubber-fill{background:#e2b04e}
-.player-scrubber-fill{height:100%;background:var(--gold);border-radius:2px;width:0%;pointer-events:none;position:relative}
-.player-scrubber-fill::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;background:#e2b04e;opacity:0;transition:opacity .15s}
-.player-scrubber:hover .player-scrubber-fill::after{opacity:1}
-.player-close{width:30px;height:30px;border-radius:50%;background:none;border:none;color:#7a7364;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.player-close:hover{color:#f3ede0;background:rgba(255,255,255,0.06)}
-.player-close svg{width:15px;height:15px}
+.browse-btn:hover{background:var(--track)}
+.browse-btn svg{width:18px;height:18px}
 
-@media (max-width:520px){
-  header{padding:24px 18px 18px}
-  .wrap{padding:20px 18px}
-  .cname{font-size:16.5px}
-  .filter-row{gap:8px}
+/* ═══ Search — a pill, icon on the left, clear button on the right ═══ */
+.search-box{
+  position:relative;display:flex;align-items:center;height:50px;background:var(--elevated);border-radius:25px;
+  border:1.5px solid var(--border-soft);transition:border-color .15s,box-shadow .15s;
 }
+.search-box:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px rgba(217,166,63,.14)}
+.search-icon{display:flex;padding:0 8px 0 17px;color:var(--ink-light);flex-shrink:0}
+.search-icon svg{width:20px;height:20px}
+.search-icon.loading svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.search-box input{flex:1;min-width:0;height:100%;border:none;background:none;outline:none;color:var(--ink);font:inherit;font-size:16px;padding:0 4px}
+.search-box input::placeholder{color:var(--ink-light)}
+.search-box input::-webkit-search-cancel-button{display:none}
+.search-box .search-clear{display:none;margin-right:5px;width:38px;height:38px}
+.search-box.has-text .search-clear{display:flex}
+
+/* ═══ Filter chips — one swipeable row, never wraps ═══ */
+.chips{gap:8px;margin:12px -16px 0;padding:0 16px 2px;overflow-x:auto;scrollbar-width:none;align-items:center}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex-shrink:0;height:34px;padding:0 15px;border-radius:17px;border:none;background:var(--hover);color:var(--ink);
+  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;white-space:nowrap;
+  transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;
+}
+.chip:hover{background:var(--track)}
+.chip.active{background:var(--gold);color:#1a1408}
+.chip-divider{width:1px;height:20px;background:var(--border);flex-shrink:0}
+.chip-select{padding:0;position:relative}
+.chip-select select{
+  appearance:none;-webkit-appearance:none;background:none;border:none;color:inherit;font:inherit;
+  height:100%;padding:0 32px 0 15px;cursor:pointer;outline:none;
+}
+.chip-select select option{background:var(--surface);color:var(--ink)}
+.chip-select::after{
+  content:'';position:absolute;right:14px;top:50%;width:6px;height:6px;pointer-events:none;opacity:.75;
+  border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-70%) rotate(45deg);
+}
+
+/* ═══ Results — a farbrengen is an "album", its sichos/niggunim are tracks ═══ */
+.wrap{max-width:720px;margin:0 auto;padding:12px 16px 24px}
+#rmeta{font-size:13px;color:var(--ink-light);margin:4px 0 14px;font-weight:500;min-height:18px}
+#rmeta:empty{display:none}
+.album{margin-bottom:30px}
+.album-head{display:flex;align-items:center;gap:14px}
+.album-cover{width:72px;height:72px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.album-info{flex:1;min-width:0}
+.album-kicker{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
+.album-title{font-size:18px;font-weight:700;color:var(--ink);line-height:1.25;letter-spacing:-.015em;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.album-sub{font-size:13px;color:var(--ink-light);margin-top:3px}
+.album-actions{display:flex;align-items:center;gap:2px;margin:10px 0 6px}
+.album-actions .icon-btn{color:var(--ink-light)}
+.album-actions .icon-btn:hover,.album-actions .icon-btn.on{color:var(--ink)}
+.album-actions .spacer{flex:1}
+.play-all{
+  width:50px;height:50px;border-radius:50%;background:var(--gold);color:#1a1408;border:none;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25);transition:transform .12s;
+}
+.play-all:active{transform:scale(.92)}
+.play-all svg{width:22px;height:22px}
+.show-tracks{
+  display:block;margin:6px 0 0;padding:10px 0;background:none;border:none;color:var(--ink-mid);
+  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+}
+.show-tracks:hover{color:var(--ink)}
+
+.track{
+  display:flex;align-items:center;gap:12px;padding:7px 8px;margin:0 -8px;border-radius:10px;cursor:pointer;
+  transition:background .15s;-webkit-tap-highlight-color:transparent;
+}
+.track:hover{background:var(--hover)}
+.track.no-audio{cursor:default}
+.track.no-audio:hover{background:none}
+.track-cover{width:46px;height:46px;border-radius:7px}
+.track-info{flex:1;min-width:0}
+.track-title{font-size:15px;font-weight:600;color:var(--ink);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.track-sub{font-size:13px;color:var(--ink-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track.playing .track-title{color:var(--gold)}
+.track .icon-btn{color:var(--ink-light)}
+.track .icon-btn.on{color:var(--gold)}
+.loose{margin-bottom:6px}
+
+/* Animated equalizer replaces the cover icon on the track that's playing */
+.eq{display:none;gap:3px;align-items:flex-end;height:18px}
+.eq i{width:3px;height:6px;background:#fff;border-radius:1px;animation:eq 1s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:-.45s}
+.eq i:nth-child(3){animation-delay:-.75s}
+@keyframes eq{0%,100%{height:5px}50%{height:18px}}
+.track.playing .cover svg{display:none}
+.track.playing .eq{display:flex}
+body.audio-paused .eq i{animation-play-state:paused}
+
+
+/* ═══ Skeleton rows while loading ═══ */
+.skel-row{display:flex;align-items:center;gap:12px;padding:7px 0}
+.skel-cover{width:46px;height:46px;border-radius:7px;flex-shrink:0}
+.skel-lines{flex:1}
+.skel-cover,.skel-line{background:linear-gradient(90deg,var(--hover) 25%,var(--track) 50%,var(--hover) 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
+.skel-line{height:12px;border-radius:4px}
+.skel-line.title{width:62%;height:14px;margin-bottom:8px}
+.skel-line.meta{width:34%}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+
+/* ═══ Type "covers" — a colored tile per content type stands in for album art ═══ */
+.cover{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.cover svg{width:46%;height:46%;opacity:.92}
+.cover-sicha{background:linear-gradient(140deg,#5b86e0,#1f3470)}
+.cover-maamar{background:linear-gradient(140deg,#a66ae0,#43226b)}
+.cover-farb{background:linear-gradient(140deg,#46a872,#1a4c31)}
+.cover-niggun{background:linear-gradient(140deg,#e0a04a,#7a4714)}
+.cover-other{background:linear-gradient(140deg,#8f8775,#3a352c)}
+
+/* ═══ Shared round icon button — 44px is the minimum comfortable tap target ═══ */
+.icon-btn{
+  width:44px;height:44px;border-radius:50%;border:none;background:none;color:var(--ink);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+  transition:background .15s,transform .1s,opacity .15s;text-decoration:none;-webkit-tap-highlight-color:transparent;
+}
+.icon-btn:hover{background:var(--hover)}
+.icon-btn:active{transform:scale(.9)}
+.icon-btn:disabled{opacity:.3;cursor:default;background:none;transform:none}
+.icon-btn svg{width:26px;height:26px}
+.icon-btn.sm svg{width:20px;height:20px}
+
+/* ═══ Mini player — floats above the page, tap anywhere on it to expand ═══ */
+.mini-player{
+  position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));max-width:720px;margin:0 auto;
+  background:var(--elevated);border-radius:12px;display:none;align-items:center;gap:12px;padding:8px 6px 8px 8px;
+  z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer;overflow:hidden;-webkit-tap-highlight-color:transparent;
+}
+.mini-player.open{display:flex}
+.mini-cover{width:44px;height:44px;border-radius:7px}
+.mini-info{flex:1;min-width:0}
+.mini-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini-sub{font-size:12.5px;color:var(--ink-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.mini-progress{position:absolute;left:10px;right:10px;bottom:0;height:2px;background:var(--track);border-radius:1px}
+.mini-progress-fill{height:100%;width:0;background:var(--ink);border-radius:1px}
+
+/* ═══ Full player — slides up over everything, slides (or swipes) back down ═══ */
+.np-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;pointer-events:none;transition:opacity .3s}
+.np-backdrop.open{opacity:1;pointer-events:auto}
+.np{
+  position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,var(--np-tint,var(--surface)) 0%,var(--bg) 60%);
+  transform:translateY(100%);visibility:hidden;
+  transition:transform .34s cubic-bezier(.2,.8,.2,1),visibility 0s linear .34s;
+}
+.np.open{transform:none;visibility:visible;transition:transform .34s cubic-bezier(.2,.8,.2,1),visibility 0s}
+.np.dragging{transition:none}
+.np-top{display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 12px 4px;flex-shrink:0}
+.np-top-mid{flex:1;min-width:0;text-align:center}
+.np-top-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
+.np-top-parent{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.np-scroll{flex:1;overflow-y:auto;min-height:0;overscroll-behavior:contain}
+.np-inner{max-width:520px;margin:0 auto;padding:12px 24px calc(40px + env(safe-area-inset-bottom))}
+.np-cover{width:min(100%,320px);aspect-ratio:1;margin:12px auto 28px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.np-cover svg{width:34%;height:34%}
+.np-cover-label{position:absolute;left:18px;bottom:16px;right:18px;display:flex;justify-content:space-between;align-items:flex-end}
+.np-cover-label span{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+.np-cover-label strong{font-size:22px;font-weight:700;letter-spacing:-.01em;opacity:.95}
+.np-title{font-size:22px;font-weight:700;color:var(--ink);line-height:1.25;letter-spacing:-.015em}
+.np-sub{font-size:14px;color:var(--ink-light);margin-top:5px}
+
+.seek{position:relative;height:28px;margin-top:20px;cursor:pointer;touch-action:none}
+.seek::before{content:'';position:absolute;left:0;right:0;top:12px;height:4px;border-radius:2px;background:var(--track)}
+.seek-fill{position:absolute;left:0;top:12px;height:4px;border-radius:2px;background:var(--ink);width:0;pointer-events:none}
+.seek-thumb{position:absolute;right:-7px;top:-5px;width:14px;height:14px;border-radius:50%;background:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.np-times{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-light);font-variant-numeric:tabular-nums;margin-top:-2px}
+
+.np-controls{display:flex;align-items:center;justify-content:space-between;max-width:340px;margin:14px auto 0}
+.np-controls .icon-btn svg{width:28px;height:28px}
+.np-play{
+  width:68px;height:68px;border-radius:50%;border:none;background:var(--gold);color:#1a1408;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:transform .12s;box-shadow:0 6px 20px rgba(0,0,0,.25);
+}
+.np-play:active{transform:scale(.93)}
+.np-play svg{width:30px;height:30px}
+.np-secondary{display:flex;justify-content:center;margin-top:16px}
+.speed-btn{
+  font:inherit;font-size:13px;font-weight:700;color:var(--ink-mid);background:var(--hover);border:none;
+  border-radius:16px;padding:7px 14px;cursor:pointer;font-variant-numeric:tabular-nums;min-width:56px;
+}
+.speed-btn.on{color:#1a1408;background:var(--gold)}
+
+.np-text-card{background:var(--surface);border-radius:16px;padding:18px 18px 8px;margin-top:32px}
+.np-text-label{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px}
+
+/* ═══ Reader — full-screen reading view, above the player ═══ */
+.reader-backdrop{z-index:44}
+.reader{z-index:45}
+.reader-inner{max-width:660px;margin:0 auto;padding:6px 22px calc(120px + env(safe-area-inset-bottom))}
+.text-size-btn{gap:1px;align-items:baseline;font-weight:700;color:var(--ink)}
+.text-size-btn span:first-child{font-size:12px}
+.text-size-btn span:last-child{font-size:18px}
+
+.rd-head{margin:10px 0 28px}
+.rd-kicker{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
+.rd-title{font-size:27px;font-weight:800;letter-spacing:-.025em;line-height:1.18;color:var(--ink);margin-top:6px}
+.rd-badge{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:5px 11px 5px 9px;border-radius:14px;font-size:12.5px;font-weight:700;color:var(--farb);background:var(--hover)}
+.rd-badge svg{width:13px;height:13px}
+.rd-summary{font-size:16.5px;line-height:1.65;color:var(--ink-mid);margin-top:14px}
+.rd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.rd-tags .chip{height:30px;padding:0 12px;font-size:13px}
+
+.rd-text{
+  font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:var(--rd-size,19px);line-height:2;
+  color:var(--ink);text-align:justify;text-align-last:right;
+}
+.rd-text p{margin:0 0 1.05em}
+.rd-point{
+  font-family:'Inter',sans-serif;font-weight:800;font-size:.68em;color:var(--gold);
+  display:inline-block;min-width:1.5em;margin-left:.45em;vertical-align:.12em;
+}
+.rd-divider{text-align:center;color:var(--gold);letter-spacing:.5em;font-size:12px;margin:1.8em 0;opacity:.85}
+.rd-aside{font-size:.86em;color:var(--ink-light);text-align:center !important;text-align-last:center !important}
+.fn{
+  font-family:'Inter',sans-serif;font-size:.58em;font-weight:800;color:var(--gold);cursor:pointer;
+  padding:.1em .22em;margin:0;border-radius:6px;vertical-align:super;line-height:1;transition:background .15s,color .15s;
+}
+.fn:hover{background:var(--hover)}
+.fn.active{background:var(--gold);color:#1a1408}
+.rd-notes{margin-top:32px;padding-top:18px;border-top:1px solid var(--border)}
+.rd-notes h4{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin-bottom:12px}
+.rd-notes ol{list-style:none;padding:0;margin:0;direction:rtl}
+.rd-notes li{display:flex;gap:.7em;font-family:'DachHeilig','David Libre',serif;font-size:calc(var(--rd-size,19px) * .8);line-height:1.75;color:var(--ink-mid);margin-bottom:.6em}
+.rd-notes li b{font-family:'Inter',sans-serif;font-size:.72em;font-weight:800;color:var(--gold);min-width:1.6em;padding-top:.25em}
+.rd-seg-sep{height:1px;background:var(--border);margin:44px 0 34px}
+.rd-toc{margin:10px 0 36px}
+.rd-toc ol{list-style:none;padding:0;margin:16px 0 0}
+.rd-toc a{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--border-soft);color:var(--ink);text-decoration:none;font-size:15.5px;font-weight:600}
+.rd-toc a b{font-size:13px;color:var(--gold);min-width:16px}
+
+/* Play bar inside the Reader, for reading along */
+.reader-bar{
+  position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto;
+  display:none;align-items:center;gap:10px;background:var(--elevated);border-radius:28px;padding:6px 16px 6px 6px;
+  box-shadow:0 8px 26px rgba(0,0,0,.35);z-index:1;
+}
+.reader-bar.show{display:flex}
+.reader-bar-play{width:42px;height:42px;border-radius:50%;border:none;background:var(--gold);color:#1a1408;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.reader-bar-play svg{width:20px;height:20px}
+.reader-bar-title{flex:1;min-width:0;font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reader-bar-time{font-size:12px;color:var(--ink-light);font-variant-numeric:tabular-nums;flex-shrink:0}
+
+/* Footnote sheet — slides up over the bottom of the Reader */
+.fn-sheet{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;max-width:700px;margin:0 auto;background:var(--elevated);
+  border-radius:18px 18px 0 0;box-shadow:0 -10px 34px rgba(0,0,0,.35);padding:8px 20px calc(22px + env(safe-area-inset-bottom));
+  max-height:52vh;display:flex;flex-direction:column;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
+}
+.fn-sheet.open{transform:none}
+.fn-sheet-head{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.fn-sheet-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
+.fn-sheet-text{overflow-y:auto;font-family:'DachHeilig','David Libre',serif;font-size:calc(var(--rd-size,19px) * .92);line-height:1.85;color:var(--ink);padding:2px 0 4px}
+.fn-sheet-text.missing{font-family:'Inter',sans-serif;direction:ltr;font-size:14px;color:var(--ink-light)}
+
+/* Preview card in the full player */
+.pv-summary{font-size:15px;line-height:1.6;color:var(--ink-mid);margin-top:10px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.pv-excerpt{
+  font-family:'DachHeilig','David Libre',serif;font-size:18px;line-height:1.9;color:var(--ink);margin-top:16px;
+  max-height:5.7em;overflow:hidden;text-align:justify;
+  -webkit-mask-image:linear-gradient(#000 35%,transparent);mask-image:linear-gradient(#000 35%,transparent);
+}
+.pv-btn{
+  display:block;width:100%;height:46px;border-radius:23px;border:none;margin-top:16px;cursor:pointer;
+  background:var(--ink);color:var(--bg);font:inherit;font-size:15px;font-weight:700;transition:transform .12s;
+}
+.pv-btn:active{transform:scale(.98)}
+.pv-btn.ghost{background:var(--hover);color:var(--ink)}
+.pv-note{font-size:14.5px;line-height:1.6;color:var(--ink-light)}
+.np-text-card .rd-badge{margin-top:0}
 </style>
 </head>
 <body>
 
-<header>
+<header id="appHeader">
   <div class="header-inner">
-    <div class="header-top-row">
-      <div class="wordmark" onclick="goHome()" style="cursor:pointer" title="Back to home">
+    <div class="appbar">
+      <div class="wordmark" onclick="goHome()" title="Back to home">
         <div class="wordmark-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
         </div>
         <div class="wordmark-text">
           <h1>Ashreinu</h1>
-          <span>Archive Search</span>
+          <span id="todayStrip">Archive Search</span>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="browse-menu-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark" style="padding:8px">
+      <div class="appbar-actions">
+        <button class="icon-btn sm" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Switch light or dark mode" title="Light / dark">
           <svg id="themeIconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
           <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
         </button>
-        <div class="browse-menu-wrap">
-        <button class="browse-menu-btn" onclick="openBrowseSheet()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <button class="browse-btn" onclick="openBrowseSheet()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           Browse
         </button>
       </div>
-      </div>
     </div>
-    <div class="today-strip" id="todayStrip"></div>
-    <div class="search-box">
-      <input type="text" id="q" placeholder="Search by title or tag — e.g. teshuva, geulah, 19 Kislev…" autocomplete="off" />
-      <div class="search-icon" id="searchIcon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </div>
+    <div class="search-box" id="searchBox">
+      <span class="search-icon" id="searchIcon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input type="search" id="q" placeholder="Search sichos, topics, dates…" autocomplete="off" enterkeyhint="search" />
+      <button class="icon-btn sm search-clear" onclick="clearSearch()" aria-label="Clear search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
-    <div class="filter-row filters-row-wrap" id="filterRow">
-      <div class="segmented">
-        <button class="seg-btn active" data-type="" onclick="setType('',this)">All</button>
-        <button class="seg-btn" data-type="sicha" onclick="setType('sicha',this)">Sicha</button>
-        <button class="seg-btn" data-type="maamar" onclick="setType('maamar',this)">Ma'amar</button>
-        <button class="seg-btn" data-type="nigun" onclick="setType('nigun',this)">Nigun</button>
-      </div>
-      <div class="mini-field">
-        <input type="number" id="yf" placeholder="Year" oninput="debouncedSearch()" />
-      </div>
-      <div class="mini-field">
-        <select id="mf" onchange="search()">
-          <option value="">Month</option>
-          <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
-          <option>Tevet</option><option>Shevat</option><option>Adar</option>
-          <option>Nissan</option><option>Iyar</option><option>Sivan</option>
-          <option>Tammuz</option><option>Av</option><option>Elul</option>
-        </select>
-      </div>
+    <div class="chips filters-row-wrap" id="filterRow">
+      <button class="chip active" data-type="" onclick="setType('',this)">All</button>
+      <button class="chip" data-type="sicha" onclick="setType('sicha',this)">Sichos</button>
+      <button class="chip" data-type="maamar" onclick="setType('maamar',this)">Ma'amarim</button>
+      <button class="chip" data-type="nigun" onclick="setType('nigun',this)">Niggunim</button>
+      <span class="chip-divider"></span>
+      <label class="chip chip-select" id="yearChip"><select id="yf" onchange="search()" aria-label="Year"><option value="">Year</option></select></label>
+      <label class="chip chip-select" id="monthChip"><select id="mf" onchange="search()" aria-label="Month">
+        <option value="">Month</option>
+        <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
+        <option>Tevet</option><option>Shevat</option><option>Adar</option>
+        <option>Nissan</option><option>Iyar</option><option>Sivan</option>
+        <option>Tammuz</option><option>Av</option><option>Elul</option>
+      </select></label>
     </div>
   </div>
 </header>
@@ -467,113 +479,129 @@ input[type=number]{-moz-appearance:textfield}
   <div id="res"></div>
 </div>
 
-<div class="player-bar" id="playerBar" onclick="openNowPlaying()">
-  <button class="player-play-btn" id="playerBtn" onclick="event.stopPropagation();togglePlayPause()">
+<div class="mini-player" id="playerBar" onclick="openNowPlaying()">
+  <div class="mini-cover cover" id="miniCover"></div>
+  <div class="mini-info">
+    <div class="mini-title" id="playerTitle"></div>
+    <div class="mini-sub" id="playerSub"></div>
+  </div>
+  <button class="icon-btn" id="playerBtn" onclick="event.stopPropagation();togglePlayPause()" aria-label="Play or pause">
     <svg id="playerIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
   </button>
-  <div class="player-info">
-    <div class="player-title" id="playerTitle"></div>
-    <div class="player-progress-row">
-      <span class="player-time" id="playerCur">0:00</span>
-      <div class="player-scrubber" id="playerScrub" onclick="event.stopPropagation();seekTo(event)">
-        <div class="player-scrubber-fill" id="playerFill"></div>
-      </div>
-      <span class="player-time" id="playerDur">0:00</span>
-    </div>
-  </div>
-  <div class="player-expand-btn" title="Expand">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-  </div>
-  <button class="player-close" onclick="event.stopPropagation();closePlayer()">
+  <button class="icon-btn sm" onclick="event.stopPropagation();closePlayer()" aria-label="Stop and close player">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
   </button>
+  <div class="mini-progress"><div class="mini-progress-fill" id="playerFill"></div></div>
 </div>
 <audio id="audioEl"></audio>
 
 <div class="np-backdrop" id="npBackdrop" onclick="closeNowPlaying()"></div>
-<div class="now-playing-overlay" id="npOverlay">
-  <div class="sheet-handle-row" id="npHandle" onclick="closeNowPlaying()">
-    <div class="sheet-handle"></div>
-  </div>
-  <div class="np-topbar">
-    <span class="np-label">Now Playing</span>
-    <button onclick="closeNowPlaying()" title="Minimize">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+<div class="np" id="npOverlay" role="dialog" aria-label="Now playing">
+  <div class="np-top">
+    <button class="icon-btn" onclick="closeNowPlaying()" aria-label="Minimize player">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
+    <div class="np-top-mid">
+      <div class="np-top-label">Playing from</div>
+      <div class="np-top-parent" id="npParent"></div>
+    </div>
+    <a class="icon-btn sm" id="npExt" target="_blank" rel="noopener" aria-label="Open in Ashreinu" title="Open in Ashreinu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </a>
   </div>
-  <div class="np-scroll">
+  <div class="np-scroll" id="npScroll">
     <div class="np-inner">
-      <div class="np-hero">
-        <div class="np-type-badge" id="npTypeBadge"></div>
-        <div class="np-title" id="npTitle"></div>
-        <div class="np-parent" id="npParent"></div>
-        <div class="np-date" id="npDate"></div>
+      <div class="np-cover cover" id="npCover"></div>
+      <div class="np-title" id="npTitle"></div>
+      <div class="np-sub" id="npSub"></div>
+
+      <div class="seek" id="npSeek"><div class="seek-fill" id="npFill"><div class="seek-thumb"></div></div></div>
+      <div class="np-times"><span id="npCur">0:00</span><span id="npDur">0:00</span></div>
+
+      <div class="np-controls">
+        <button class="icon-btn" id="npPrevBtn" onclick="playPrev()" aria-label="Previous track">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+        </button>
+        <button class="icon-btn" onclick="skipBy(-15)" aria-label="Back 15 seconds">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><text x="12.2" y="15.6" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor" stroke="none" font-family="Inter,sans-serif">15</text></svg>
+        </button>
+        <button class="np-play" id="npPlayBtn" onclick="togglePlayPause()" aria-label="Play or pause">
+          <svg id="npPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="icon-btn" onclick="skipBy(15)" aria-label="Forward 15 seconds">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/><text x="11.8" y="15.6" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor" stroke="none" font-family="Inter,sans-serif">15</text></svg>
+        </button>
+        <button class="icon-btn" id="npNextBtn" onclick="playNext()" aria-label="Next track">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        </button>
+      </div>
+      <div class="np-secondary">
+        <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" aria-label="Playback speed">1×</button>
       </div>
 
-      <div class="np-divider"></div>
-      <div class="np-section-label">Source Text</div>
-      <div id="npReadContent"><div class="np-empty">Loading…</div></div>
-    </div>
-  </div>
-
-  <div class="np-controls-bar">
-    <div class="np-controls-inner">
-      <button class="np-skip-btn" id="npPrevBtn" onclick="playPrev()" title="Previous">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-      </button>
-      <button class="np-play-btn" id="npPlayBtn" onclick="togglePlayPause()">
-        <svg id="npPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button class="np-skip-btn" id="npNextBtn" onclick="playNext()" title="Next">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-      </button>
-      <div class="np-progress-col">
-        <div class="np-progress-row">
-          <span class="np-time" id="npCur">0:00</span>
-          <div class="np-scrubber" id="npScrub" onclick="seekTo(event)"><div class="np-scrubber-fill" id="npFill"></div></div>
-          <span class="np-time" id="npDur">0:00</span>
-        </div>
+      <div class="np-text-card">
+        <div class="np-text-label">Source text</div>
+        <div id="npReadContent"></div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="sheet-backdrop" id="browseBackdrop" onclick="closeBrowseSheet()"></div>
-<div class="sheet" id="browseSheet">
-  <div class="sheet-handle-row" id="browseHandle" onclick="closeBrowseSheet()"><div class="sheet-handle"></div></div>
-  <div class="sheet-topbar">
-    <span class="sheet-title">Browse the Archive</span>
-    <button onclick="closeBrowseSheet()" title="Close">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+<div class="np-backdrop reader-backdrop" id="readerBackdrop" onclick="closeReader()"></div>
+<div class="np reader" id="reader" role="dialog" aria-label="Source text">
+  <div class="np-top">
+    <button class="icon-btn" onclick="closeReader()" aria-label="Close reader">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="np-top-mid">
+      <div class="np-top-label" id="readerKicker">Source text</div>
+      <div class="np-top-parent" id="readerParent"></div>
+    </div>
+    <button class="icon-btn sm text-size-btn" onclick="cycleTextSize()" aria-label="Change text size" title="Text size">
+      <span>A</span><span>A</span>
     </button>
   </div>
-  <div class="sheet-scroll">
+  <div class="np-scroll" id="readerScroll"><div class="reader-inner" id="readerBody"></div></div>
+
+  <div class="reader-bar" id="readerBar">
+    <button class="reader-bar-play" onclick="togglePlayPause()" aria-label="Play or pause">
+      <svg id="readerPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <div class="reader-bar-title" id="readerBarTitle"></div>
+    <span class="reader-bar-time" id="readerBarTime"></span>
+  </div>
+
+  <div class="fn-sheet" id="fnSheet" role="dialog" aria-label="Footnote">
+    <div class="fn-sheet-head">
+      <span class="fn-sheet-label" id="fnLabel">Footnote</span>
+      <button class="icon-btn sm" onclick="closeFootnote()" aria-label="Close footnote">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="fn-sheet-text" id="fnText" dir="rtl" lang="he"></div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="browseBackdrop" onclick="closeBrowseSheet()"></div>
+<div class="sheet" id="browseSheet" role="dialog" aria-label="Browse the archive">
+  <div class="sheet-handle-row"><div class="sheet-handle"></div></div>
+  <div class="sheet-topbar">
+    <span class="sheet-title">Browse</span>
+    <button class="icon-btn sm" onclick="closeBrowseSheet()" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="sheet-scroll" id="browseScroll">
     <div class="browse-tabs">
-      <button class="browse-tab active" data-pane="type" onclick="switchBrowseTab('type',this)">Type</button>
-      <button class="browse-tab" data-pane="collections" onclick="switchBrowseTab('collections',this)">Collections</button>
-      <button class="browse-tab" data-pane="months" onclick="switchBrowseTab('months',this)">Months</button>
-      <button class="browse-tab" data-pane="years" onclick="switchBrowseTab('years',this)">Years</button>
+      <button class="chip active" data-pane="type" onclick="switchBrowseTab('type')">Type</button>
+      <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
+      <button class="chip" data-pane="months" onclick="switchBrowseTab('months')">Months</button>
+      <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
     </div>
-
-    <div class="browse-pane active" id="pane-type">
-      <div class="type-grid">
-        <div class="type-tile tile-sicha" onclick="closeBrowseSheet();browseByType('sicha')"><div class="ttitle">Sichos</div></div>
-        <div class="type-tile tile-maamar" onclick="closeBrowseSheet();browseByType('maamar')"><div class="ttitle">Ma'amarim</div></div>
-        <div class="type-tile tile-niggun" onclick="closeBrowseSheet();browseByType('nigun')"><div class="ttitle">Nigunim</div></div>
-      </div>
-    </div>
-
-    <div class="browse-pane" id="pane-collections">
-      <div class="browse-grid" id="browseCollectionsGrid"></div>
-    </div>
-
-    <div class="browse-pane" id="pane-months">
-      <div class="browse-grid" id="browseMonthsGrid"></div>
-    </div>
-
-    <div class="browse-pane" id="pane-years">
-      <div class="year-scroll" id="browseYearsScroll" style="margin:0"><div class="otd-empty">Loading…</div></div>
-    </div>
+    <div class="browse-pane active" id="pane-type"><div class="tile-grid" id="browseTypeGrid"></div></div>
+    <div class="browse-pane" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
+    <div class="browse-pane" id="pane-months"><div class="card-grid" id="browseMonthsGrid"></div></div>
+    <div class="browse-pane" id="pane-years"><div class="chip-wrap" id="browseYearsScroll"><div class="shelf-empty">Loading…</div></div></div>
   </div>
 </div>
 
@@ -584,18 +612,19 @@ let debounceTimer = null;
 
 // ── Curated collections: named occasions mapped to their real Hebrew date(s).
 // Multi-day chagim list every day; some (like Chanukah) cross a month boundary.
+// Month numbers follow Ashreinu's 13-month scheme (see HEBCAL_MONTH_MAP).
 const COLLECTIONS = [
   { name: "Yud-Tes Kislev", sub: "19 Kislev", dates: [[3,19]] },
   { name: "Chanukah", sub: "25 Kislev – 3 Tevet", dates: [[3,25],[3,26],[3,27],[3,28],[3,29],[3,30],[4,1],[4,2],[4,3]] },
   { name: "Yud Shevat", sub: "10 Shevat", dates: [[5,10]] },
-  { name: "Purim", sub: "14 Adar", dates: [[6,14]] },
-  { name: "Erev Pesach", sub: "14 Nissan", dates: [[7,14]] },
-  { name: "Pesach", sub: "15–22 Nissan", dates: [[7,15],[7,16],[7,17],[7,18],[7,19],[7,20],[7,21],[7,22]] },
-  { name: "Lag BaOmer", sub: "18 Iyar", dates: [[8,18]] },
-  { name: "Erev Shavuos", sub: "5 Sivan", dates: [[9,5]] },
-  { name: "Shavuos", sub: "6–7 Sivan", dates: [[9,6],[9,7]] },
-  { name: "Yud-Beis Tammuz", sub: "12 Tammuz", dates: [[10,12]] },
-  { name: "Erev Rosh Hashanah", sub: "29 Elul", dates: [[12,29]] },
+  { name: "Purim", sub: "14 Adar", dates: [[7,14]] },
+  { name: "Erev Pesach", sub: "14 Nissan", dates: [[8,14]] },
+  { name: "Pesach", sub: "15–22 Nissan", dates: [[8,15],[8,16],[8,17],[8,18],[8,19],[8,20],[8,21],[8,22]] },
+  { name: "Lag BaOmer", sub: "18 Iyar", dates: [[9,18]] },
+  { name: "Erev Shavuos", sub: "5 Sivan", dates: [[10,5]] },
+  { name: "Shavuos", sub: "6–7 Sivan", dates: [[10,6],[10,7]] },
+  { name: "Yud-Beis Tammuz", sub: "12 Tammuz", dates: [[11,12]] },
+  { name: "Erev Rosh Hashanah", sub: "29 Elul", dates: [[13,29]] },
   { name: "Rosh Hashanah", sub: "1–2 Tishrei", dates: [[1,1],[1,2]] },
   { name: "Yom Kippur", sub: "10 Tishrei", dates: [[1,10]] },
   { name: "Erev Sukkos", sub: "14 Tishrei", dates: [[1,14]] },
@@ -667,63 +696,72 @@ function initTheme() {
   applyTheme(saved === 'light' ? 'light' : 'dark'); // dark unless the person has explicitly chosen light before
 }
 
-// ── Browse sheet (consolidates Type/Collections/Months/Years — one place,
+// ── Years in the archive: fetched once, shared by the year chip, the home
+// "By year" row and the Browse sheet ──
+let yearsPromise = null;
+function getYears() {
+  if (!yearsPromise) {
+    yearsPromise = fetch('/api/search?distinct=years')
+      .then(r => r.json()).then(j => j.years || [])
+      .catch(() => { yearsPromise = null; return []; });
+  }
+  return yearsPromise;
+}
+
+// ── Type tiles: shared by the home screen and the Browse sheet ──
+const TYPE_TILES = [
+  { label: 'Sichos', key: 'sicha', type: 'sicha' },
+  { label: "Ma'amarim", key: 'maamar', type: 'maamar' },
+  { label: 'Niggunim', key: 'niggun', type: 'nigun' },
+  { label: 'Farbrengens', key: 'farb', type: 'farbrengen' },
+];
+function typeTilesHtml(inSheet) {
+  return TYPE_TILES.map(t =>
+    '<div class="type-tile cover-' + t.key + '" onclick="' + (inSheet ? 'closeBrowseSheet();' : '') + 'browseByType(\'' + t.type + '\')">'
+      + t.label
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + TYPE_ICONS[t.key] + '</svg>'
+    + '</div>').join('');
+}
+
+// ── Browse sheet (consolidates Type/Occasions/Months/Years — one place,
 // opened on demand, instead of spreading everything across the landing page) ──
-function openBrowseSheet() {
+function browseIsOpen() { return document.getElementById('browseSheet').classList.contains('open'); }
+function openBrowseSheet(tab) {
+  if (!browseIsOpen()) {
+    document.getElementById('browseScroll').scrollTop = 0;
+    // A history entry means the phone's Back button closes the sheet.
+    if (!history.state?.browse) history.pushState({ browse: true }, '');
+  }
   document.getElementById('browseSheet').classList.add('open');
   document.getElementById('browseBackdrop').classList.add('open');
+  switchBrowseTab(tab || 'type');
   loadBrowseSheetContent();
 }
-function closeBrowseSheet() {
+function closeBrowseSheet(fromBackButton) {
+  if (!browseIsOpen()) return;
   document.getElementById('browseSheet').classList.remove('open');
   document.getElementById('browseBackdrop').classList.remove('open');
+  if (!fromBackButton) popOwnHistory('browse');
 }
-function switchBrowseTab(pane, btn) {
-  document.querySelectorAll('.browse-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.browse-pane').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('pane-' + pane).classList.add('active');
+function switchBrowseTab(pane) {
+  document.querySelectorAll('.browse-tabs .chip').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
+  document.querySelectorAll('.browse-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + pane));
 }
 let browseStaticLoaded = false;
 async function loadBrowseSheetContent() {
-  // Collections and months are fixed, hand-written lists — safe to build
-  // once per page load. Years actively grows as more indexing happens, so
-  // it must never be skipped on repeat opens — only a stale in-memory flag
-  // was preventing that, not any backend issue.
+  // Types, occasions and months are fixed lists — build them once.
   if (!browseStaticLoaded) {
     browseStaticLoaded = true;
-    document.getElementById('browseCollectionsGrid').innerHTML =
-      COLLECTIONS.map((c, i) => `<div class="collection-tile" onclick="closeBrowseSheet();browseByCollection(${i})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`).join('');
-
-    document.getElementById('browseMonthsGrid').innerHTML =
-      MONTH_LIST.map(m => `<div class="month-tile" onclick="closeBrowseSheet();browseByMonth('${m}')"><div class="mname">${m}</div></div>`).join('');
+    document.getElementById('browseTypeGrid').innerHTML = typeTilesHtml(true);
+    document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) =>
+      '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('');
+    document.getElementById('browseMonthsGrid').innerHTML = MONTH_LIST.map(m =>
+      '<div class="occasion" onclick="closeBrowseSheet();browseByMonth(\'' + m + '\')"><strong>' + m + '</strong></div>').join('');
   }
-
-  document.getElementById('browseYearsScroll').innerHTML = '<div class="otd-empty">Loading…</div>';
-  try {
-    const r = await fetch('/api/search?distinct=years');
-    const j = await r.json();
-    const years = j.years || [];
-    document.getElementById('browseYearsScroll').innerHTML = years.length
-      ? years.map(y => `<div class="year-chip-tile" onclick="closeBrowseSheet();browseByYear(${y})">${y}</div>`).join('')
-      : '<div class="otd-empty">No years indexed yet.</div>';
-  } catch (e) {
-    document.getElementById('browseYearsScroll').innerHTML = '<div class="otd-empty">Could not load.</div>';
-  }
-}
-
-// Swipe-down-to-dismiss, shared by both sheets — matches the gesture every
-// reference app (Spotify, YouTube Music) uses for its now-playing/bottom sheets.
-function enableSwipeToDismiss(handleId, closeFn) {
-  const handle = document.getElementById(handleId);
-  let startY = null;
-  handle.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
-  handle.addEventListener('touchend', e => {
-    if (startY === null) return;
-    const deltaY = e.changedTouches[0].clientY - startY;
-    if (deltaY > 60) closeFn();
-    startY = null;
-  }, { passive: true });
+  const years = await getYears();
+  document.getElementById('browseYearsScroll').innerHTML = years.length
+    ? years.map(y => '<button class="chip" onclick="closeBrowseSheet();browseByYear(' + y + ')">' + y + '</button>').join('')
+    : '<div class="shelf-empty">No years indexed yet.</div>';
 }
 
 function goHome() {
@@ -732,16 +770,17 @@ function goHome() {
   document.getElementById('q').value = '';
   document.getElementById('yf').value = '';
   document.getElementById('mf').value = '';
-  document.querySelectorAll('.seg-btn').forEach(el => el.classList.remove('active'));
-  document.querySelector('.seg-btn[data-type=""]')?.classList.add('active');
+  document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
+  document.querySelector('.chip[data-type=""]')?.classList.add('active');
   document.getElementById('filterRow').classList.remove('active');
+  syncSearchClear(); syncFilterChips();
   showLanding();
 }
 
 function setType(t, el) {
   currentType = t;
   currentDates = null;
-  document.querySelectorAll('.seg-btn').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   search();
 }
@@ -757,6 +796,7 @@ function debouncedSearch() {
 
 let searchToken = 0;
 async function search() {
+  syncSearchClear();
   const q  = document.getElementById('q').value.trim();
   const yf = document.getElementById('yf').value;
   const mf = document.getElementById('mf').value;
@@ -767,6 +807,7 @@ async function search() {
     return;
   }
   document.getElementById('filterRow').classList.add('active');
+  syncFilterChips();
 
   const myToken = ++searchToken;
   document.getElementById('searchIcon').classList.add('loading');
@@ -806,10 +847,13 @@ async function search() {
 }
 
 // ── Hebrew calendar awareness ──
+// Ashreinu numbers months 1–13 and always reserves 6 for Adar I, even in
+// non-leap years: plain Adar (and Adar II) is 7, Nissan 8 ... Elul 13.
+// Verified against real Ashreinu events (e.g. 12 Nissan 5747 → month 8).
 const HEBCAL_MONTH_MAP = {
   'Tishrei':1,'Cheshvan':2,'Kislev':3,'Tevet':4,"Sh'vat":5,'Shevat':5,
-  'Adar':6,'Adar I':6,'Adar II':6,'Nisan':7,'Nissan':7,'Iyyar':8,'Iyar':8,
-  'Sivan':9,'Tamuz':10,'Tammuz':11,'Av':11,'Elul':12
+  'Adar I':6,'Adar':7,'Adar II':7,'Nisan':8,'Nissan':8,'Iyyar':9,'Iyar':9,
+  'Sivan':10,'Tamuz':11,'Tammuz':11,'Av':12,'Elul':13
 };
 let todayHebrew = null; // { year, month, day, monthName, displayStr }
 
@@ -821,11 +865,8 @@ async function loadTodayHebrewDate() {
     const j = await r.json();
     const monthNum = HEBCAL_MONTH_MAP[j.hm] || null;
     todayHebrew = { year: j.hy, month: monthNum, day: j.hd, monthName: j.hm };
-    document.getElementById('todayStrip').innerHTML =
-      '<span>Today: <strong>' + esc(j.hd) + ' ' + esc(j.hm) + ' ' + esc(j.hy) + '</strong></span>';
-  } catch (e) {
-    document.getElementById('todayStrip').textContent = '';
-  }
+    document.getElementById('todayStrip').textContent = j.hd + ' ' + j.hm + ' ' + j.hy;
+  } catch (e) { /* keep the default "Archive Search" subtitle */ }
 }
 
 const MONTH_LIST = ['Tishrei','Cheshvan','Kislev','Tevet','Shevat','Adar','Nissan','Iyar','Sivan','Tammuz','Av','Elul'];
@@ -838,8 +879,8 @@ function browseByMonth(monthName) {
 function browseByType(type) {
   currentDates = null;
   currentType = type;
-  document.querySelectorAll('.seg-btn').forEach(c => c.classList.remove('active'));
-  document.querySelector('.seg-btn[data-type="'+type+'"]')?.classList.add('active');
+  document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
+  document.querySelector('.chip[data-type="'+type+'"]')?.classList.add('active');
   document.getElementById('q').value = '';
   search();
 }
@@ -850,14 +891,14 @@ function browseByCollection(idx) {
   document.getElementById('q').value = '';
   document.getElementById('yf').value = '';
   document.getElementById('mf').value = '';
-  document.querySelectorAll('.seg-btn').forEach(el => el.classList.remove('active'));
-  document.querySelector('.seg-btn[data-type=""]')?.classList.add('active');
+  document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
+  document.querySelector('.chip[data-type=""]')?.classList.add('active');
   document.getElementById('rmeta').dataset.collectionName = c.name;
   search();
 }
 function browseByYear(year) {
   currentDates = null;
-  document.getElementById('yf').value = year;
+  setYearFilter(year);
   search();
 }
 
@@ -873,138 +914,243 @@ function getUpcomingCollections(count) {
     .map(c => {
       const startOrd = approxOrdinal(c.dates[0][0], c.dates[0][1]);
       let diff = startOrd - todayOrd;
-      if (diff < 0) diff += 360; // wrap forward into next year
+      if (diff < 0) diff += 13 * 30; // wrap forward into next year (13-month numbering)
       return { ...c, diff };
     })
     .sort((a, b) => a.diff - b.diff)
     .slice(0, count);
 }
 
+// ── "Continue listening": recently played tracks + where you stopped in each.
+// Stored only on this device (localStorage). Every read/write is wrapped,
+// because storage can be blocked (private browsing) — the app must still work.
+const RECENT_KEY = 'ashreinu-recent', POS_KEY = 'ashreinu-pos';
+const RECENT_FIELDS = ['id','name','type','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
+  'secular_year','secular_month','secular_day','duration_ms','audio_uri','confirmed_title'];
+function readJSON(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
+}
+function writeJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
+}
+function rememberPlay(row) {
+  const slim = Object.fromEntries(RECENT_FIELDS.map(k => [k, row[k] ?? null]));
+  const list = readJSON(RECENT_KEY, []).filter(r => String(r.id) !== String(row.id));
+  list.unshift(slim);
+  writeJSON(RECENT_KEY, list.slice(0, 12));
+}
+function getRecent() { return readJSON(RECENT_KEY, []); }
+function savedPosition(id) { return readJSON(POS_KEY, {})[id] || 0; }
+function savePosition(id, seconds) {
+  if (!id) return;
+  const all = readJSON(POS_KEY, {});
+  if (seconds > 0) all[id] = Math.floor(seconds); else delete all[id];
+  writeJSON(POS_KEY, all);
+}
+
+// ── Home cards ──
+function shelfSkeleton(n) {
+  let html = '';
+  for (let i = 0; i < (n || 4); i++) html += '<div class="skel-shelf"><div class="skel-cover"></div><div class="skel-line title"></div><div class="skel-line meta"></div></div>';
+  return html;
+}
+// A farbrengen card — opens the farbrengen as an album.
+function farbrengenCardHtml(row) {
+  rowsById[String(row.id)] = row;
+  const sub = row.secular_year || hebDate(row);
+  return '<div class="shelf-card" onclick="openFarbrengen(' + row.id + ')">'
+    + '<div class="shelf-cover cover cover-farb">' + coverInner(row, true) + '</div>'
+    + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
+    + '<div class="shelf-sub">' + esc(sub) + '</div>'
+  + '</div>';
+}
+// A recently played track — plays (and resumes) on tap.
+function continueCardHtml(row) {
+  rowsById[String(row.id)] = row;
+  const total = row.duration_ms ? row.duration_ms / 1000 : 0;
+  const pct = total ? Math.min(100, savedPosition(row.id) / total * 100) : 0;
+  return '<div class="shelf-card" onclick="playFromOrder(\'' + row.id + '\')">'
+    + '<div class="shelf-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, true) + '</div>'
+    + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
+    + '<div class="shelf-sub">' + esc(row.parent_name || trackSubtitle(row)) + '</div>'
+    + (pct > 0 ? '<div class="shelf-progress"><i style="width:' + pct.toFixed(1) + '%"></i></div>' : '')
+  + '</div>';
+}
+
 async function showLanding() {
   document.getElementById('rmeta').textContent = '';
-
   const upcoming = getUpcomingCollections(4);
-  const upcomingHtml = upcoming.length ? `
-    <div class="home-section">
-      <div class="home-section-head"><h3>Coming Up</h3><span>From today's date</span></div>
-      <div class="browse-grid">
-        ${upcoming.map(c => {
-          const idx = COLLECTIONS.indexOf(COLLECTIONS.find(x => x.name === c.name));
-          return `<div class="collection-tile" onclick="browseByCollection(${idx})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`;
-        }).join('')}
-      </div>
-    </div>` : '';
+  const next = upcoming[0];
+  const idxOf = c => COLLECTIONS.findIndex(x => x.name === c.name);
+  const recent = getRecent();
 
-  // First-principles landing: search is the primary action (already in the
-  // header), On This Day is our strongest unique content, Coming Up is a
-  // light second signal, and everything else (type/collections/months/years)
-  // lives in the Browse sheet on demand — not spread across the homepage.
+  // Search is the primary action (in the header). Below it: what you were
+  // listening to, today's date across the years, the next occasion, then
+  // ways to browse.
   document.getElementById('res').innerHTML =
-    '<div class="home-section" id="otdSection" style="display:none">'
-      + '<div class="home-section-head"><h3>On This Day</h3><span id="otdSubtitle"></span></div>'
-      + '<div class="otd-scroll" id="otdScroll"><div class="otd-empty">Loading…</div></div>'
+    (recent.length
+      ? '<div class="home-section"><div class="home-section-head"><h3>Continue listening</h3></div>'
+        + '<div class="shelf">' + recent.map(continueCardHtml).join('') + '</div></div>'
+      : '')
+    + '<div class="home-section" id="otdSection" style="display:none">'
+      + '<div class="home-section-head"><h3>On this day</h3></div>'
+      + '<div class="home-sub" id="otdSub"></div>'
+      + '<div class="shelf" id="otdShelf"></div>'
     + '</div>'
-    + upcomingHtml
-    + '<div class="browse-prompt" onclick="openBrowseSheet()">'
-      + '<div class="browse-prompt-text"><strong>Browse the full archive</strong><span>By type, occasion, month, or year</span></div>'
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
-    + '</div>';
+    + (next
+      ? '<div class="home-section">'
+        + '<div class="home-section-head"><h3>Coming up: ' + esc(next.name) + '</h3>'
+          + '<button class="see-all" onclick="browseByCollection(' + idxOf(next) + ')">See all</button></div>'
+        + '<div class="home-sub">' + esc(next.sub) + ', across the years</div>'
+        + '<div class="shelf" id="upShelf">' + shelfSkeleton() + '</div>'
+        + (upcoming.length > 1
+          ? '<div class="chip-scroll" style="margin-top:14px">' + upcoming.slice(1).map(c =>
+              '<button class="chip" onclick="browseByCollection(' + idxOf(c) + ')">' + esc(c.name) + '</button>').join('') + '</div>'
+          : '')
+      + '</div>'
+      : '')
+    + '<div class="home-section"><div class="home-section-head"><h3>Browse all</h3>'
+      + '<button class="see-all" onclick="openBrowseSheet(\'collections\')">Occasions</button></div>'
+      + '<div class="tile-grid">' + typeTilesHtml(false) + '</div></div>'
+    + '<div class="home-section"><div class="home-section-head"><h3>By year</h3></div>'
+      + '<div class="chip-scroll" id="homeYears"></div></div>';
 
   loadOnThisDay();
+  if (next) loadFarbrengenShelf('upShelf', next.dates, 'No recordings for ' + next.name + ' yet.');
+  getYears().then(years => {
+    const el = document.getElementById('homeYears');
+    if (el) el.innerHTML = years.map(y => '<button class="chip" onclick="browseByYear(' + y + ')">' + y + '</button>').join('');
+  });
+}
+
+// Farbrengens held on any of the given [month, day] dates, any year.
+async function fetchFarbrengensOn(dates) {
+  const r = await fetch('/api/search?type=farbrengen&limit=24&dates=' + encodeURIComponent(JSON.stringify(dates)));
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j.results || [];
+}
+async function loadFarbrengenShelf(elId, dates, emptyText) {
+  const el = document.getElementById(elId);
+  try {
+    const rows = await fetchFarbrengensOn(dates);
+    if (!document.getElementById(elId)) return; // user navigated away
+    el.innerHTML = rows.length ? rows.map(farbrengenCardHtml).join('') : '<div class="shelf-empty">' + esc(emptyText) + '</div>';
+  } catch (e) {
+    if (document.getElementById(elId)) el.innerHTML = '<div class="shelf-empty">Could not load.</div>';
+  }
 }
 
 async function loadOnThisDay() {
   if (!todayHebrew || !todayHebrew.month) return;
   try {
-    const r = await fetch(`/api/on-this-day?month=${todayHebrew.month}&day=${todayHebrew.day}`);
-    const j = await r.json();
-    const results = j.results || [];
-
-    document.getElementById('otdSection').style.display = 'block';
-    document.getElementById('otdSubtitle').textContent = todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years';
-
-    if (!results.length) {
-      document.getElementById('otdScroll').innerHTML = '<div class="otd-empty">No farbrengens recorded on this date yet.</div>';
-      return;
-    }
-
-    document.getElementById('otdScroll').innerHTML = results.map(row => {
-      const link = 'https://ashreinu.app/player?parentEvent=' + row.id;
-      return '<div class="otd-card" onclick="quickSearchYear(' + row.hebrew_year + ')">'
-        + '<div class="otd-year">' + row.hebrew_year + '</div>'
-        + '<div class="otd-name">' + esc(row.name) + '</div>'
-      + '</div>';
-    }).join('');
-  } catch (e) {
-    document.getElementById('otdScroll').innerHTML = '<div class="otd-empty">Could not load.</div>';
-  }
+    const rows = await fetchFarbrengensOn([[todayHebrew.month, todayHebrew.day]]);
+    const section = document.getElementById('otdSection');
+    if (!section || !rows.length) return; // nothing recorded today — keep the section hidden
+    document.getElementById('otdSub').textContent = todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years';
+    document.getElementById('otdShelf').innerHTML = rows.map(farbrengenCardHtml).join('');
+    section.style.display = 'block';
+  } catch (e) { /* leave hidden */ }
 }
 
-function quickSearchYear(year) {
-  document.getElementById('yf').value = year;
-  document.getElementById('q').value = todayHebrew.monthName;
-  search();
+// Open one farbrengen as an album page with all its tracks.
+function openFarbrengen(fid) {
+  const head = rowsById[String(fid)];
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML =
+    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+  document.getElementById('res').innerHTML = albumHtml(fid, head, []);
+  window.scrollTo(0, 0);
+  loadAlbumTracks(fid);
 }
 
 function showSkeletons() {
   let html = '';
-  for (let i = 0; i < 5; i++) {
-    html += '<div class="skel-card"><div class="skel-line title"></div><div class="skel-line meta"></div></div>';
+  for (let i = 0; i < 7; i++) {
+    html += '<div class="skel-row"><div class="skel-cover"></div><div class="skel-lines"><div class="skel-line title"></div><div class="skel-line meta"></div></div></div>';
   }
   document.getElementById('res').innerHTML = html;
 }
 
-// Track full row data by id so playTrack/openNowPlaying can pull rich
-// metadata (parent name, date, type) without re-parsing the DOM.
+// Track full row data by id so the player can pull rich metadata
+// (parent name, date, type) without re-parsing the DOM.
 const rowsById = {};
-let currentOrder = []; // rids with audio, in the order they appear — powers next/prev
+let currentOrder = []; // playable track ids, top to bottom as shown — powers next/prev
 
-function cardHtml(row) {
-  const d = row.duration_ms;
-  const lbl = typeLabel(row.type);
-  const audioUrl = getAudioUrl(row);
+// The play queue is simply every playable row on screen, in order. Rebuilt
+// after anything changes what's on screen (new results, "show all tracks").
+function rebuildOrder() {
+  currentOrder = [...document.querySelectorAll('.track[data-playable]')].map(el => el.dataset.rid);
+}
+
+// A human-confirmed title (from audio_text_links) beats Ashreinu's generic
+// label like "Sicha 1" — which then gets demoted to the subtitle.
+function trackTitle(row) { return row.confirmed_title || row.name || '(untitled)'; }
+function hebDate(row) { return row.hebrew_day ? row.hebrew_day + ' ' + row.hebrew_month_name + ' ' + row.hebrew_year : ''; }
+
+const ICON_BOOK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>';
+const ICON_EXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
+// One track row. `loose` = shown on its own (not under its farbrengen), so
+// the subtitle has to carry the farbrengen name and date itself.
+function trackRowHtml(row, loose) {
   const rid = String(row.id);
-  const link = lnk(row);
-  const titleAttr = esc(row.name||'').replace(/'/g,"\\'");
-  const farbrengenId = row.parent_id || row.id;
   rowsById[rid] = row;
-  if (audioUrl) currentOrder.push(rid);
+  const playable = !!getAudioUrl(row);
+  const farbrengenId = row.parent_id || row.id;
+  const label = row.confirmed_title ? row.name : typeLabel(row.type);
+  const sub = loose
+    ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
+    : [label, dur(row.duration_ms)];
+  const isNigun = typeKey(row.type) === 'niggun';
+  return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + '" id="card-' + rid + '" data-rid="' + rid + '"'
+      + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
+      + '<div class="track-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, false) + '<span class="eq"><i></i><i></i><i></i></span></div>'
+      + '<div class="track-info">'
+        + '<div class="track-title">' + esc(trackTitle(row)) + '</div>'
+        + '<div class="track-sub">' + esc(sub.filter(Boolean).join(' · ')) + '</div>'
+      + '</div>'
+      + (isNigun ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
+    + '</div>';
+}
 
-  return '<div class="card" id="card-'+rid+'">'
-    +'<div class="ctop">'
-      +'<div class="type-badge '+typeDot(row.type)+'"></div>'
-      +'<div class="card-body">'
-        +'<div class="card-toprow">'
-          +(audioUrl
-              ? '<span class="cname cname-playable" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+esc(row.name||'(untitled)')+'</span>'
-              : '<span class="cname">'+esc(row.name||'(untitled)')+'</span>')
-          +(lbl?'<span class="ctype-label">'+esc(lbl)+'</span>':'')
-        +'</div>'
-        +(row.parent_name?'<div class="cpar">In <span>'+esc(row.parent_name)+'</span></div>':'')
-        +'<div class="cmeta-row">'
-          +(dstr(row)?'<span class="cmeta-item">'+calIcon+esc(dstr(row))+'</span>':'')
-          +(d?'<span class="cmeta-item">'+clockIcon+dur(d)+'</span>':'')
-          +'<div class="action-row">'
-          +(audioUrl?'<span class="play-toggle" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+playIcon+'Play</span>':'')
-          +'<span class="read-toggle" id="readbtn-'+rid+'" onclick="toggleRead(\''+rid+'\','+farbrengenId+')">'+bookIcon+'Read source</span>'
-          +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu'+extIcon+'</a>'
-          +'</div>'
-        +'</div>'
-        +'<div class="read-panel" id="readpanel-'+rid+'"></div>'
-      +'</div>'
-    +'</div>'
-  +'</div>';
+// A farbrengen rendered like an album: cover, title, date, actions, then
+// its tracks. `head` is the farbrengen's own row when the search returned it.
+function albumHtml(fid, head, tracks) {
+  if (head) rowsById[String(fid)] = head;
+  const any = head || tracks[0];
+  const title = head ? trackTitle(head) : (any.parent_name || 'Farbrengen');
+  const farbIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + TYPE_ICONS.farb + '</svg>';
+  const sub = [hebDate(any), any.secular_year ? dstr(any).split(' · ').pop() : ''].filter(Boolean).join(' · ');
+  return '<section class="album" id="album-' + fid + '">'
+    + '<div class="album-head">'
+      + '<div class="album-cover cover cover-farb">' + farbIcon + '</div>'
+      + '<div class="album-info">'
+        + '<div class="album-kicker">Farbrengen</div>'
+        + '<div class="album-title">' + esc(title) + '</div>'
+        + '<div class="album-sub">' + esc(sub) + '</div>'
+      + '</div>'
+    + '</div>'
+    + '<div class="album-actions">'
+      + '<button class="icon-btn sm" id="readbtn-' + fid + '" onclick="openReader(\'' + fid + '\',' + fid + ')" aria-label="Read the farbrengen\'s text" title="Read the text">' + ICON_BOOK + '</button>'
+      + '<a class="icon-btn sm" href="https://ashreinu.app/player?parentEvent=' + fid + '" target="_blank" rel="noopener" aria-label="Open in Ashreinu" title="Open in Ashreinu">' + ICON_EXT + '</a>'
+      + '<span class="spacer"></span>'
+      + '<button class="play-all" onclick="playAlbum(' + fid + ')" aria-label="Play this farbrengen">' + ICON_PLAY + '</button>'
+    + '</div>'
+    + '<div id="album-tracks-' + fid + '">' + tracks.map(r => trackRowHtml(r, false)).join('') + '</div>'
+    + '<button class="show-tracks" id="album-more-' + fid + '" onclick="loadAlbumTracks(' + fid + ')">'
+      + (tracks.length ? 'Show the whole farbrengen' : 'Show tracks') + '</button>'
+  + '</section>';
 }
 
 function renderCards(items) {
   const el = document.getElementById('res');
-  if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; return; }
-  currentOrder = [];
+  if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; currentOrder = []; return; }
 
   // Group consecutive items that belong to the same farbrengen (results
   // already come back in chronological order, so same-farbrengen items
-  // are naturally adjacent) — shows sichos/niggunim/ma'amarim nested under
-  // their farbrengen instead of a flat list.
+  // are naturally adjacent).
   const groups = [];
   let lastKey = null;
   for (const row of items) {
@@ -1020,108 +1166,313 @@ function renderCards(items) {
   }
 
   el.innerHTML = groups.map(g => {
-    // A "group" of just one plain item (no clear farbrengen context) renders
-    // as a single ungrouped card — grouping only adds value with 2+ items
-    // or when we actually have the parent farbrengen's own info to head it.
-    if (g.items.length === 1 && !g.farbrengenRow) {
-      return cardHtml(g.items[0]);
-    }
-
-    const head = g.farbrengenRow || g.items[0];
-    const headDate = dstr(head);
-    const subItems = g.farbrengenRow ? g.items.filter(r => r.id !== g.farbrengenRow.id) : g.items;
-
-    return '<div class="farb-group">'
-      + '<div class="farb-group-head">'
-        + '<h4>' + esc(head.name || head.parent_name || '(untitled)') + '</h4>'
-        + (headDate ? '<span class="fg-date">' + esc(headDate) + '</span>' : '')
-        + '<span class="fg-count">' + g.items.length + ' item' + (g.items.length!==1?'s':'') + '</span>'
-      + '</div>'
-      + '<div class="farb-group-items">'
-        + (g.farbrengenRow ? cardHtml(g.farbrengenRow) : '')
-        + subItems.map(cardHtml).join('')
-      + '</div>'
-    + '</div>';
+    // A lone track with no farbrengen context renders as a single row;
+    // grouping only adds value with 2+ items or the farbrengen's own info.
+    if (g.items.length === 1 && !g.farbrengenRow) return '<div class="loose">' + trackRowHtml(g.items[0], true) + '</div>';
+    const tracks = g.farbrengenRow ? g.items.filter(r => r.id !== g.farbrengenRow.id) : g.items;
+    return albumHtml(g.key, g.farbrengenRow, tracks);
   }).join('');
+  rebuildOrder();
 }
 
-// ── Persistent bottom player + expandable "Now Playing" view ──
+// Replace an album's matched tracks with ALL of the farbrengen's tracks, in
+// recording order. Optionally start playing the first one.
+async function loadAlbumTracks(fid, thenPlay) {
+  const box = document.getElementById('album-tracks-' + fid);
+  const more = document.getElementById('album-more-' + fid);
+  if (more) { more.disabled = true; more.textContent = 'Loading…'; }
+  try {
+    const r = await fetch('/api/search?parentId=' + fid);
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    const tracks = (j.results || []).filter(t => t.audio_uri);
+    box.innerHTML = tracks.length ? tracks.map(t => trackRowHtml(t, false)).join('') : '<div class="read-empty">No audio tracks found for this farbrengen.</div>';
+    if (more) more.remove();
+    rebuildOrder();
+    if (thenPlay && tracks.length) playFromOrder(String(tracks[0].id));
+  } catch (e) {
+    if (more) { more.disabled = false; more.textContent = 'Could not load tracks — tap to retry'; }
+  }
+}
+function playAlbum(fid) {
+  const first = document.querySelector('#album-tracks-' + fid + ' .track[data-playable]');
+  if (first) playFromOrder(first.dataset.rid);
+  else loadAlbumTracks(fid, true);
+}
+
+// ── Player: persistent mini bar + slide-up full "Now Playing" view ──
 const audioEl = document.getElementById('audioEl');
 let currentTrackId = null;
 
+// One "cover" per content type stands in for album art, so every track
+// has a recognizable visual even though the archive has no artwork.
+const TYPE_ICONS = {
+  sicha: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  maamar: '<path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>',
+  niggun: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  farb: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  other: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/>'
+};
+function typeKey(t) { return typeDot(t).replace('dot-', ''); }
+function coverInner(row, withLabel) {
+  const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + TYPE_ICONS[typeKey(row.type)] + '</svg>';
+  if (!withLabel) return icon;
+  return icon + '<div class="np-cover-label"><span>' + esc(typeLabel(row.type) || '') + '</span><strong>' + esc(row.hebrew_year || '') + '</strong></div>';
+}
+function setCover(el, row, withLabel) {
+  el.className = el.className.replace(/\bcover-\w+/g, '').trim() + ' cover-' + typeKey(row.type);
+  el.innerHTML = coverInner(row, withLabel);
+}
+// Secondary line under a title: the original label when a confirmed title
+// replaced it (e.g. "Sicha 1"), otherwise the type — plus the Hebrew date.
+function trackSubtitle(row) {
+  const label = row.confirmed_title ? row.name : typeLabel(row.type);
+  const date = row.hebrew_day ? row.hebrew_day + ' ' + row.hebrew_month_name + ' ' + row.hebrew_year : '';
+  return [label, date].filter(Boolean).join(' · ');
+}
+
 function playTrack(id, url, title) {
-  document.querySelectorAll('.card.playing').forEach(c => c.classList.remove('playing'));
+  document.querySelectorAll('.track.playing').forEach(c => c.classList.remove('playing'));
   const card = document.getElementById('card-'+id);
   if (card) card.classList.add('playing');
 
+  // Remember where we were in the track we're leaving (unless it finished).
+  if (currentTrackId && !audioEl.ended) savePosition(currentTrackId, audioEl.currentTime);
+
+  const row = rowsById[id];
   currentTrackId = id;
   audioEl.src = url;
+  audioEl.playbackRate = playbackSpeed;
+  // Resume where you left off, unless you'd barely started or nearly finished.
+  const resumeAt = savedPosition(id);
+  const total = row && row.duration_ms ? row.duration_ms / 1000 : 0;
+  if (resumeAt > 10 && (!total || resumeAt < total - 15)) {
+    audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = resumeAt; }, { once: true });
+  }
   audioEl.play().catch(e => console.log('play error', e));
-  document.getElementById('playerTitle').textContent = title;
-  document.getElementById('playerBar').classList.add('open');
-  setPlayIcon(true);
+  if (row) rememberPlay(row);
 
-  // Open the full Now Playing view immediately — pressing play is the
-  // moment of intent; minimizing afterward is the user's choice, not the
-  // default. Also handles refreshing an already-open view for a new track.
-  openNowPlaying();
+  document.getElementById('playerTitle').textContent = title;
+  document.getElementById('playerSub').textContent = row ? trackSubtitle(row) : '';
+  if (row) setCover(document.getElementById('miniCover'), row, false);
+  document.getElementById('playerBar').classList.add('open');
+  document.getElementById('playerFill').style.width = '0%';
+  document.getElementById('npFill').style.width = '0%';
+  document.getElementById('npCur').textContent = '0:00';
+  renderDuration();
+  updateMediaSession(row, title);
+  syncReaderBar();
+
+  // Like Spotify: tapping play keeps you where you are (mini bar only).
+  // If the full view is already open (e.g. next/prev), refresh it in place.
+  if (npIsOpen()) { populateNowPlaying(id); updateSkipButtons(); }
 }
 
 function togglePlayPause() {
-  if (audioEl.paused) { audioEl.play(); setPlayIcon(true); }
-  else { audioEl.pause(); setPlayIcon(false); }
+  if (!audioEl.src) return;
+  if (audioEl.paused) audioEl.play(); else audioEl.pause();
 }
 function setPlayIcon(playing) {
   const d = playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
   document.getElementById('playerIcon').innerHTML = d;
-  const npIcon = document.getElementById('npPlayIcon');
-  if (npIcon) npIcon.innerHTML = d;
+  document.getElementById('npPlayIcon').innerHTML = d;
+  document.getElementById('readerPlayIcon').innerHTML = d;
 }
+// Icons follow the audio element's real state, so lock-screen/headphone
+// controls keep the on-screen buttons in sync too.
+audioEl.addEventListener('play', () => { setPlayIcon(true); document.body.classList.remove('audio-paused'); });
+audioEl.addEventListener('pause', () => { setPlayIcon(false); document.body.classList.add('audio-paused'); });
+audioEl.addEventListener('ended', () => { setPlayIcon(false); savePosition(currentTrackId, 0); playNext(); });
+
 function closePlayer() {
-  audioEl.pause(); audioEl.src = '';
+  audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
   document.getElementById('playerBar').classList.remove('open');
-  document.querySelectorAll('.card.playing').forEach(c => c.classList.remove('playing'));
+  document.querySelectorAll('.track.playing').forEach(c => c.classList.remove('playing'));
   currentTrackId = null;
   closeNowPlaying();
+  syncReaderBar();
 }
-function seekTo(e) {
-  const rect = e.currentTarget.getBoundingClientRect();
-  const pct = (e.clientX - rect.left) / rect.width;
-  if (audioEl.duration) audioEl.currentTime = pct * audioEl.duration;
+// Some browsers (notably Safari) can't work out the length of a streamed
+// .opus file and report it as Infinity. The archive already knows every
+// track's exact length (duration_ms), so fall back to that.
+function trackDuration() {
+  if (isFinite(audioEl.duration) && audioEl.duration > 0) return audioEl.duration;
+  const row = rowsById[currentTrackId];
+  return row && row.duration_ms ? row.duration_ms / 1000 : 0;
 }
+function skipBy(seconds) {
+  const total = trackDuration();
+  if (!total) return;
+  audioEl.currentTime = Math.max(0, Math.min(total, audioEl.currentTime + seconds));
+}
+
+// ── Playback speed (remembered on this device) ──
+const SPEEDS = [1, 1.25, 1.5, 1.75, 2, 0.75];
+let playbackSpeed = 1;
+try { playbackSpeed = parseFloat(localStorage.getItem('ashreinu-speed')) || 1; } catch (e) {}
+function renderSpeed() {
+  const btn = document.getElementById('speedBtn');
+  btn.textContent = playbackSpeed + '×';
+  btn.classList.toggle('on', playbackSpeed !== 1);
+}
+function cycleSpeed() {
+  playbackSpeed = SPEEDS[(SPEEDS.indexOf(playbackSpeed) + 1) % SPEEDS.length];
+  audioEl.playbackRate = playbackSpeed;
+  try { localStorage.setItem('ashreinu-speed', playbackSpeed); } catch (e) {}
+  renderSpeed();
+}
+renderSpeed();
+
+// ── Progress + draggable seek bar ──
 function fmtTime(s) {
   if (!isFinite(s)) return '0:00';
-  return Math.floor(s/60) + ':' + String(Math.floor(s%60)).padStart(2,'0');
+  s = Math.floor(s);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = String(s % 60).padStart(2, '0');
+  return h ? h + ':' + String(m).padStart(2, '0') + ':' + sec : m + ':' + sec;
 }
-audioEl.addEventListener('timeupdate', () => {
-  if (!audioEl.duration) return;
-  const pct = (audioEl.currentTime/audioEl.duration*100) + '%';
-  const cur = fmtTime(audioEl.currentTime);
+let isSeeking = false;
+function renderProgress(time) {
+  const total = trackDuration();
+  if (!total) return;
+  const pct = Math.min(100, time / total * 100) + '%';
   document.getElementById('playerFill').style.width = pct;
-  document.getElementById('playerCur').textContent = cur;
-  const npFill = document.getElementById('npFill');
-  if (npFill) { npFill.style.width = pct; document.getElementById('npCur').textContent = cur; }
+  document.getElementById('npFill').style.width = pct;
+  document.getElementById('npCur').textContent = fmtTime(time);
+  document.getElementById('readerBarTime').textContent = fmtTime(time) + ' / ' + fmtTime(total);
+}
+let lastPositionSave = 0;
+audioEl.addEventListener('timeupdate', () => {
+  if (!isSeeking) renderProgress(audioEl.currentTime);
+  // Save your place every few seconds, for "Continue listening".
+  if (currentTrackId && Date.now() - lastPositionSave > 5000) {
+    lastPositionSave = Date.now();
+    savePosition(currentTrackId, audioEl.currentTime);
+  }
 });
-audioEl.addEventListener('loadedmetadata', () => {
-  const d = fmtTime(audioEl.duration);
-  document.getElementById('playerDur').textContent = d;
-  const npDur = document.getElementById('npDur');
-  if (npDur) npDur.textContent = d;
-});
-audioEl.addEventListener('ended', () => setPlayIcon(false));
+audioEl.addEventListener('pause', () => { if (currentTrackId && !audioEl.ended) savePosition(currentTrackId, audioEl.currentTime); });
+function renderDuration() { document.getElementById('npDur').textContent = fmtTime(trackDuration()); }
+audioEl.addEventListener('loadedmetadata', renderDuration);
+audioEl.addEventListener('durationchange', renderDuration);
+(function bindSeek() {
+  const bar = document.getElementById('npSeek');
+  const timeAt = e => {
+    const rect = bar.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * trackDuration();
+  };
+  let pending = 0;
+  bar.addEventListener('pointerdown', e => {
+    if (!trackDuration()) return;
+    isSeeking = true; bar.setPointerCapture(e.pointerId);
+    pending = timeAt(e); renderProgress(pending);
+  });
+  bar.addEventListener('pointermove', e => { if (isSeeking) { pending = timeAt(e); renderProgress(pending); } });
+  const finish = () => { if (!isSeeking) return; isSeeking = false; audioEl.currentTime = pending; };
+  bar.addEventListener('pointerup', finish);
+  bar.addEventListener('pointercancel', finish);
+})();
 
-// ── Expanded Now Playing view ──
+// ── Lock screen / headphone controls (Media Session API) ──
+function updateMediaSession(row, title) {
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: title || '', artist: row?.parent_name || '', album: 'Ashreinu Archive'
+  });
+}
+if ('mediaSession' in navigator) {
+  const handlers = {
+    play: () => audioEl.play(), pause: () => audioEl.pause(),
+    seekbackward: () => skipBy(-15), seekforward: () => skipBy(15),
+    previoustrack: () => playPrev(), nexttrack: () => playNext()
+  };
+  for (const [action, fn] of Object.entries(handlers)) {
+    try { navigator.mediaSession.setActionHandler(action, fn); } catch (e) { /* unsupported action */ }
+  }
+}
+
+// ── Full Now Playing view ──
+function npIsOpen() { return document.getElementById('npOverlay').classList.contains('open'); }
 function openNowPlaying() {
   if (!currentTrackId) return;
+  if (!npIsOpen()) {
+    document.getElementById('npScroll').scrollTop = 0;
+    // A history entry means the phone's Back button closes the player
+    // instead of leaving the site.
+    if (!history.state?.np) history.pushState({ np: true }, '');
+  }
   document.getElementById('npOverlay').classList.add('open');
   document.getElementById('npBackdrop').classList.add('open');
   populateNowPlaying(currentTrackId);
   updateSkipButtons();
 }
-function closeNowPlaying() {
+function closeNowPlaying(fromBackButton) {
+  if (!npIsOpen()) return;
   document.getElementById('npOverlay').classList.remove('open');
   document.getElementById('npBackdrop').classList.remove('open');
+  if (!fromBackButton) popOwnHistory('np');
 }
+// Each open layer (Reader, player, Browse) adds one history entry, so the
+// phone's Back button closes just the top layer. When we close a layer
+// ourselves (✕, swipe), we step history back too — and must ignore that
+// one popstate, or it would close the layer underneath as well.
+let ignoreNextPop = false;
+function popOwnHistory(key) {
+  if (history.state?.[key]) { ignoreNextPop = true; history.back(); }
+}
+function closeTopLayer(fromBackButton) {
+  if (readerIsOpen()) closeReader(fromBackButton);
+  else if (npIsOpen()) closeNowPlaying(fromBackButton);
+  else closeBrowseSheet(fromBackButton);
+}
+window.addEventListener('popstate', () => {
+  if (ignoreNextPop) { ignoreNextPop = false; return; }
+  closeTopLayer(true);
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (footnoteIsOpen()) closeFootnote(); else closeTopLayer();
+});
+
+// Swipe down anywhere on a sheet (while scrolled to the top) to close —
+// the sheet follows your finger, and closes if you pull far enough.
+// Used by both the player and the Browse sheet.
+function enableDragToClose(sheetId, scrollerId, closeFn) {
+  const sheet = document.getElementById(sheetId);
+  const scroller = document.getElementById(scrollerId);
+  let startY = null, dy = 0, dragging = false;
+  sheet.addEventListener('touchstart', e => {
+    startY = (scroller.scrollTop > 0 || e.target.closest('.seek, .fn-sheet')) ? null : e.touches[0].clientY;
+    dy = 0; dragging = false;
+  }, { passive: true });
+  sheet.addEventListener('touchmove', e => {
+    if (startY === null) return;
+    dy = e.touches[0].clientY - startY;
+    if (!dragging && dy > 8) { dragging = true; sheet.classList.add('dragging'); }
+    if (dragging) {
+      sheet.style.transform = 'translateY(' + Math.max(0, dy) + 'px)';
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+  sheet.addEventListener('touchend', () => {
+    if (startY === null) return;
+    sheet.classList.remove('dragging');
+    sheet.style.transform = '';
+    if (dragging && dy > 100) closeFn();
+    startY = null; dragging = false;
+  });
+}
+enableDragToClose('npOverlay', 'npScroll', closeNowPlaying);
+
+// Swipe up on the mini player opens the full view (tap works too).
+(function enableMiniSwipeUp() {
+  const bar = document.getElementById('playerBar');
+  let startY = null;
+  bar.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
+  bar.addEventListener('touchend', e => {
+    if (startY !== null && startY - e.changedTouches[0].clientY > 30) openNowPlaying();
+    startY = null;
+  }, { passive: true });
+})();
+
 function updateSkipButtons() {
   const idx = currentOrder.indexOf(currentTrackId);
   document.getElementById('npPrevBtn').disabled = idx <= 0;
@@ -1130,200 +1481,350 @@ function updateSkipButtons() {
 function playNext() {
   const idx = currentOrder.indexOf(currentTrackId);
   if (idx === -1 || idx >= currentOrder.length - 1) return;
-  playFromOrder(currentOrder[idx + 1]);
+  playFromOrder(currentOrder[idx + 1], true);
 }
 function playPrev() {
+  // Like every music app: "previous" restarts the track if you're more
+  // than a few seconds in, and only goes back a track near the start.
+  if (audioEl.currentTime > 5) { audioEl.currentTime = 0; return; }
   const idx = currentOrder.indexOf(currentTrackId);
   if (idx <= 0) return;
-  playFromOrder(currentOrder[idx - 1]);
+  playFromOrder(currentOrder[idx - 1], true);
 }
-function playFromOrder(rid) {
+function playFromOrder(rid, scrollTo) {
   const row = rowsById[rid];
   if (!row) return;
   const url = getAudioUrl(row);
   if (!url) return;
-  playTrack(rid, url, row.name || '');
-  document.getElementById('card-'+rid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  playTrack(rid, url, trackTitle(row));
+  if (scrollTo) document.getElementById('card-'+rid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function populateNowPlaying(rid) {
   const row = rowsById[rid];
   if (!row) return;
-  const lbl = typeLabel(row.type);
-  const dotCls = typeDot(row.type);
-  const typeColorVar = { 'dot-sicha':'--sicha', 'dot-maamar':'--maamar', 'dot-farb':'--farb', 'dot-niggun':'--niggun', 'dot-other':'--ink-light' }[dotCls] || '--ink-light';
+  const key = typeKey(row.type);
+  document.getElementById('npOverlay').style.setProperty('--np-tint', 'var(--tint-' + key + ')');
+  setCover(document.getElementById('npCover'), row, true);
+  document.getElementById('npTitle').textContent = trackTitle(row);
+  document.getElementById('npSub').textContent = trackSubtitle(row);
+  document.getElementById('npParent').textContent = row.parent_name || trackTitle(row);
+  document.getElementById('npExt').href = lnk(row);
+  renderDuration();
 
-  document.getElementById('npTypeBadge').textContent = lbl;
-  document.getElementById('npTypeBadge').style.background = 'var(--border-soft)';
-  document.getElementById('npTypeBadge').style.color = 'var(' + typeColorVar + ')';
-  document.getElementById('npTitle').textContent = row.name || '(untitled)';
-  document.getElementById('npParent').textContent = row.parent_name || '';
-  document.getElementById('npParent').style.display = row.parent_name ? 'block' : 'none';
-  document.getElementById('npDate').textContent = dstr(row);
-
-  const farbrengenId = row.parent_id || row.id;
-  loadReadContent(farbrengenId, 'npReadContent', true, rid);
+  loadTextPreview(rid);
 }
 
-// ── Read source text (shared between inline card panels and the expanded Now Playing view) ──
-const readCache = {}; // avoid re-fetching the same farbrengen's text repeatedly
-
-// ── Footnote popovers ──
-window.footnoteStore = {};
-
-// This handles everything needed to turn raw, page-by-page OCR'd text into
-// a clean reading view — entirely via pattern-matching, no AI call needed,
-// so it's instant and works retroactively on anything already saved:
-//   1. Strip page-break markers and running headers/page-numbers
-//   2. Detect footnote-DEFINITION blocks (paragraphs of "1) ... 2) ...")
-//      and pull them out of the reading flow entirely
-//   3. Detect in-body footnote MARKERS in three styles this OCR produces —
-//      bare digits stuck to a Hebrew word/punctuation, Unicode superscript
-//      digits, and <sup>N</sup> tags — and make them clickable
+// ── Source text: parsing raw OCR into a clean, structured reading view ──
+// Entirely pattern-matching (no AI call), so it's instant and applies
+// retroactively to everything already saved. Turns page-by-page OCR text into:
+//   blocks:    paragraphs (with section letters like א / ב), dividers (* * *),
+//              and asides ([... ניגון ...] stage notes)
+//   footnotes: every footnote definition, in the order it appears
+// Footnote numbers can restart (e.g. per page), so a marker is matched to
+// the n-th definition with that number — never just "the" definition.
 const SUPER_MAP = {'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
 function superToPlain(s) { return s.split('').map(c => SUPER_MAP[c] !== undefined ? SUPER_MAP[c] : c).join(''); }
 
-function extractFootnotesAndClean(rawText) {
-  if (!rawText) return { bodyParagraphs: [], footnotesMap: {} };
+function parseSourceText(rawText, savedFootnotes) {
+  if (!rawText) return { blocks: [], footnotes: [] };
 
   let paragraphs = rawText
-    .split(/---\s*page break\s*---/g)
-    .join('\n\n')
+    .split(/---\s*page break\s*---/gi).join('\n\n')
     .split(/\n\s*\n+/)
     .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
-    .filter(p => p.length > 0);
+    .filter(Boolean);
 
-  // Drop obvious running-header / bare-page-number paragraphs
+  // Drop running headers ("טו תמוז ה'תשט"ו 45") and bare page numbers.
   const HEADER_WORDS = /תשרי|חשון|כסלו|טבת|שבט|אדר|ניסן|אייר|סיון|תמוז|אב|אלול|ה['׳]תש|ה["״]תש/;
   paragraphs = paragraphs.filter(p => {
     if (/^\d{1,4}$/.test(p)) return false;
-    if (p.length < 70 && HEADER_WORDS.test(p) && /^\d/.test(p)) return false;
+    if (p.length < 70 && HEADER_WORDS.test(p) && (/^\d/.test(p) || /\d{1,4}$/.test(p))) return false;
     return true;
   });
 
-  // Separate footnote-definition blocks from real body paragraphs
-  const footnotesMap = {};
-  const bodyParagraphs = [];
-  paragraphs.forEach(p => {
-    const positions = [...p.matchAll(/(?:^|\s)(\d{1,3})\)\s*/g)];
-    const looksLikeFootnoteBlock = positions.length >= 2 || (positions.length === 1 && /^\s*\d{1,3}\)/.test(p));
-    if (looksLikeFootnoteBlock) {
-      for (let i = 0; i < positions.length; i++) {
-        const marker = positions[i][1];
-        const start = positions[i].index + positions[i][0].length;
-        const end = i + 1 < positions.length ? positions[i+1].index : p.length;
+  const footnotes = [];   // [{ n: '12', text }] in document order
+  const blocks = [];
+  for (const p of paragraphs) {
+    // A footnote-definition block: "1) ... 2) ..." (or a single "12) ...")
+    const defs = [...p.matchAll(/(?:^|\s)(\d{1,3})\)\s*/g)];
+    if (defs.length >= 2 || (defs.length === 1 && /^\s*\d{1,3}\)/.test(p))) {
+      defs.forEach((m, i) => {
+        const start = m.index + m[0].length;
+        const end = i + 1 < defs.length ? defs[i + 1].index : p.length;
         const text = p.slice(start, end).trim();
-        if (text) footnotesMap[marker] = text;
-      }
-    } else {
-      bodyParagraphs.push(p);
+        if (text) footnotes.push({ n: m[1], text });
+      });
+      continue;
     }
-  });
+    if (/^[\s*•·—–\-]+$/.test(p) && /[*•]/.test(p)) { blocks.push({ kind: 'divider' }); continue; }
+    const clean = p.replace(/\*\*/g, '').trim();
+    if (/^[\[(][^\])]{2,200}[\])]$/.test(clean)) { blocks.push({ kind: 'aside', text: clean }); continue; }
+    // Section letter at the start: "א." / "יח." / "ב׳"
+    const point = clean.match(/^([א-ת]{1,3})[.׳']\s+/);
+    blocks.push({ kind: 'p', point: point ? point[1] : null, text: point ? clean.slice(point[0].length) : clean });
+  }
 
-  // Wrap in-body markers, all three styles, with a common {{fn:N}} token
-  const wrapped = bodyParagraphs.map(p => {
-    p = p.replace(/[\u2070\u00B9\u00B2\u00B3\u2074-\u2079]+/g, m => `{{fn:${superToPlain(m)}}}`);
-    p = p.replace(/<sup>(\w+)<\/sup>/g, '{{fn:$1}}');
-    p = p.replace(/([\u0590-\u05FF])(\d{1,3})(?=[\s,\.\)\]\u05F3\u05F4"'׳״]|$)/g, (m, letter, num) => `${letter}{{fn:${num}}}`);
-    return p;
-  });
+  // Footnotes saved by the older backend extraction fill any gaps.
+  (savedFootnotes || []).forEach(f => { if (!footnotes.some(x => x.n === String(f.marker))) footnotes.push({ n: String(f.marker), text: f.text }); });
 
-  return { bodyParagraphs: wrapped, footnotesMap };
+  // Mark in-body footnote markers (three OCR styles) with a {{fn:N}} token.
+  for (const b of blocks) {
+    if (b.kind !== 'p') continue;
+    b.text = b.text
+      .replace(/[⁰¹²³⁴-⁹]+/g, m => `{{fn:${superToPlain(m)}}}`)
+      .replace(/<sup>(\w+)<\/sup>/g, '{{fn:$1}}')
+      .replace(/([֐-׿"'׳״])(\d{1,3})(?=[\s,.:;)\]׳״"'׳״?!]|$)/g, (m, ch, num) => `${ch}{{fn:${num}}}`);
+  }
+  return { blocks, footnotes };
 }
 
-function renderTextWithFootnotes(text, savedFootnotes, keyPrefix) {
-  if (!text) return '';
-  const { bodyParagraphs, footnotesMap } = extractFootnotesAndClean(text);
-  // Merge any footnotes already saved in the DB (from the older backend
-  // extraction) with whatever this pass found fresh — the fresh pass wins
-  // since it sees the raw text directly.
-  (savedFootnotes || []).forEach(f => { if (!footnotesMap[f.marker]) footnotesMap[f.marker] = f.text; });
-
-  return bodyParagraphs.map(p => {
-    const withFn = esc(p).replace(/\{\{fn:(\w+)\}\}/g, (m, num) => {
-      const key = keyPrefix + '-fn' + num;
-      window.footnoteStore[key] = footnotesMap[num] || '(footnote text not found)';
-      return '<sup class="fn-marker" onclick="toggleFootnote(event,\'' + key + '\')">[' + esc(num) + ']</sup>';
+// Render a parsed text. Returns { html, notesHtml }. `prefix` keeps
+// footnote ids unique when several sichos are shown together.
+function renderSourceText(rawText, savedFootnotes, prefix) {
+  const { blocks, footnotes } = parseSourceText(rawText, savedFootnotes);
+  const seen = {}; // how many times each number has appeared so far
+  const used = new Set();
+  const html = blocks.map(b => {
+    if (b.kind === 'divider') return '<div class="rd-divider" aria-hidden="true">✦ ✦ ✦</div>';
+    if (b.kind === 'aside') return '<p class="rd-aside">' + esc(b.text) + '</p>';
+    const body = esc(b.text).replace(/\{\{fn:(\w+)\}\}/g, (m, n) => {
+      seen[n] = (seen[n] || 0) + 1;
+      // the seen[n]-th definition with this number, else the first one
+      const matches = footnotes.map((f, i) => f.n === n ? i : -1).filter(i => i >= 0);
+      const idx = matches[seen[n] - 1] ?? matches[0];
+      if (idx !== undefined) used.add(idx);
+      const id = prefix + '-' + (idx ?? 'x' + n);
+      FOOTNOTES[id] = { n, text: idx !== undefined ? footnotes[idx].text : null };
+      return '<sup class="fn" role="button" tabindex="0" data-fn="' + id + '">' + esc(n) + '</sup>';
     });
-    return '<p>' + withFn + '</p>';
+    return '<p>' + (b.point ? '<span class="rd-point">' + esc(b.point) + '</span>' : '') + body + '</p>';
   }).join('');
+  const notesHtml = footnotes.length
+    ? '<section class="rd-notes"><h4>Footnotes</h4><ol>' + footnotes.map(f =>
+        '<li><b>' + esc(f.n) + '</b><span>' + esc(f.text) + '</span></li>').join('') + '</ol></section>'
+    : '';
+  return { html, notesHtml, firstText: (blocks.find(b => b.kind === 'p')?.text || '').replace(/\{\{fn:\w+\}\}/g, '') };
 }
-function toggleFootnote(e, key) {
-  e.stopPropagation();
-  document.querySelectorAll('.fn-popup').forEach(el => el.remove());
-  const popup = document.createElement('div');
-  popup.className = 'fn-popup';
-  popup.textContent = window.footnoteStore[key] || '';
-  document.body.appendChild(popup);
-  const rect = e.target.getBoundingClientRect();
-  popup.style.left = Math.max(10, Math.min(rect.left, window.innerWidth - 300)) + 'px';
-  popup.style.top = (rect.bottom + window.scrollY + 6) + 'px';
-  setTimeout(() => {
-    document.addEventListener('click', function closeOnce(ev) {
-      if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('click', closeOnce); }
-    });
-  }, 0);
+const FOOTNOTES = {};
+
+// ── Fetching (cached per farbrengen + track) ──
+const textCache = {};
+async function fetchSourceText(farbrengenId, eventId) {
+  const key = farbrengenId + ':' + (eventId || '');
+  if (!textCache[key]) {
+    textCache[key] = fetch('/api/get-farbrengen-text?farbrengenId=' + farbrengenId + (eventId ? '&eventId=' + eventId : ''))
+      .then(r => r.json())
+      .then(j => { if (j.error) throw new Error(j.error); return j; })
+      .catch(e => { delete textCache[key]; throw e; });
+  }
+  return textCache[key];
 }
 
-async function loadReadContent(farbrengenId, targetElId, autoExpandText, eventId) {
-  const target = document.getElementById(targetElId);
-  const cacheKey = farbrengenId + ':' + (eventId || '');
-  if (readCache[cacheKey]) { target.innerHTML = readCache[cacheKey]; return; }
-
-  target.innerHTML = '<div class="read-empty">Loading source text…</div>';
+// ── Preview card inside the full player ──
+async function loadTextPreview(rid) {
+  const row = rowsById[rid];
+  const el = document.getElementById('npReadContent');
+  if (!row) return;
+  const fid = row.parent_id || row.id;
+  if (typeKey(row.type) === 'niggun') {
+    el.innerHTML = '<p class="pv-note">Niggunim have no written text.</p>';
+    return;
+  }
+  el.innerHTML = '<div class="skel-line title"></div><div class="skel-line"></div><div class="skel-line meta"></div>';
   try {
-    const url = '/api/get-farbrengen-text?farbrengenId=' + farbrengenId + (eventId ? '&eventId=' + eventId : '');
-    const r = await fetch(url);
-    const j = await r.json();
-
-    let html;
-    if (!j.hasText || !j.segments?.length) {
-      html = '<div class="read-empty">No transcribed source text available yet for this farbrengen.</div>';
-    } else {
-      const preciseNote = j.precise
-        ? '<div style="font-size:11.5px;color:#1f7a4a;font-weight:600;margin-bottom:10px">✓ Verified exact match for this track</div>'
-        : '';
-      html = preciseNote + j.segments.map((s, i) => {
-        const textId = 'fulltext-' + cacheKey.replace(/[^\w]/g,'_') + '-' + i;
-        return '<div class="read-seg">'
-          + (s.title_en ? '<h5>' + esc(s.title_en) + '</h5>' : '')
-          + (s.summary_en ? '<div class="rsummary">' + esc(s.summary_en) + '</div>' : '')
-          + (s.tags||[]).map(t => '<span class="read-tag">' + esc(t) + '</span>').join('')
-          + '<div class="read-expand" onclick="document.getElementById(\'' + textId + '\').classList.toggle(\'expanded\')">Show full Hebrew text ▾</div>'
-          + '<div class="read-fulltext' + (autoExpandText ? ' expanded' : '') + '" id="' + textId + '">' + renderTextWithFootnotes(s.source_text, s.footnotes, textId) + '</div>'
-        + '</div>';
-      }).join('');
+    const j = await fetchSourceText(fid, rid);
+    if (currentTrackId !== rid) return; // track changed while loading
+    if (j.unconfirmed) {
+      el.innerHTML = '<p class="pv-note">' + (j.candidateCount
+          ? 'This track hasn\'t been matched to its written text yet. The farbrengen has ' + j.candidateCount + ' transcribed ' + (j.candidateCount !== 1 ? 'sichos' : 'sicha') + '.'
+          : 'No transcribed text for this farbrengen yet.') + '</p>'
+        + (j.candidateCount ? '<button class="pv-btn ghost" onclick="openReader(\'' + fid + '\',' + fid + ')">Read the whole farbrengen\'s text</button>' : '');
+      return;
     }
-    readCache[cacheKey] = html;
-    target.innerHTML = html;
+    if (!j.hasText || !j.segments?.length) { el.innerHTML = '<p class="pv-note">No transcribed text for this farbrengen yet.</p>'; return; }
+    const s = j.segments[0];
+    const { firstText } = renderSourceText(s.source_text, s.footnotes, 'pv');
+    el.innerHTML =
+      (j.precise ? '<span class="rd-badge">' + ICON_CHECK + 'Verified match</span>' : '')
+      + (s.summary_en ? '<p class="pv-summary">' + esc(s.summary_en) + '</p>' : '')
+      + tagChipsHtml(s.tags)
+      + (firstText ? '<div class="pv-excerpt" dir="rtl" lang="he">' + esc(firstText) + '</div>' : '')
+      + '<button class="pv-btn" onclick="openReader(\'' + rid + '\',' + fid + ')">Read full text</button>';
   } catch (e) {
-    target.innerHTML = '<div class="read-empty">Could not load source text: ' + esc(e.message) + '</div>';
+    el.innerHTML = '<p class="pv-note">Could not load the text. <button class="see-all" onclick="loadTextPreview(\'' + rid + '\')">Retry</button></p>';
   }
 }
-
-async function toggleRead(rid, farbrengenId) {
-  const panel = document.getElementById('readpanel-' + rid);
-  const btn = document.getElementById('readbtn-' + rid);
-  const isOpen = panel.classList.contains('open');
-
-  if (isOpen) { panel.classList.remove('open'); return; }
-
-  panel.classList.add('open');
-  btn.style.color = '#1f5e3a';
-  panel.innerHTML = '<div class="read-empty">Loading…</div>';
-
-  const tempId = 'temp-' + rid;
-  panel.innerHTML = '<div id="' + tempId + '"></div>';
-  await loadReadContent(farbrengenId, tempId, false, rid);
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+function tagChipsHtml(tags) {
+  if (!tags || !tags.length) return '';
+  return '<div class="rd-tags">' + tags.map(t =>
+    '<button class="chip" onclick="searchTag(this.dataset.tag)" data-tag="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>';
+}
+// Tapping a tag searches the archive for it.
+function searchTag(tag) {
+  closeReader(); closeNowPlaying();
+  currentType = ''; currentDates = null;
+  document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.toggle('active', c.dataset.type === ''));
+  document.getElementById('q').value = tag;
+  window.scrollTo(0, 0);
+  search();
 }
 
-document.getElementById('q').addEventListener('input', debouncedSearch);
+// ── Reader: a full-screen reading view ──
+const TEXT_SIZES = [17, 19, 22, 25];
+let textSize = 19;
+try { textSize = parseInt(localStorage.getItem('ashreinu-text-size'), 10) || 19; } catch (e) {}
+function applyTextSize() { document.getElementById('reader').style.setProperty('--rd-size', textSize + 'px'); }
+function cycleTextSize() {
+  textSize = TEXT_SIZES[(TEXT_SIZES.indexOf(textSize) + 1) % TEXT_SIZES.length];
+  try { localStorage.setItem('ashreinu-text-size', textSize); } catch (e) {}
+  applyTextSize();
+}
+applyTextSize();
+
+function readerIsOpen() { return document.getElementById('reader').classList.contains('open'); }
+// eventId === farbrengenId means "the whole farbrengen's text".
+async function openReader(eventId, farbrengenId) {
+  eventId = String(eventId);
+  const whole = eventId === String(farbrengenId);
+  const row = rowsById[eventId];
+  const reader = document.getElementById('reader');
+  if (!readerIsOpen()) {
+    if (!history.state?.reader) history.pushState({ reader: true }, '');
+  }
+  closeFootnote();
+  reader.style.setProperty('--np-tint', 'var(--tint-' + (row ? typeKey(row.type) : 'farb') + ')');
+  document.getElementById('readerParent').textContent = whole
+    ? (row ? trackTitle(row) : 'Farbrengen')
+    : (row?.parent_name || (row ? trackTitle(row) : ''));
+  document.getElementById('readerKicker').textContent = whole ? 'Farbrengen text' : 'Source text';
+  document.getElementById('readerScroll').scrollTop = 0;
+  const body = document.getElementById('readerBody');
+  body.innerHTML = '<div class="rd-head"><div class="skel-line meta"></div><div class="skel-line title" style="height:26px;margin:12px 0"></div><div class="skel-line"></div><div class="skel-line"></div></div>';
+  reader.classList.add('open');
+  document.getElementById('readerBackdrop').classList.add('open');
+  syncReaderBar();
+
+  try {
+    const j = await fetchSourceText(farbrengenId, whole ? farbrengenId : eventId);
+    if (j.unconfirmed) {
+      body.innerHTML = '<div class="rd-head"><h2 class="rd-title">' + esc(row ? trackTitle(row) : '') + '</h2>'
+        + '<p class="rd-summary">This track hasn\'t been matched to its written text yet.</p>'
+        + (j.candidateCount ? '<button class="pv-btn" onclick="openReader(\'' + farbrengenId + '\',' + farbrengenId + ')">Read the whole farbrengen\'s text</button>' : '') + '</div>';
+      return;
+    }
+    if (!j.hasText || !j.segments?.length) {
+      body.innerHTML = '<div class="rd-head"><p class="rd-summary">No transcribed text for this farbrengen yet.</p></div>';
+      return;
+    }
+    const segs = j.segments;
+    const many = segs.length > 1;
+    const kicker = row && !whole ? trackSubtitle(row) : (row ? hebDate(row) : '');
+    body.innerHTML =
+      (many ? '<nav class="rd-toc"><div class="rd-kicker">' + esc(kicker) + '</div><h2 class="rd-title">' + segs.length + ' sichos</h2><ol>'
+          + segs.map((s, i) => '<li><a href="#rd-seg-' + i + '" onclick="event.preventDefault();document.getElementById(\'rd-seg-' + i + '\').scrollIntoView({behavior:\'smooth\'})"><b>' + (i + 1) + '</b>' + esc(s.title_en || 'Sicha ' + (i + 1)) + '</a></li>').join('')
+          + '</ol></nav>' : '')
+      + segs.map((s, i) => {
+        const { html, notesHtml } = renderSourceText(s.source_text, s.footnotes, 'rd' + i);
+        return '<section class="rd-seg" id="rd-seg-' + i + '">'
+          + '<header class="rd-head">'
+            + (!many && kicker ? '<div class="rd-kicker">' + esc(kicker) + '</div>' : (many ? '<div class="rd-kicker">Sicha ' + (i + 1) + ' of ' + segs.length + '</div>' : ''))
+            + '<h2 class="rd-title">' + esc(s.title_en || (row ? trackTitle(row) : 'Source text')) + '</h2>'
+            + (j.precise ? '<span class="rd-badge">' + ICON_CHECK + 'Verified match for this track</span>' : '')
+            + (s.summary_en ? '<p class="rd-summary">' + esc(s.summary_en) + '</p>' : '')
+            + tagChipsHtml(s.tags)
+          + '</header>'
+          + '<article class="rd-text" dir="rtl" lang="he">' + html + '</article>'
+          + notesHtml
+        + '</section>';
+      }).join('<div class="rd-seg-sep"></div>');
+  } catch (e) {
+    body.innerHTML = '<div class="rd-head"><p class="rd-summary">Could not load the text: ' + esc(e.message) + '</p>'
+      + '<button class="pv-btn" onclick="openReader(\'' + eventId + '\',' + farbrengenId + ')">Try again</button></div>';
+  }
+}
+function closeReader(fromBackButton) {
+  if (!readerIsOpen()) return;
+  closeFootnote();
+  document.getElementById('reader').classList.remove('open');
+  document.getElementById('readerBackdrop').classList.remove('open');
+  if (!fromBackButton) popOwnHistory('reader');
+}
+// The small play bar at the bottom of the Reader, for reading along.
+function syncReaderBar() {
+  const bar = document.getElementById('readerBar');
+  const row = currentTrackId ? rowsById[currentTrackId] : null;
+  bar.classList.toggle('show', !!row);
+  if (row) document.getElementById('readerBarTitle').textContent = trackTitle(row);
+}
+
+// ── Footnotes: tap a number, the note slides up from the bottom ──
+function openFootnote(id, marker) {
+  const f = FOOTNOTES[id];
+  if (!f) return;
+  document.querySelectorAll('.fn.active').forEach(el => el.classList.remove('active'));
+  marker?.classList.add('active');
+  document.getElementById('fnLabel').textContent = 'Footnote ' + f.n;
+  const text = document.getElementById('fnText');
+  text.textContent = f.text || 'This footnote\'s text wasn\'t captured in the transcription.';
+  text.classList.toggle('missing', !f.text);
+  document.getElementById('fnSheet').classList.add('open');
+}
+function closeFootnote() {
+  document.getElementById('fnSheet').classList.remove('open');
+  document.querySelectorAll('.fn.active').forEach(el => el.classList.remove('active'));
+}
+function footnoteIsOpen() { return document.getElementById('fnSheet').classList.contains('open'); }
+document.getElementById('readerScroll').addEventListener('click', e => {
+  const fn = e.target.closest('.fn');
+  if (fn) { e.stopPropagation(); openFootnote(fn.dataset.fn, fn); return; }
+  if (footnoteIsOpen()) closeFootnote();
+});
+document.getElementById('readerScroll').addEventListener('keydown', e => {
+  const fn = e.target.closest?.('.fn');
+  if (fn && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openFootnote(fn.dataset.fn, fn); }
+});
+
+document.getElementById('q').addEventListener('input', () => { syncSearchClear(); debouncedSearch(); });
+
+// ── Header helpers ──
+function syncSearchClear() {
+  document.getElementById('searchBox').classList.toggle('has-text', !!document.getElementById('q').value);
+}
+function clearSearch() {
+  document.getElementById('q').value = '';
+  syncSearchClear();
+  document.getElementById('q').focus();
+  search();
+}
+function syncFilterChips() {
+  document.getElementById('yearChip').classList.toggle('active', !!document.getElementById('yf').value);
+  document.getElementById('monthChip').classList.toggle('active', !!document.getElementById('mf').value);
+}
+// Year picker lists only years that actually exist in the archive.
+async function loadYearOptions() {
+  const years = await getYears();
+  const sel = document.getElementById('yf');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Year</option>' + years.map(y => '<option>' + y + '</option>').join('');
+  if (current) setYearFilter(current);
+}
+function setYearFilter(year) {
+  const sel = document.getElementById('yf');
+  if (![...sel.options].some(o => o.value === String(year))) sel.add(new Option(year, year));
+  sel.value = String(year);
+}
+window.addEventListener('scroll', () => {
+  document.getElementById('appHeader').classList.toggle('scrolled', window.scrollY > 4);
+}, { passive: true });
 document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ clearTimeout(debounceTimer); search(); } });
 
 // ── Init ──
 (async function init() {
   initTheme();
-  enableSwipeToDismiss('npHandle', closeNowPlaying);
-  enableSwipeToDismiss('browseHandle', closeBrowseSheet);
+  enableDragToClose('browseSheet', 'browseScroll', () => closeBrowseSheet());
+  enableDragToClose('reader', 'readerScroll', () => closeReader());
+  loadYearOptions();
   await loadTodayHebrewDate();
   showLanding();
 })();

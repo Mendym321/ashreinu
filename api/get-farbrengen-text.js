@@ -143,6 +143,21 @@ export default async function handler(req, res) {
           segments: [{ title_en: link.title_en, summary_en: link.summary_en, tags: link.tags || [], source_text: link.resolved_text }]
         });
       }
+
+      // An individual track (Sicha 1, Nigun 2...) with no confirmed link
+      // must NOT fall back to every sicha in the farbrengen — that showed
+      // all the text on every track, even niggunim. Only the farbrengen
+      // itself (eventId === farbrengenId) gets the farbrengen-wide view.
+      // We still report how many written sichos exist, so the UI can say
+      // "text exists, just not matched to this track yet".
+      if (String(eventId) !== String(farbrengenId)) {
+        const { count } = await supabase
+          .from('farbrengen_texts')
+          .select('farbrengen_id', { count: 'exact', head: true })
+          .eq('farbrengen_id', farbrengenId);
+        res.setHeader('Cache-Control', 's-maxage=300');
+        return res.status(200).json({ hasText: false, precise: false, unconfirmed: true, candidateCount: count || 0, segments: [] });
+      }
     }
 
     // Fall back to the general, farbrengen-wide segments.
