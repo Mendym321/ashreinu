@@ -41,54 +41,79 @@
 html{scroll-behavior:smooth;transition:background-color .2s}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:96px;-webkit-font-smoothing:antialiased;transition:background-color .2s,color .2s}
 
-/* ═══ Bottom sheets (shared mechanic: Now Playing + Browse) ═══ */
-.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:39;display:none}
-.sheet-backdrop.open{display:block}
+/* ═══ Bottom sheet (Browse) — slides up and swipes away like the player ═══ */
+.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;opacity:0;pointer-events:none;transition:opacity .3s}
+.sheet-backdrop.open{opacity:1;pointer-events:auto}
 .sheet{
-  position:fixed;left:0;right:0;bottom:0;top:10vh;background:var(--bg);z-index:40;
-  display:none;flex-direction:column;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,0.35);
-  overflow:hidden;
+  position:fixed;left:0;right:0;bottom:0;top:6vh;max-width:760px;margin:0 auto;background:var(--bg);z-index:40;
+  display:flex;flex-direction:column;border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.35);overflow:hidden;
+  transform:translateY(100%);visibility:hidden;
+  transition:transform .34s cubic-bezier(.2,.8,.2,1),visibility 0s linear .34s;
 }
-.sheet.open{display:flex}
-.sheet-handle-row{flex-shrink:0;padding:10px 0 4px;display:flex;justify-content:center;cursor:grab;touch-action:none}
-.sheet-handle{width:40px;height:5px;border-radius:3px;background:var(--border);transition:background .15s}
-.sheet-handle-row:hover .sheet-handle{background:var(--ink-light)}
-.sheet-topbar{display:flex;justify-content:space-between;align-items:center;padding:4px 22px 14px;flex-shrink:0}
-.sheet-topbar .sheet-title{font-family:'Inter',sans-serif;font-size:16px;font-weight:600;color:var(--ink)}
-.sheet-topbar button{background:none;border:none;color:var(--ink-light);cursor:pointer;padding:8px;border-radius:8px;display:flex;transition:background .15s}
-.sheet-topbar button:hover{background:var(--border-soft);color:var(--ink)}
-.sheet-topbar button svg{width:20px;height:20px}
-.sheet-scroll{flex:1;overflow-y:auto;padding:0 24px 32px}
-
-/* Browse sheet specific content */
-.browse-tabs{display:flex;gap:6px;margin-bottom:20px;overflow-x:auto;padding-bottom:2px}
-.browse-tab{flex-shrink:0;font-size:13px;font-weight:600;padding:7px 15px;border-radius:20px;background:var(--surface);color:var(--ink-mid);border:1px solid var(--border-soft);cursor:pointer;transition:all .15s}
-.browse-tab:hover{border-color:var(--gold)}
-.browse-tab.active{background:var(--gold);color:#1a1408;border-color:var(--gold)}
+.sheet.open{transform:none;visibility:visible;transition:transform .34s cubic-bezier(.2,.8,.2,1),visibility 0s}
+.sheet.dragging{transition:none}
+.sheet-handle-row{flex-shrink:0;padding:10px 0 2px;display:flex;justify-content:center}
+.sheet-handle{width:40px;height:5px;border-radius:3px;background:var(--track)}
+.sheet-topbar{display:flex;justify-content:space-between;align-items:center;padding:4px 10px 6px 20px;flex-shrink:0}
+.sheet-title{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+.sheet-scroll{flex:1;overflow-y:auto;padding:6px 20px calc(32px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+.browse-tabs{display:flex;gap:8px;margin:0 -20px 18px;padding:0 20px 2px;overflow-x:auto;scrollbar-width:none}
+.browse-tabs::-webkit-scrollbar{display:none}
 .browse-pane{display:none}
 .browse-pane.active{display:block}
 
-.browse-prompt{
-  display:flex;align-items:center;justify-content:space-between;gap:16px;
-  background:var(--surface);border:1px solid var(--border-soft);border-radius:16px;
-  padding:20px 22px;cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm);margin-top:8px;
+/* ═══ Home — horizontal "shelves", like a music app's home screen ═══ */
+.home-section{margin-bottom:32px}
+#res > .home-section:first-child{margin-top:10px}
+.home-section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
+.home-section-head h3{font-size:21px;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.2}
+.see-all{font:inherit;font-size:13px;font-weight:700;color:var(--ink-light);background:none;border:none;cursor:pointer;white-space:nowrap;padding:4px 0}
+.see-all:hover{color:var(--ink)}
+.home-sub{font-size:13px;color:var(--ink-light);margin:-8px 0 12px}
+.shelf{display:flex;gap:14px;overflow-x:auto;margin:0 -16px;padding:0 16px 6px;scroll-snap-type:x proximity;scroll-padding:0 16px;scrollbar-width:none}
+.shelf::-webkit-scrollbar{display:none}
+.shelf-card{flex:0 0 140px;width:140px;cursor:pointer;scroll-snap-align:start;-webkit-tap-highlight-color:transparent}
+.shelf-cover{width:140px;height:140px;border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.22);transition:transform .15s}
+.shelf-card:hover .shelf-cover{transform:translateY(-3px)}
+.shelf-card:active .shelf-cover{transform:scale(.97)}
+.shelf-cover svg{width:38%;height:38%}
+.shelf-cover .np-cover-label{left:11px;right:11px;bottom:9px}
+.shelf-cover .np-cover-label span{font-size:9.5px}
+.shelf-cover .np-cover-label strong{font-size:17px}
+.shelf-title{font-size:14px;font-weight:600;color:var(--ink);line-height:1.3;margin-top:9px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.shelf-sub{font-size:12.5px;color:var(--ink-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shelf-progress{height:3px;border-radius:2px;background:var(--track);margin-top:8px;overflow:hidden}
+.shelf-progress i{display:block;height:100%;background:var(--gold)}
+.shelf-empty{font-size:13.5px;color:var(--ink-light);padding:4px 0}
+.skel-shelf{flex:0 0 140px}
+.skel-shelf .skel-cover{width:140px;height:140px;border-radius:10px;margin-bottom:10px}
+
+/* Type tiles (home "Browse all" + Browse sheet) reuse the cover gradients */
+.tile-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media (min-width:560px){.tile-grid{grid-template-columns:repeat(4,1fr)}}
+.type-tile{
+  position:relative;overflow:hidden;border-radius:12px;min-height:96px;padding:14px 15px;color:#fff;cursor:pointer;
+  font-size:16.5px;font-weight:700;letter-spacing:-.01em;transition:transform .15s;-webkit-tap-highlight-color:transparent;
 }
-.browse-prompt:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-1px)}
-.browse-prompt-text strong{display:block;font-family:'Inter',sans-serif;font-size:16px;color:var(--ink);margin-bottom:3px}
-.browse-prompt-text span{font-size:12.5px;color:var(--ink-light)}
-.browse-prompt svg{width:20px;height:20px;color:var(--gold-dim);flex-shrink:0}
-/* ═══ Landing ═══ */
-.landing{padding:70px 8px 30px;text-align:center}
-.landing-mark{width:52px;height:52px;margin:0 auto 22px;border-radius:14px;background:linear-gradient(135deg,#e9dcb8,#c9962f22);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
-.landing-mark svg{width:24px;height:24px;color:var(--gold)}
-.landing h2{font-family:'Inter',sans-serif;font-weight:600;font-size:25px;color:var(--ink);margin-bottom:10px;letter-spacing:-0.01em}
-.landing p{font-size:14.5px;color:var(--ink-light);max-width:400px;margin:0 auto;line-height:1.75}
-.landing-examples{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:26px}
-.example-pill{
-  font-size:13px;font-weight:500;padding:8px 16px;border-radius:20px;background:var(--surface);
-  border:1px solid var(--border);color:var(--ink-mid);cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm);
+.type-tile:hover{transform:translateY(-2px)}
+.type-tile:active{transform:scale(.97)}
+.type-tile svg{position:absolute;right:-6px;bottom:-8px;width:64px;height:64px;transform:rotate(16deg);opacity:.4}
+
+/* Occasion / month cards and year chips */
+.card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media (min-width:560px){.card-grid{grid-template-columns:repeat(3,1fr)}}
+.occasion{
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:14px;cursor:pointer;
+  transition:background .15s;-webkit-tap-highlight-color:transparent;
 }
-.example-pill:hover{border-color:var(--gold);color:var(--gold-dim);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.occasion:hover{background:var(--hover)}
+.occasion strong{display:block;font-size:14.5px;font-weight:700;color:var(--ink);line-height:1.3}
+.occasion span{display:block;font-size:12.5px;color:var(--ink-light);margin-top:3px}
+.chip-scroll{display:flex;gap:8px;overflow-x:auto;margin:0 -16px;padding:0 16px 2px;scrollbar-width:none}
+.chip-scroll::-webkit-scrollbar{display:none}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:8px}
+.back-link{display:inline-flex;align-items:center;gap:2px;padding-left:10px}
+.back-link svg{width:18px;height:18px}
 
 .read-seg{background:var(--bg);border-radius:10px;padding:14px 16px;margin-bottom:10px}
 .read-seg h5{font-family:'Inter',sans-serif;font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
@@ -114,47 +139,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .read-empty{font-size:13px;color:var(--ink-light);font-style:italic;padding:8px 0}
 
 .empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Inter',sans-serif}
-
-/* ═══ Homepage sections ═══ */
-.home-section{margin-bottom:34px}
-.home-section-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
-.home-section-head h3{font-family:'Inter',sans-serif;font-weight:600;font-size:19px;color:var(--ink);letter-spacing:-0.005em}
-.home-section-head span{font-size:12px;color:var(--ink-light)}
-
-.otd-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;margin:0 -28px;padding-left:28px;padding-right:28px;scroll-snap-type:x proximity}
-.otd-scroll::-webkit-scrollbar{height:6px}
-.otd-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.otd-card{flex:0 0 auto;width:200px;background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;scroll-snap-align:start;box-shadow:var(--shadow-sm)}
-.otd-card:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.otd-year{font-family:'Inter',sans-serif;font-size:22px;font-weight:600;color:var(--gold-dim);margin-bottom:6px}
-.otd-name{font-size:13px;color:var(--ink-mid);line-height:1.5}
-.otd-empty{font-size:13.5px;color:var(--ink-light);font-style:italic;padding:20px 0}
-
-.browse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
-.month-tile{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px 14px;cursor:pointer;transition:all .15s;text-align:center;box-shadow:var(--shadow-sm)}
-.month-tile:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.month-tile .mname{font-family:'Inter',sans-serif;font-size:15px;color:var(--ink);font-weight:600}
-
-.type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.type-tile{border-radius:14px;padding:20px 18px;cursor:pointer;transition:all .15s;color:#fff;position:relative;overflow:hidden;min-height:88px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:var(--shadow-sm)}
-.type-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
-.type-tile .ttitle{font-family:'Inter',sans-serif;font-size:17px;font-weight:600;position:relative;z-index:1}
-.type-tile .ticon{position:absolute;right:-6px;bottom:-10px;opacity:0.25;width:64px;height:64px}
-.tile-sicha{background:linear-gradient(135deg,#3a63c9,#22397a)}
-.tile-maamar{background:linear-gradient(135deg,#9a4bc9,#5c2a7a)}
-.tile-farb{background:linear-gradient(135deg,#3a9a5f,#1f5e3a)}
-.tile-niggun{background:linear-gradient(135deg,#c98a3a,#8a5a1a)}
-
-.collection-tile{background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;box-shadow:var(--shadow-sm)}
-.collection-tile:hover{border-color:var(--gold);box-shadow:var(--shadow-md);transform:translateY(-2px)}
-.collection-tile .cname{font-family:'Inter',sans-serif;font-size:15.5px;color:var(--ink);font-weight:600}
-.collection-tile .cdate{font-size:11.5px;color:var(--ink-light);margin-top:3px}
-
-.year-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin:0 -28px;padding-left:28px;padding-right:28px}
-.year-scroll::-webkit-scrollbar{height:6px}
-.year-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.year-chip-tile{flex:0 0 auto;background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:10px 18px;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;font-size:15px;color:var(--ink-mid);box-shadow:var(--shadow-sm)}
-.year-chip-tile:hover{border-color:var(--gold);color:var(--gold-dim)}
 
 .filters-row-wrap{display:none}
 .filters-row-wrap.active{display:flex}
@@ -220,6 +204,7 @@ header.scrolled{box-shadow:0 1px 0 var(--border-soft),0 8px 24px rgba(0,0,0,.18)
 /* ═══ Results — a farbrengen is an "album", its sichos/niggunim are tracks ═══ */
 .wrap{max-width:720px;margin:0 auto;padding:12px 16px 24px}
 #rmeta{font-size:13px;color:var(--ink-light);margin:4px 0 14px;font-weight:500;min-height:18px}
+#rmeta:empty{display:none}
 .album{margin-bottom:30px}
 .album-head{display:flex;align-items:center;gap:14px}
 .album-cover{width:72px;height:72px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
@@ -494,41 +479,25 @@ body.audio-paused .eq i{animation-play-state:paused}
 </div>
 
 <div class="sheet-backdrop" id="browseBackdrop" onclick="closeBrowseSheet()"></div>
-<div class="sheet" id="browseSheet">
-  <div class="sheet-handle-row" id="browseHandle" onclick="closeBrowseSheet()"><div class="sheet-handle"></div></div>
+<div class="sheet" id="browseSheet" role="dialog" aria-label="Browse the archive">
+  <div class="sheet-handle-row"><div class="sheet-handle"></div></div>
   <div class="sheet-topbar">
-    <span class="sheet-title">Browse the Archive</span>
-    <button onclick="closeBrowseSheet()" title="Close">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    <span class="sheet-title">Browse</span>
+    <button class="icon-btn sm" onclick="closeBrowseSheet()" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
-  <div class="sheet-scroll">
+  <div class="sheet-scroll" id="browseScroll">
     <div class="browse-tabs">
-      <button class="browse-tab active" data-pane="type" onclick="switchBrowseTab('type',this)">Type</button>
-      <button class="browse-tab" data-pane="collections" onclick="switchBrowseTab('collections',this)">Collections</button>
-      <button class="browse-tab" data-pane="months" onclick="switchBrowseTab('months',this)">Months</button>
-      <button class="browse-tab" data-pane="years" onclick="switchBrowseTab('years',this)">Years</button>
+      <button class="chip active" data-pane="type" onclick="switchBrowseTab('type')">Type</button>
+      <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
+      <button class="chip" data-pane="months" onclick="switchBrowseTab('months')">Months</button>
+      <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
     </div>
-
-    <div class="browse-pane active" id="pane-type">
-      <div class="type-grid">
-        <div class="type-tile tile-sicha" onclick="closeBrowseSheet();browseByType('sicha')"><div class="ttitle">Sichos</div></div>
-        <div class="type-tile tile-maamar" onclick="closeBrowseSheet();browseByType('maamar')"><div class="ttitle">Ma'amarim</div></div>
-        <div class="type-tile tile-niggun" onclick="closeBrowseSheet();browseByType('nigun')"><div class="ttitle">Nigunim</div></div>
-      </div>
-    </div>
-
-    <div class="browse-pane" id="pane-collections">
-      <div class="browse-grid" id="browseCollectionsGrid"></div>
-    </div>
-
-    <div class="browse-pane" id="pane-months">
-      <div class="browse-grid" id="browseMonthsGrid"></div>
-    </div>
-
-    <div class="browse-pane" id="pane-years">
-      <div class="year-scroll" id="browseYearsScroll" style="margin:0"><div class="otd-empty">Loading…</div></div>
-    </div>
+    <div class="browse-pane active" id="pane-type"><div class="tile-grid" id="browseTypeGrid"></div></div>
+    <div class="browse-pane" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
+    <div class="browse-pane" id="pane-months"><div class="card-grid" id="browseMonthsGrid"></div></div>
+    <div class="browse-pane" id="pane-years"><div class="chip-wrap" id="browseYearsScroll"><div class="shelf-empty">Loading…</div></div></div>
   </div>
 </div>
 
@@ -623,63 +592,72 @@ function initTheme() {
   applyTheme(saved === 'light' ? 'light' : 'dark'); // dark unless the person has explicitly chosen light before
 }
 
-// ── Browse sheet (consolidates Type/Collections/Months/Years — one place,
+// ── Years in the archive: fetched once, shared by the year chip, the home
+// "By year" row and the Browse sheet ──
+let yearsPromise = null;
+function getYears() {
+  if (!yearsPromise) {
+    yearsPromise = fetch('/api/search?distinct=years')
+      .then(r => r.json()).then(j => j.years || [])
+      .catch(() => { yearsPromise = null; return []; });
+  }
+  return yearsPromise;
+}
+
+// ── Type tiles: shared by the home screen and the Browse sheet ──
+const TYPE_TILES = [
+  { label: 'Sichos', key: 'sicha', type: 'sicha' },
+  { label: "Ma'amarim", key: 'maamar', type: 'maamar' },
+  { label: 'Niggunim', key: 'niggun', type: 'nigun' },
+  { label: 'Farbrengens', key: 'farb', type: 'farbrengen' },
+];
+function typeTilesHtml(inSheet) {
+  return TYPE_TILES.map(t =>
+    '<div class="type-tile cover-' + t.key + '" onclick="' + (inSheet ? 'closeBrowseSheet();' : '') + 'browseByType(\'' + t.type + '\')">'
+      + t.label
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + TYPE_ICONS[t.key] + '</svg>'
+    + '</div>').join('');
+}
+
+// ── Browse sheet (consolidates Type/Occasions/Months/Years — one place,
 // opened on demand, instead of spreading everything across the landing page) ──
-function openBrowseSheet() {
+function browseIsOpen() { return document.getElementById('browseSheet').classList.contains('open'); }
+function openBrowseSheet(tab) {
+  if (!browseIsOpen()) {
+    document.getElementById('browseScroll').scrollTop = 0;
+    // A history entry means the phone's Back button closes the sheet.
+    if (!history.state?.browse) history.pushState({ browse: true }, '');
+  }
   document.getElementById('browseSheet').classList.add('open');
   document.getElementById('browseBackdrop').classList.add('open');
+  switchBrowseTab(tab || 'type');
   loadBrowseSheetContent();
 }
-function closeBrowseSheet() {
+function closeBrowseSheet(fromBackButton) {
+  if (!browseIsOpen()) return;
   document.getElementById('browseSheet').classList.remove('open');
   document.getElementById('browseBackdrop').classList.remove('open');
+  if (!fromBackButton && history.state?.browse) history.back();
 }
-function switchBrowseTab(pane, btn) {
-  document.querySelectorAll('.browse-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.browse-pane').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('pane-' + pane).classList.add('active');
+function switchBrowseTab(pane) {
+  document.querySelectorAll('.browse-tabs .chip').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
+  document.querySelectorAll('.browse-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + pane));
 }
 let browseStaticLoaded = false;
 async function loadBrowseSheetContent() {
-  // Collections and months are fixed, hand-written lists — safe to build
-  // once per page load. Years actively grows as more indexing happens, so
-  // it must never be skipped on repeat opens — only a stale in-memory flag
-  // was preventing that, not any backend issue.
+  // Types, occasions and months are fixed lists — build them once.
   if (!browseStaticLoaded) {
     browseStaticLoaded = true;
-    document.getElementById('browseCollectionsGrid').innerHTML =
-      COLLECTIONS.map((c, i) => `<div class="collection-tile" onclick="closeBrowseSheet();browseByCollection(${i})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`).join('');
-
-    document.getElementById('browseMonthsGrid').innerHTML =
-      MONTH_LIST.map(m => `<div class="month-tile" onclick="closeBrowseSheet();browseByMonth('${m}')"><div class="mname">${m}</div></div>`).join('');
+    document.getElementById('browseTypeGrid').innerHTML = typeTilesHtml(true);
+    document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) =>
+      '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('');
+    document.getElementById('browseMonthsGrid').innerHTML = MONTH_LIST.map(m =>
+      '<div class="occasion" onclick="closeBrowseSheet();browseByMonth(\'' + m + '\')"><strong>' + m + '</strong></div>').join('');
   }
-
-  document.getElementById('browseYearsScroll').innerHTML = '<div class="otd-empty">Loading…</div>';
-  try {
-    const r = await fetch('/api/search?distinct=years');
-    const j = await r.json();
-    const years = j.years || [];
-    document.getElementById('browseYearsScroll').innerHTML = years.length
-      ? years.map(y => `<div class="year-chip-tile" onclick="closeBrowseSheet();browseByYear(${y})">${y}</div>`).join('')
-      : '<div class="otd-empty">No years indexed yet.</div>';
-  } catch (e) {
-    document.getElementById('browseYearsScroll').innerHTML = '<div class="otd-empty">Could not load.</div>';
-  }
-}
-
-// Swipe-down-to-dismiss, shared by both sheets — matches the gesture every
-// reference app (Spotify, YouTube Music) uses for its now-playing/bottom sheets.
-function enableSwipeToDismiss(handleId, closeFn) {
-  const handle = document.getElementById(handleId);
-  let startY = null;
-  handle.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true });
-  handle.addEventListener('touchend', e => {
-    if (startY === null) return;
-    const deltaY = e.changedTouches[0].clientY - startY;
-    if (deltaY > 60) closeFn();
-    startY = null;
-  }, { passive: true });
+  const years = await getYears();
+  document.getElementById('browseYearsScroll').innerHTML = years.length
+    ? years.map(y => '<button class="chip" onclick="closeBrowseSheet();browseByYear(' + y + ')">' + y + '</button>').join('')
+    : '<div class="shelf-empty">No years indexed yet.</div>';
 }
 
 function goHome() {
@@ -839,70 +817,147 @@ function getUpcomingCollections(count) {
     .slice(0, count);
 }
 
+// ── "Continue listening": recently played tracks + where you stopped in each.
+// Stored only on this device (localStorage). Every read/write is wrapped,
+// because storage can be blocked (private browsing) — the app must still work.
+const RECENT_KEY = 'ashreinu-recent', POS_KEY = 'ashreinu-pos';
+const RECENT_FIELDS = ['id','name','type','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
+  'secular_year','secular_month','secular_day','duration_ms','audio_uri','confirmed_title'];
+function readJSON(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
+}
+function writeJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
+}
+function rememberPlay(row) {
+  const slim = Object.fromEntries(RECENT_FIELDS.map(k => [k, row[k] ?? null]));
+  const list = readJSON(RECENT_KEY, []).filter(r => String(r.id) !== String(row.id));
+  list.unshift(slim);
+  writeJSON(RECENT_KEY, list.slice(0, 12));
+}
+function getRecent() { return readJSON(RECENT_KEY, []); }
+function savedPosition(id) { return readJSON(POS_KEY, {})[id] || 0; }
+function savePosition(id, seconds) {
+  if (!id) return;
+  const all = readJSON(POS_KEY, {});
+  if (seconds > 0) all[id] = Math.floor(seconds); else delete all[id];
+  writeJSON(POS_KEY, all);
+}
+
+// ── Home cards ──
+function shelfSkeleton(n) {
+  let html = '';
+  for (let i = 0; i < (n || 4); i++) html += '<div class="skel-shelf"><div class="skel-cover"></div><div class="skel-line title"></div><div class="skel-line meta"></div></div>';
+  return html;
+}
+// A farbrengen card — opens the farbrengen as an album.
+function farbrengenCardHtml(row) {
+  rowsById[String(row.id)] = row;
+  const sub = row.secular_year || hebDate(row);
+  return '<div class="shelf-card" onclick="openFarbrengen(' + row.id + ')">'
+    + '<div class="shelf-cover cover cover-farb">' + coverInner(row, true) + '</div>'
+    + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
+    + '<div class="shelf-sub">' + esc(sub) + '</div>'
+  + '</div>';
+}
+// A recently played track — plays (and resumes) on tap.
+function continueCardHtml(row) {
+  rowsById[String(row.id)] = row;
+  const total = row.duration_ms ? row.duration_ms / 1000 : 0;
+  const pct = total ? Math.min(100, savedPosition(row.id) / total * 100) : 0;
+  return '<div class="shelf-card" onclick="playFromOrder(\'' + row.id + '\')">'
+    + '<div class="shelf-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, true) + '</div>'
+    + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
+    + '<div class="shelf-sub">' + esc(row.parent_name || trackSubtitle(row)) + '</div>'
+    + (pct > 0 ? '<div class="shelf-progress"><i style="width:' + pct.toFixed(1) + '%"></i></div>' : '')
+  + '</div>';
+}
+
 async function showLanding() {
   document.getElementById('rmeta').textContent = '';
-
   const upcoming = getUpcomingCollections(4);
-  const upcomingHtml = upcoming.length ? `
-    <div class="home-section">
-      <div class="home-section-head"><h3>Coming Up</h3><span>From today's date</span></div>
-      <div class="browse-grid">
-        ${upcoming.map(c => {
-          const idx = COLLECTIONS.indexOf(COLLECTIONS.find(x => x.name === c.name));
-          return `<div class="collection-tile" onclick="browseByCollection(${idx})"><div class="cname">${c.name}</div><div class="cdate">${c.sub}</div></div>`;
-        }).join('')}
-      </div>
-    </div>` : '';
+  const next = upcoming[0];
+  const idxOf = c => COLLECTIONS.findIndex(x => x.name === c.name);
+  const recent = getRecent();
 
-  // First-principles landing: search is the primary action (already in the
-  // header), On This Day is our strongest unique content, Coming Up is a
-  // light second signal, and everything else (type/collections/months/years)
-  // lives in the Browse sheet on demand — not spread across the homepage.
+  // Search is the primary action (in the header). Below it: what you were
+  // listening to, today's date across the years, the next occasion, then
+  // ways to browse.
   document.getElementById('res').innerHTML =
-    '<div class="home-section" id="otdSection" style="display:none">'
-      + '<div class="home-section-head"><h3>On This Day</h3><span id="otdSubtitle"></span></div>'
-      + '<div class="otd-scroll" id="otdScroll"><div class="otd-empty">Loading…</div></div>'
+    (recent.length
+      ? '<div class="home-section"><div class="home-section-head"><h3>Continue listening</h3></div>'
+        + '<div class="shelf">' + recent.map(continueCardHtml).join('') + '</div></div>'
+      : '')
+    + '<div class="home-section" id="otdSection" style="display:none">'
+      + '<div class="home-section-head"><h3>On this day</h3></div>'
+      + '<div class="home-sub" id="otdSub"></div>'
+      + '<div class="shelf" id="otdShelf"></div>'
     + '</div>'
-    + upcomingHtml
-    + '<div class="browse-prompt" onclick="openBrowseSheet()">'
-      + '<div class="browse-prompt-text"><strong>Browse the full archive</strong><span>By type, occasion, month, or year</span></div>'
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
-    + '</div>';
+    + (next
+      ? '<div class="home-section">'
+        + '<div class="home-section-head"><h3>Coming up: ' + esc(next.name) + '</h3>'
+          + '<button class="see-all" onclick="browseByCollection(' + idxOf(next) + ')">See all</button></div>'
+        + '<div class="home-sub">' + esc(next.sub) + ', across the years</div>'
+        + '<div class="shelf" id="upShelf">' + shelfSkeleton() + '</div>'
+        + (upcoming.length > 1
+          ? '<div class="chip-scroll" style="margin-top:14px">' + upcoming.slice(1).map(c =>
+              '<button class="chip" onclick="browseByCollection(' + idxOf(c) + ')">' + esc(c.name) + '</button>').join('') + '</div>'
+          : '')
+      + '</div>'
+      : '')
+    + '<div class="home-section"><div class="home-section-head"><h3>Browse all</h3>'
+      + '<button class="see-all" onclick="openBrowseSheet(\'collections\')">Occasions</button></div>'
+      + '<div class="tile-grid">' + typeTilesHtml(false) + '</div></div>'
+    + '<div class="home-section"><div class="home-section-head"><h3>By year</h3></div>'
+      + '<div class="chip-scroll" id="homeYears"></div></div>';
 
   loadOnThisDay();
+  if (next) loadFarbrengenShelf('upShelf', next.dates, 'No recordings for ' + next.name + ' yet.');
+  getYears().then(years => {
+    const el = document.getElementById('homeYears');
+    if (el) el.innerHTML = years.map(y => '<button class="chip" onclick="browseByYear(' + y + ')">' + y + '</button>').join('');
+  });
+}
+
+// Farbrengens held on any of the given [month, day] dates, any year.
+async function fetchFarbrengensOn(dates) {
+  const r = await fetch('/api/search?type=farbrengen&limit=24&dates=' + encodeURIComponent(JSON.stringify(dates)));
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j.results || [];
+}
+async function loadFarbrengenShelf(elId, dates, emptyText) {
+  const el = document.getElementById(elId);
+  try {
+    const rows = await fetchFarbrengensOn(dates);
+    if (!document.getElementById(elId)) return; // user navigated away
+    el.innerHTML = rows.length ? rows.map(farbrengenCardHtml).join('') : '<div class="shelf-empty">' + esc(emptyText) + '</div>';
+  } catch (e) {
+    if (document.getElementById(elId)) el.innerHTML = '<div class="shelf-empty">Could not load.</div>';
+  }
 }
 
 async function loadOnThisDay() {
   if (!todayHebrew || !todayHebrew.month) return;
   try {
-    const r = await fetch(`/api/on-this-day?month=${todayHebrew.month}&day=${todayHebrew.day}`);
-    const j = await r.json();
-    const results = j.results || [];
-
-    document.getElementById('otdSection').style.display = 'block';
-    document.getElementById('otdSubtitle').textContent = todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years';
-
-    if (!results.length) {
-      document.getElementById('otdScroll').innerHTML = '<div class="otd-empty">No farbrengens recorded on this date yet.</div>';
-      return;
-    }
-
-    document.getElementById('otdScroll').innerHTML = results.map(row => {
-      const link = 'https://ashreinu.app/player?parentEvent=' + row.id;
-      return '<div class="otd-card" onclick="quickSearchYear(' + row.hebrew_year + ')">'
-        + '<div class="otd-year">' + row.hebrew_year + '</div>'
-        + '<div class="otd-name">' + esc(row.name) + '</div>'
-      + '</div>';
-    }).join('');
-  } catch (e) {
-    document.getElementById('otdScroll').innerHTML = '<div class="otd-empty">Could not load.</div>';
-  }
+    const rows = await fetchFarbrengensOn([[todayHebrew.month, todayHebrew.day]]);
+    const section = document.getElementById('otdSection');
+    if (!section || !rows.length) return; // nothing recorded today — keep the section hidden
+    document.getElementById('otdSub').textContent = todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years';
+    document.getElementById('otdShelf').innerHTML = rows.map(farbrengenCardHtml).join('');
+    section.style.display = 'block';
+  } catch (e) { /* leave hidden */ }
 }
 
-function quickSearchYear(year) {
-  setYearFilter(year);
-  document.getElementById('q').value = todayHebrew.monthName;
-  search();
+// Open one farbrengen as an album page with all its tracks.
+function openFarbrengen(fid) {
+  const head = rowsById[String(fid)];
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML =
+    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+  document.getElementById('res').innerHTML = albumHtml(fid, head, []);
+  window.scrollTo(0, 0);
+  loadAlbumTracks(fid);
 }
 
 function showSkeletons() {
@@ -1079,11 +1134,21 @@ function playTrack(id, url, title) {
   const card = document.getElementById('card-'+id);
   if (card) card.classList.add('playing');
 
+  // Remember where we were in the track we're leaving (unless it finished).
+  if (currentTrackId && !audioEl.ended) savePosition(currentTrackId, audioEl.currentTime);
+
   const row = rowsById[id];
   currentTrackId = id;
   audioEl.src = url;
   audioEl.playbackRate = playbackSpeed;
+  // Resume where you left off, unless you'd barely started or nearly finished.
+  const resumeAt = savedPosition(id);
+  const total = row && row.duration_ms ? row.duration_ms / 1000 : 0;
+  if (resumeAt > 10 && (!total || resumeAt < total - 15)) {
+    audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = resumeAt; }, { once: true });
+  }
   audioEl.play().catch(e => console.log('play error', e));
+  if (row) rememberPlay(row);
 
   document.getElementById('playerTitle').textContent = title;
   document.getElementById('playerSub').textContent = row ? trackSubtitle(row) : '';
@@ -1113,7 +1178,7 @@ function setPlayIcon(playing) {
 // controls keep the on-screen buttons in sync too.
 audioEl.addEventListener('play', () => { setPlayIcon(true); document.body.classList.remove('audio-paused'); });
 audioEl.addEventListener('pause', () => { setPlayIcon(false); document.body.classList.add('audio-paused'); });
-audioEl.addEventListener('ended', () => { setPlayIcon(false); playNext(); });
+audioEl.addEventListener('ended', () => { setPlayIcon(false); savePosition(currentTrackId, 0); playNext(); });
 
 function closePlayer() {
   audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
@@ -1169,7 +1234,16 @@ function renderProgress(time) {
   document.getElementById('npFill').style.width = pct;
   document.getElementById('npCur').textContent = fmtTime(time);
 }
-audioEl.addEventListener('timeupdate', () => { if (!isSeeking) renderProgress(audioEl.currentTime); });
+let lastPositionSave = 0;
+audioEl.addEventListener('timeupdate', () => {
+  if (!isSeeking) renderProgress(audioEl.currentTime);
+  // Save your place every few seconds, for "Continue listening".
+  if (currentTrackId && Date.now() - lastPositionSave > 5000) {
+    lastPositionSave = Date.now();
+    savePosition(currentTrackId, audioEl.currentTime);
+  }
+});
+audioEl.addEventListener('pause', () => { if (currentTrackId && !audioEl.ended) savePosition(currentTrackId, audioEl.currentTime); });
 function renderDuration() { document.getElementById('npDur').textContent = fmtTime(trackDuration()); }
 audioEl.addEventListener('loadedmetadata', renderDuration);
 audioEl.addEventListener('durationchange', renderDuration);
@@ -1230,14 +1304,15 @@ function closeNowPlaying(fromBackButton) {
   document.getElementById('npBackdrop').classList.remove('open');
   if (!fromBackButton && history.state?.np) history.back();
 }
-window.addEventListener('popstate', () => closeNowPlaying(true));
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNowPlaying(); });
+window.addEventListener('popstate', () => { closeNowPlaying(true); closeBrowseSheet(true); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeNowPlaying(); closeBrowseSheet(); } });
 
-// Swipe down anywhere on the player (while scrolled to the top) to close —
+// Swipe down anywhere on a sheet (while scrolled to the top) to close —
 // the sheet follows your finger, and closes if you pull far enough.
-(function enableDragToClose() {
-  const sheet = document.getElementById('npOverlay');
-  const scroller = document.getElementById('npScroll');
+// Used by both the player and the Browse sheet.
+function enableDragToClose(sheetId, scrollerId, closeFn) {
+  const sheet = document.getElementById(sheetId);
+  const scroller = document.getElementById(scrollerId);
   let startY = null, dy = 0, dragging = false;
   sheet.addEventListener('touchstart', e => {
     startY = (scroller.scrollTop > 0 || e.target.closest('.seek')) ? null : e.touches[0].clientY;
@@ -1256,10 +1331,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNowPlay
     if (startY === null) return;
     sheet.classList.remove('dragging');
     sheet.style.transform = '';
-    if (dragging && dy > 100) closeNowPlaying();
+    if (dragging && dy > 100) closeFn();
     startY = null; dragging = false;
   });
-})();
+}
+enableDragToClose('npOverlay', 'npScroll', closeNowPlaying);
 
 // Swipe up on the mini player opens the full view (tap works too).
 (function enableMiniSwipeUp() {
@@ -1488,13 +1564,11 @@ function syncFilterChips() {
 }
 // Year picker lists only years that actually exist in the archive.
 async function loadYearOptions() {
-  try {
-    const j = await (await fetch('/api/search?distinct=years')).json();
-    const sel = document.getElementById('yf');
-    const current = sel.value;
-    sel.innerHTML = '<option value="">Year</option>' + (j.years || []).map(y => '<option>' + y + '</option>').join('');
-    sel.value = current;
-  } catch (e) { /* picker just stays empty */ }
+  const years = await getYears();
+  const sel = document.getElementById('yf');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Year</option>' + years.map(y => '<option>' + y + '</option>').join('');
+  if (current) setYearFilter(current);
 }
 function setYearFilter(year) {
   const sel = document.getElementById('yf');
@@ -1509,7 +1583,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
 // ── Init ──
 (async function init() {
   initTheme();
-  enableSwipeToDismiss('browseHandle', closeBrowseSheet);
+  enableDragToClose('browseSheet', 'browseScroll', () => closeBrowseSheet());
   loadYearOptions();
   await loadTodayHebrewDate();
   showLanding();
