@@ -336,6 +336,36 @@ body.audio-paused .eq i{animation-play-state:paused}
 .np-text-card{background:var(--surface);border-radius:16px;padding:18px 18px 8px;margin-top:32px}
 .np-text-label{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px}
 
+/* ═══ Topics — one colour per topic group, used on tiles, chips and topic pages ═══ */
+.tg-0{--tg:linear-gradient(140deg,#e2b456,#8a5a14)}
+.tg-1{--tg:linear-gradient(140deg,#5b86e0,#1f3470)}
+.tg-2{--tg:linear-gradient(140deg,#e07a8a,#7a2236)}
+.tg-3{--tg:linear-gradient(140deg,#46a872,#1a4c31)}
+.tg-4{--tg:linear-gradient(140deg,#e0964a,#7a3f14)}
+.tg-5{--tg:linear-gradient(140deg,#a66ae0,#43226b)}
+.tg-6{--tg:linear-gradient(140deg,#3fb3b0,#14524f)}
+.tg-7{--tg:linear-gradient(140deg,#6f7ee8,#262f80)}
+.tg-8{--tg:linear-gradient(140deg,#8f9aa8,#363c45)}
+.topic-tile{position:relative;overflow:hidden;border-radius:12px;min-height:84px;padding:13px 14px;color:#fff;cursor:pointer;background:var(--tg);transition:transform .15s;-webkit-tap-highlight-color:transparent}
+.topic-tile:hover{transform:translateY(-2px)}
+.topic-tile:active{transform:scale(.97)}
+.topic-tile strong{display:block;font-size:15.5px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+.topic-tile span{display:block;font-size:12px;opacity:.85;margin-top:4px}
+.chip.topic-chip{position:relative;padding-left:24px}
+.chip.topic-chip::before{content:'';position:absolute;left:11px;top:50%;width:8px;height:8px;border-radius:50%;background:var(--tg);transform:translateY(-50%)}
+.res-heading{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin:22px 0 10px}
+.res-heading:first-child{margin-top:4px}
+.res-sub{font-size:13px;color:var(--ink-light);margin:-6px 0 10px}
+.track-summary{font-size:13px;color:var(--ink-mid);line-height:1.45;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.topic-hero{border-radius:18px;padding:22px 20px 20px;color:#fff;background:var(--tg);margin-bottom:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.topic-hero .kicker{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+.topic-hero h2{font-size:28px;font-weight:800;letter-spacing:-.025em;line-height:1.15;margin-top:6px}
+.topic-hero .he{font-family:'David Libre',serif;font-size:18px;opacity:.9;margin-top:4px}
+.topic-hero p{font-size:14.5px;line-height:1.55;opacity:.92;margin-top:10px}
+.topic-hero .count{font-size:13px;font-weight:600;opacity:.85;margin-top:12px}
+.browse-group{margin-bottom:22px}
+.browse-group h4{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:10px}
+
 /* ═══ Reader — full-screen reading view, above the player ═══ */
 .reader-backdrop{z-index:44}
 .reader{z-index:45}
@@ -598,11 +628,13 @@ body.audio-paused .eq i{animation-play-state:paused}
   </div>
   <div class="sheet-scroll" id="browseScroll">
     <div class="browse-tabs">
+      <button class="chip" data-pane="topics" onclick="switchBrowseTab('topics')">Topics</button>
       <button class="chip active" data-pane="type" onclick="switchBrowseTab('type')">Type</button>
       <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
       <button class="chip" data-pane="months" onclick="switchBrowseTab('months')">Months</button>
       <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
     </div>
+    <div class="browse-pane" id="pane-topics"><div id="browseTopics"></div></div>
     <div class="browse-pane active" id="pane-type"><div class="tile-grid" id="browseTypeGrid"></div></div>
     <div class="browse-pane" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
     <div class="browse-pane" id="pane-months"><div class="card-grid" id="browseMonthsGrid"></div></div>
@@ -739,7 +771,7 @@ function openBrowseSheet(tab) {
   }
   document.getElementById('browseSheet').classList.add('open');
   document.getElementById('browseBackdrop').classList.add('open');
-  switchBrowseTab(tab || 'type');
+  switchBrowseTab(tab || (TOPICS.length ? 'topics' : 'type'));
   loadBrowseSheetContent();
 }
 function closeBrowseSheet(fromBackButton) {
@@ -763,6 +795,11 @@ async function loadBrowseSheetContent() {
     document.getElementById('browseMonthsGrid').innerHTML = MONTH_LIST.map(m =>
       '<div class="occasion" onclick="closeBrowseSheet();browseByMonth(\'' + m + '\')"><strong>' + m + '</strong></div>').join('');
   }
+  document.getElementById('browseTopics').innerHTML = TOPICS.length
+    ? topicGroups().map(g => '<div class="browse-group"><h4>' + esc(g.name_en) + '</h4><div class="chip-wrap">'
+        + '<button class="chip topic-chip active tg-' + groupIndex(g.slug) + '" onclick="openTopic(\'' + g.slug + '\')">All</button>'
+        + TOPICS.filter(t => t.parent_slug === g.slug).map(topicChipHtml).join('') + '</div></div>').join('')
+    : '<div class="shelf-empty">Topics will appear once the catalogue is set up.</div>';
   const years = await getYears();
   document.getElementById('browseYearsScroll').innerHTML = years.length
     ? years.map(y => '<button class="chip" onclick="closeBrowseSheet();browseByYear(' + y + ')">' + y + '</button>').join('')
@@ -838,13 +875,21 @@ async function search() {
     }
 
     const results = j.results || [];
+    const talks = j.talks || [];
     const collectionName = currentDates ? document.getElementById('rmeta').dataset.collectionName : null;
     document.getElementById('rmeta').textContent =
-      results.length + ' result' + (results.length !== 1 ? 's' : '') +
+      (talks.length ? talks.length + ' talk' + (talks.length !== 1 ? 's' : '') + ' · ' : '') +
+      results.length + ' track' + (results.length !== 1 ? 's' : '') + ' by name or date' +
       (results.length >= 200 ? ' (first 200)' : '') +
       (collectionName ? ' for ' + collectionName : (q ? ' for "' + q + '"' : ''));
 
-    renderCards(results);
+    // Topics first (the ones the query named, plus name/alias matches), then
+    // the ranked catalogue "Talks", then farbrengens and tracks by name/date.
+    const topicHits = [...(j.matchedTopics || []), ...suggestTopics(q)]
+      .filter((t, i, a) => a.findIndex(x => x.slug === t.slug) === i).slice(0, 6);
+    const before = (topicHits.length ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + topicHits.map(topicChipHtml).join('') + '</div>' : '')
+      + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '');
+    renderCards(results, before);
   } catch (e) {
     document.getElementById('searchIcon').classList.remove('loading');
     document.getElementById('rmeta').textContent = 'Search failed: ' + e.message;
@@ -1014,6 +1059,11 @@ async function showLanding() {
           : '')
       + '</div>'
       : '')
+    + (topicGroups().some(g => topicCount(g) > 0)
+      ? '<div class="home-section"><div class="home-section-head"><h3>Explore topics</h3>'
+        + '<button class="see-all" onclick="openBrowseSheet(\'topics\')">All topics</button></div>'
+        + '<div class="tile-grid">' + topicTilesHtml(true) + '</div></div>'
+      : '')
     + '<div class="home-section"><div class="home-section-head"><h3>Browse all</h3>'
       + '<button class="see-all" onclick="openBrowseSheet(\'collections\')">Occasions</button></div>'
       + '<div class="tile-grid">' + typeTilesHtml(false) + '</div></div>'
@@ -1059,6 +1109,74 @@ async function loadOnThisDay() {
 }
 
 // Open one farbrengen as an album page with all its tracks.
+// ── Topics (the browsing menu) ──
+let TOPICS = [], TOPIC_BY_SLUG = {};
+async function loadTopicList() {
+  try {
+    const j = await (await fetch('/api/search?topics=1')).json();
+    TOPICS = j.topics || [];
+    TOPIC_BY_SLUG = Object.fromEntries(TOPICS.map(t => [t.slug, t]));
+  } catch (e) { /* topics not set up yet: the app works without them */ }
+}
+function topicName(slug) { return TOPIC_BY_SLUG[slug]?.name_en || ''; }
+function topicGroups() { return TOPICS.filter(t => !t.parent_slug); }
+function groupIndex(slug) {
+  const t = TOPIC_BY_SLUG[slug];
+  const g = t?.parent_slug || slug;
+  return Math.max(0, topicGroups().findIndex(x => x.slug === g)) % 9;
+}
+function topicCount(t) {
+  return t.parent_slug ? (t.count || 0) : TOPICS.filter(c => c.parent_slug === t.slug).reduce((a, c) => a + (c.count || 0), 0);
+}
+// Topics whose name or alias starts with what's typed ("teshu" → Teshuvah).
+function suggestTopics(q) {
+  const n = String(q || '').toLowerCase().trim();
+  if (n.length < 2) return [];
+  return TOPICS.filter(t => t.parent_slug && [t.name_en, t.name_he, ...(t.aliases || [])]
+    .some(a => a && (a.toLowerCase().startsWith(n) || (n.length >= 4 && a.toLowerCase().includes(n))))).slice(0, 6);
+}
+function topicChipHtml(t) {
+  return '<button class="chip topic-chip tg-' + groupIndex(t.slug) + '" onclick="openTopic(\'' + t.slug + '\')">' + esc(t.name_en) + '</button>';
+}
+function topicTilesHtml(onlyWithTalks) {
+  return topicGroups().filter(g => !onlyWithTalks || topicCount(g) > 0).map(g =>
+    '<div class="topic-tile tg-' + groupIndex(g.slug) + '" onclick="openTopic(\'' + g.slug + '\')"><strong>' + esc(g.name_en) + '</strong>'
+    + '<span>' + (topicCount(g) ? topicCount(g) + ' talks' : esc(g.description || '')) + '</span></div>').join('');
+}
+
+// A topic page, like a genre page: header, sub-topics, then the talks
+// mainly about it, then talks that also discuss it.
+async function openTopic(slug) {
+  closeReader(); closeNowPlaying(); closeBrowseSheet();
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML =
+    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+  window.scrollTo(0, 0);
+  showSkeletons();
+  try {
+    const j = await (await fetch('/api/search?topic=' + encodeURIComponent(slug))).json();
+    if (j.error) throw new Error(j.error);
+    const t = j.topic, parent = TOPIC_BY_SLUG[t.parent_slug];
+    const total = j.main.length + j.related.length;
+    document.getElementById('res').innerHTML =
+      '<section class="topic-hero tg-' + groupIndex(t.slug) + '">'
+        + '<div class="kicker">' + esc(parent ? parent.name_en : 'Topics') + '</div>'
+        + '<h2>' + esc(t.name_en) + '</h2>'
+        + (t.name_he ? '<div class="he" dir="rtl">' + esc(t.name_he) + '</div>' : '')
+        + (t.description ? '<p>' + esc(t.description) + '</p>' : '')
+        + '<div class="count">' + total + ' talk' + (total !== 1 ? 's' : '') + '</div>'
+      + '</section>'
+      + (j.subtopics.length ? '<div class="chip-scroll" style="margin:0 -16px 8px">' + j.subtopics.map(topicChipHtml).join('') + '</div>' : '')
+      + (parent ? '<div class="chip-scroll" style="margin:0 -16px 8px">' + topicChipHtml(parent) + '</div>' : '')
+      + (j.main.length ? '<h3 class="res-heading">' + (t.parent_slug ? 'Mainly about ' + esc(t.name_en) : 'Talks') + '</h3>' + j.main.map(r => trackRowHtml(r, true, true)).join('') : '')
+      + (j.related.length ? '<h3 class="res-heading">Also discusses ' + esc(t.name_en) + '</h3>' + j.related.map(r => trackRowHtml(r, true, true)).join('') : '')
+      + (!total ? '<div class="empty">No talks have been catalogued under this topic yet.</div>' : '');
+    rebuildOrder();
+  } catch (e) {
+    document.getElementById('res').innerHTML = '<div class="empty">Could not load this topic: ' + esc(e.message) + '</div>';
+  }
+}
+
 function openFarbrengen(fid) {
   const head = rowsById[String(fid)];
   document.getElementById('filterRow').classList.remove('active');
@@ -1099,15 +1217,17 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14
 
 // One track row. `loose` = shown on its own (not under its farbrengen), so
 // the subtitle has to carry the farbrengen name and date itself.
-function trackRowHtml(row, loose) {
+function trackRowHtml(row, loose, withSummary) {
   const rid = String(row.id);
   rowsById[rid] = row;
   const playable = !!getAudioUrl(row);
   const farbrengenId = row.parent_id || row.id;
   const label = row.confirmed_title ? row.name : typeLabel(row.type);
-  const sub = loose
-    ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
-    : [label, dur(row.duration_ms)];
+  const sub = withSummary
+    ? [row.main_topic ? topicName(row.main_topic) : label, hebDate(row), dur(row.duration_ms)]
+    : loose
+      ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
+      : [label, dur(row.duration_ms)];
   const isNigun = typeKey(row.type) === 'niggun';
   return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + '" id="card-' + rid + '" data-rid="' + rid + '"'
       + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
@@ -1115,6 +1235,7 @@ function trackRowHtml(row, loose) {
       + '<div class="track-info">'
         + '<div class="track-title">' + esc(trackTitle(row)) + '</div>'
         + '<div class="track-sub">' + esc(sub.filter(Boolean).join(' · ')) + '</div>'
+        + (withSummary && row.summary_en ? '<div class="track-summary">' + esc(row.summary_en) + '</div>' : '')
       + '</div>'
       + (isNigun ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
     + '</div>';
@@ -1149,9 +1270,10 @@ function albumHtml(fid, head, tracks) {
   + '</section>';
 }
 
-function renderCards(items) {
+function renderCards(items, before) {
   const el = document.getElementById('res');
-  if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; currentOrder = []; return; }
+  if (!items.length && !before) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; currentOrder = []; return; }
+  if (!items.length) { el.innerHTML = before; rebuildOrder(); return; }
 
   // Group consecutive items that belong to the same farbrengen (results
   // already come back in chronological order, so same-farbrengen items
@@ -1170,7 +1292,7 @@ function renderCards(items) {
     }
   }
 
-  el.innerHTML = groups.map(g => {
+  el.innerHTML = (before ? before + '<h3 class="res-heading">Farbrengens &amp; tracks</h3>' : '') + groups.map(g => {
     // A lone track with no farbrengen context renders as a single row;
     // grouping only adds value with 2+ items or the farbrengen's own info.
     if (g.items.length === 1 && !g.farbrengenRow) return '<div class="loose">' + trackRowHtml(g.items[0], true) + '</div>';
@@ -1652,7 +1774,7 @@ async function loadTextPreview(rid) {
     el.innerHTML =
       sourceBadge(j, false)
       + (s.summary_en ? '<p class="pv-summary">' + esc(s.summary_en) + '</p>' : '')
-      + tagChipsHtml(s.tags)
+      + tagChipsHtml(s.tags, s.topic_slugs)
       + (firstText ? '<div class="pv-excerpt" dir="rtl" lang="he">' + esc(firstText) + '</div>' : '')
       + '<button class="pv-btn" onclick="openReader(\'' + rid + '\',' + fid + ')">' + (s.source_text ? 'Read full text' : 'Read the outline') + '</button>';
   } catch (e) {
@@ -1667,7 +1789,9 @@ function sourceBadge(j, long) {
   return '';
 }
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-function tagChipsHtml(tags) {
+function tagChipsHtml(tags, topicSlugs) {
+  const known = (topicSlugs || []).map(sl => TOPIC_BY_SLUG[sl]).filter(Boolean);
+  if (known.length) return '<div class="rd-tags">' + known.map(t => topicChipHtml(t)).join('') + '</div>';
   if (!tags || !tags.length) return '';
   return '<div class="rd-tags">' + tags.map(t =>
     '<button class="chip" onclick="searchTag(this.dataset.tag)" data-tag="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>';
@@ -1745,7 +1869,7 @@ async function openReader(eventId, farbrengenId) {
             + sourceBadge(j, true)
             + (s.summary_en ? '<p class="rd-summary">' + esc(s.summary_en) + '</p>' : '')
             + ((s.key_points || []).length ? '<ul class="rd-kp">' + s.key_points.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul>' : '')
-            + tagChipsHtml(s.tags)
+            + tagChipsHtml(s.tags, s.topic_slugs)
           + '</header>'
           + (s.outline_he ? '<div class="rd-sublabel">Outline</div><div class="rd-outline" lang="he">' + esc(s.outline_he) + '</div>' : '')
           + (s.source_text && s.outline_he ? '<div class="rd-sublabel">' + esc(s.transcript_kind || 'Hanacha') + '</div>' : '')
@@ -1840,7 +1964,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   enableDragToClose('browseSheet', 'browseScroll', () => closeBrowseSheet());
   enableDragToClose('reader', 'readerScroll', () => closeReader());
   loadYearOptions();
-  await loadTodayHebrewDate();
+  await Promise.all([loadTodayHebrewDate(), loadTopicList()]);
   showLanding();
 })();
 </script>

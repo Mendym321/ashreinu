@@ -17,49 +17,62 @@
 // GET /api/pipeline?mode=pending&limit=N      -> ids that are collected and waiting for Claude
 // GET /api/pipeline?mode=enrich&id=EVENT_ID   -> run Claude on one collected track and save the entry
 // GET /api/pipeline?mode=stats                -> progress counts and total cost so far
+// GET /api/pipeline?mode=reindex&offset=N     -> rebuild search text from stored fields (no AI), 200 at a time
 
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { OCCASIONS, PARSHIYOS, audienceFor, normalize, hebrewSearchForms } from '../lib/vocab.js';
 
 const ASHREINU = 'https://5qlaecnhel.execute-api.us-east-1.amazonaws.com/prod/ashreinu/api/v1';
 const MODEL = 'claude-opus-5-5';
 
-// A fixed topic list keeps tags consistent ("geulah" vs "redemption" vs
-// "moshiach" would otherwise all appear). Claude must pick from this list,
-// and can separately suggest new topics for a human to review and add.
-const TOPICS = [
-  'moshiach & redemption', 'exile', 'love for every jew', 'jewish unity', 'spreading judaism',
-  'mitzvah campaigns', 'education', 'children', 'jewish women', 'torah study', 'daily rambam',
-  'tanya & chassidus', 'prayer', 'teshuvah (returning to g-d)', 'joy', 'faith & trust',
-  'serving g-d', 'humility', 'self-sacrifice', 'holiness in the physical world', 'charity',
-  'kindness', 'tefillin', 'mezuzah', 'shabbos candles', 'kosher', 'family purity', 'shabbos',
-  'jewish holidays', 'connection to the rebbe', 'the previous rebbe', 'chabad rebbeim',
-  'chassidic history', 'jewish customs', 'jewish law', 'weekly torah portion', 'land of israel',
-  'safety of israel', 'seven noahide laws', 'world events', 'torah & science', 'health',
-  'livelihood', 'marriage & family', 'bar & bat mitzvah', 'sanctifying g-d\'s name',
-  'jewish identity', 'community leadership', 'blessings', 'personal growth', 'overcoming challenges',
-  'purpose of life', 'the soul', 'mourning & yahrzeit',
-];
+// Bump when the prompt or schema changes meaningfully; entries made with an
+// older version can then be re-run ("upgrade") without touching locked ones.
+const PROMPT_VERSION = 2;
 
-const SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['title_en', 'title_he', 'summary_en', 'key_points', 'keywords', 'topics', 'suggested_new_topics',
-             'occasions', 'sources', 'confidence', 'confidence_reason'],
-  properties: {
-    title_en: { type: 'string', description: 'Natural, clear English title of the idea: 3-8 words, at most ~55 characters' },
-    title_he: { type: 'string', description: 'Short Hebrew heading (the outline\'s own heading when it has one)' },
-    summary_en: { type: 'string', description: '1-3 natural sentences explaining the idea, within the word limit given' },
-    key_points: { type: 'array', items: { type: 'string' }, description: 'For multi-point outlines: one plain-English bullet per main point; otherwise empty' },
-    keywords: { type: 'array', items: { type: 'string' }, description: '3-8 short search terms (1-3 words each) a person would actually type to find this talk' },
-    topics: { type: 'array', items: { type: 'string', enum: TOPICS }, description: '1-4 topics from the fixed list' },
-    suggested_new_topics: { type: 'array', items: { type: 'string' }, description: 'Important themes missing from the list (often empty)' },
-    occasions: { type: 'array', items: { type: 'string' }, description: 'Dates/occasions discussed, e.g. "19 Kislev", "Pesach Sheini"' },
-    sources: { type: 'array', items: { type: 'string' }, description: 'Sources cited, e.g. "Tanya ch. 37", "Bamidbar 26:2"' },
-    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-    confidence_reason: { type: 'string', description: 'One short sentence: why this confidence' },
-  },
-};
+// Topics come from the `topics` table (editable in Supabase), so the menu
+// can change without a code change. Cached briefly between requests.
+let topicCache = null, topicCacheAt = 0;
+async function loadTopics(supabase) {
+  if (topicCache && Date.now() - topicCacheAt < 5 * 60 * 1000) return topicCache;
+  const { data, error } = await supabase.from('topics').select('slug, name_en, name_he, parent_slug, aliases, description, sort').eq('active', true).order('sort');
+  if (error) throw new Error('Could not load topics (has supabase/002_topics_and_search.sql been run?): ' + error.message);
+  const groups = data.filter(t => !t.parent_slug);
+  const leaves = data.filter(t => t.parent_slug);
+  topicCache = {
+    all: data, leaves, bySlug: Object.fromEntries(data.map(t => [t.slug, t])),
+    // The menu Claude sees: grouped, with what each topic covers.
+    menu: groups.map(g => `${g.name_en}:\n` + leaves.filter(l => l.parent_slug === g.slug)
+      .map(l => `  - ${l.slug}: ${l.name_en}${l.description ? ' (' + l.description + ')' : ''}`).join('\n')).join('\n'),
+  };
+  topicCacheAt = Date.now();
+  return topicCache;
+}
+
+function buildSchema(topicSlugs) {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['title_en', 'title_he', 'summary_en', 'key_points', 'main_topic', 'other_topics', 'suggested_new_topics',
+               'occasions', 'parsha', 'people', 'sources', 'phrases', 'confidence', 'confidence_reason'],
+    properties: {
+      title_en: { type: 'string', description: 'Natural, clear English title of the idea: 3-8 words, at most ~55 characters' },
+      title_he: { type: 'string', description: 'Short Hebrew heading (the outline\'s own heading when it has one)' },
+      summary_en: { type: 'string', description: '1-3 natural sentences explaining the idea, within the word limit given' },
+      key_points: { type: 'array', items: { type: 'string' }, description: 'For multi-point outlines: one plain-English bullet per main point; otherwise empty' },
+      main_topic: { type: 'string', enum: topicSlugs, description: 'The ONE topic this talk is mainly about' },
+      other_topics: { type: 'array', items: { type: 'string', enum: topicSlugs }, description: '0-3 more topics that are a substantial part of the talk' },
+      suggested_new_topics: { type: 'array', items: { type: 'string' }, description: 'Important themes missing from the topic menu (usually empty)' },
+      occasions: { type: 'array', items: { type: 'string', enum: OCCASIONS }, description: 'Occasions the talk is for or substantially about' },
+      parsha: { type: 'string', enum: [...PARSHIYOS, 'none'], description: 'The weekly portion the talk discusses, or none' },
+      people: { type: 'array', items: { type: 'string' }, description: 'People the talk meaningfully discusses' },
+      sources: { type: 'array', items: { type: 'string' }, description: 'Works cited, at book level' },
+      phrases: { type: 'array', items: { type: 'string' }, description: 'Famous sayings the talk quotes or centres on (often empty)' },
+      confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+      confidence_reason: { type: 'string', description: 'One short sentence: why this confidence' },
+    },
+  };
+}
 
 const SYSTEM = `You catalogue recordings of the Lubavitcher Rebbe's talks (sichos, ma'amarim) for a searchable audio archive. The listeners are a wide crowd: many have a basic Jewish background but don't know Chassidic terminology. For ONE audio track you get the archive's own material for it: a Hebrew outline (תוכן) written in dense editorial shorthand, and/or a hanacha (a transcript written down from the talk, in Hebrew or Yiddish). Write the English catalogue entry for that track.
 
@@ -90,9 +103,16 @@ Good summary: "The Tzemach Tzedek writes that Pesach Sheini, the make-up Pesach 
 Bad title: "Pesach Sheini: Yesod and Malchus" (insider terms, says nothing to most listeners).
 
 Use standard Chabad English transliteration (Moshiach, Geulah, mitzvos, Shabbos, Rebbe, Chassidus, davening).
-Keywords: 3-8 terms a real person would type into a search box hoping to find THIS talk. Test each one: "would someone search for this?" Use specific, recognizable things: people (Mordechai, Rashbi, the Alter Rebbe), events (Six-Day War), occasions (Lag BaOmer, shemittah), mitzvos and practices (tefillin, tzedakah), places, well-known sayings (lechatchila ariber), and well-known concepts the talk meaningfully discusses (bitachon, hashgacha pratis, teshuvah). Include a concept only if it's a real part of the talk, not a passing mention: search ranks keywords high, and passing mentions are still found through the outline itself. 1-3 words each, in common Chabad transliteration or plain English. Not outline jargon ("maaseh gadol") and not long technical phrases ("tzedakas Eretz Yisrael").
+Classification. These power browsing and search, so consistency matters more than coverage:
+- main_topic: the ONE topic from the menu below that this talk is mainly about, i.e. where a listener browsing that topic would most want to find it.
+- other_topics: 0-3 more topics that are a substantial part of the talk. Not passing mentions. Never repeat main_topic.
+- suggested_new_topics: only if an important theme fits no topic on the menu (a person reviews these). Usually empty.
+- occasions: occasions the talk is for or substantially about. Don't add one just because of the date it was said: a talk given on Purim about something else gets no "Purim".
+- parsha: the weekly Torah portion the talk discusses, or "none".
+- people: people the talk meaningfully discusses (e.g. Avraham Avinu, Mordechai, Rashbi, the Alter Rebbe, the Previous Rebbe), in common Chabad English. Not people only cited as a source.
+- sources: works cited, at book level ("Tanya", "Zohar", "Rambam, Hilchos Teshuvah", "Bamidbar"), not chapter and verse.
+- phrases: famous sayings or expressions the talk quotes or centres on, as people remember them ("lechatchila ariber", "nahama dekisufa", "ufaratzta"). Usually empty.
 
-Topics are a browsing menu (like genres): pick 1-4 from the allowed list that a listener browsing that topic would truly want to find here. Fewer, accurate topics beat many loose ones. Put an important theme missing from the list in suggested_new_topics.
 confidence: high if the material clearly covers the talk; medium if brief or partial; low if very thin or unclear.`;
 
 function htmlToText(html) {
@@ -172,7 +192,7 @@ function checkEntry(m, budget) {
   return warnings;
 }
 
-async function enrich(src) {
+async function enrich(src, topics) {
   const budget = lengthBudget(src);
   const heading = outlineHeading(src.outline, budget.points);
   const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
@@ -193,8 +213,8 @@ async function enrich(src) {
     max_tokens: 6000,
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default', // if a safety filter wrongly declines, Anthropic re-runs it on a fallback model
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
-    system: SYSTEM,
+    output_config: { effort: 'medium', format: { type: 'json_schema', schema: buildSchema(topics.leaves.map(t => t.slug)) } },
+    system: SYSTEM + '\n\nTopic menu (use the slug before the colon):\n' + topics.menu,
     messages: [{ role: 'user', content: material }],
   });
 
@@ -204,13 +224,21 @@ async function enrich(src) {
   if (!text) throw new Error('No text in Claude response');
   const u = response.usage || {};
   const metadata = JSON.parse(text);
-  // Keywords must be short search terms; drop anything longer, and duplicates.
-  const seen = new Set();
-  metadata.keywords = (metadata.keywords || []).map(k => k.trim()).filter(k => {
-    const key = k.toLowerCase();
-    if (!k || k.split(/\s+/).length > 3 || seen.has(key)) return false;
-    seen.add(key); return true;
-  });
+  // Clean-up in code: short, unique entries; other_topics never repeats main.
+  const tidy = (list, maxWords) => {
+    const seen = new Set();
+    return (list || []).map(x => String(x).trim()).filter(x => {
+      const key = x.toLowerCase();
+      if (!x || x.split(/\s+/).length > maxWords || seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+  };
+  metadata.other_topics = tidy(metadata.other_topics, 9).filter(t => t !== metadata.main_topic).slice(0, 3);
+  metadata.people = tidy(metadata.people, 5);
+  metadata.sources = tidy(metadata.sources, 6);
+  metadata.phrases = tidy(metadata.phrases, 6);
+  metadata.occasions = tidy(metadata.occasions, 9);
+  if (metadata.parsha === 'none') metadata.parsha = null;
   return {
     metadata,
     budget,
@@ -246,10 +274,20 @@ function candidateQuery(supabase, columns, opts) {
     .or('has_transcript.is.true,raw_data->>has_long_description.eq.true');
 }
 
-// Everything search should look at, in one lower-cased column.
-function buildSearchText(m, outline) {
-  return [m.title_en, m.title_he, m.summary_en, ...m.key_points, ...m.keywords, ...m.topics,
-          ...m.occasions, ...m.sources, outline].filter(Boolean).join(' \n ').toLowerCase();
+// Search text in four weighted layers (see supabase/002_topics_and_search.sql):
+// A titles + phrases, B classification (topic names + aliases, occasions,
+// parsha, people, sources, audience), C summary + key points, D outline.
+function buildSearchLayers(m, outline, topics, audience) {
+  const topicWords = [m.main_topic, ...m.other_topics].map(slug => topics.bySlug[slug])
+    .filter(Boolean).flatMap(t => [t.name_en, t.name_he, ...(t.aliases || [])]);
+  const layers = {
+    search_a: normalize([m.title_en, m.title_he, ...m.phrases].join(' \n ')),
+    search_b: normalize([...topicWords, ...m.occasions, m.parsha, ...m.people, ...m.sources, ...audience].filter(Boolean).join(' \n ')),
+    search_c: normalize([m.summary_en, ...m.key_points].join(' \n ')),
+    search_d: hebrewSearchForms(normalize(outline || '')),
+  };
+  // search_text (all layers in one) is kept for simple substring search.
+  return { ...layers, search_text: [layers.search_a, layers.search_b, layers.search_c, layers.search_d].join(' \n ') };
 }
 
 async function collectNext(supabase, limit) {
@@ -295,30 +333,53 @@ async function enrichStored(supabase, id) {
   ]);
   if (e1 || e2) throw new Error((e1 || e2).message);
   if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
+  if (tm.locked) return { id, skipped: 'locked (edited by a person), so re-runs leave it alone' };
+  const topics = await loadTopics(supabase);
+  const audience = audienceFor(ev?.name, ev?.type);
   const src = {
     id, name: ev?.name, type: ev?.type, parent_name: ev?.parent_name,
     hebrew_date: ev?.hebrew_day ? `${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` : null,
     duration_ms: ev?.duration_ms, outline: tm.outline_he || '', transcript: tm.transcript || '', transcript_kind: tm.transcript_kind,
   };
   try {
-    const r = await enrich(src);
+    const r = await enrich(src, topics);
     const m = r.metadata;
     const row = {
-      status: 'enriched', error: null,
+      status: 'enriched', error: null, prompt_version: PROMPT_VERSION,
       title_en: m.title_en, title_he: m.title_he, summary_en: m.summary_en, key_points: m.key_points,
-      keywords: m.keywords, topics: m.topics, suggested_new_topics: m.suggested_new_topics,
-      occasions: m.occasions, sources: m.sources, confidence: m.confidence, confidence_reason: m.confidence_reason,
-      search_text: buildSearchText(m, tm.outline_he), model: r.model,
+      main_topic: m.main_topic, topics: m.other_topics, suggested_new_topics: m.suggested_new_topics,
+      occasions: m.occasions, parsha: m.parsha, people: m.people, sources: m.sources, phrases: m.phrases,
+      audience, keywords: [], confidence: m.confidence, confidence_reason: m.confidence_reason,
+      ...buildSearchLayers(m, tm.outline_he, topics, audience), model: r.model,
       input_tokens: r.usage.input_tokens, output_tokens: r.usage.output_tokens,
       enriched_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from('track_metadata').update(row).eq('ashreinu_event_id', id);
     if (error) throw new Error(error.message);
-    return { id, saved: true, metadata: m, warnings: r.warnings, usage: r.usage };
+    return { id, saved: true, metadata: m, audience, warnings: r.warnings, usage: r.usage };
   } catch (e) {
     await supabase.from('track_metadata').update({ status: 'error', error: 'enrich: ' + e.message, updated_at: new Date().toISOString() }).eq('ashreinu_event_id', id);
     throw e;
   }
+}
+
+// Rebuild the search layers from what's stored now: after a person edits an
+// entry in the table editor, or a topic's names/aliases change. No AI.
+async function reindex(supabase, offset) {
+  const topics = await loadTopics(supabase);
+  const { data, error } = await supabase.from('track_metadata')
+    .select('ashreinu_event_id, title_en, title_he, summary_en, key_points, main_topic, topics, occasions, parsha, people, sources, phrases, audience, outline_he')
+    .eq('status', 'enriched').order('ashreinu_event_id').range(offset, offset + 199);
+  if (error) throw new Error(error.message);
+  for (const r of data) {
+    const m = { ...r, key_points: r.key_points || [], other_topics: r.topics || [], occasions: r.occasions || [],
+                people: r.people || [], sources: r.sources || [], phrases: r.phrases || [] };
+    const { error: e } = await supabase.from('track_metadata')
+      .update({ ...buildSearchLayers(m, r.outline_he, topics, r.audience || []), updated_at: new Date().toISOString() })
+      .eq('ashreinu_event_id', r.ashreinu_event_id);
+    if (e) throw new Error(e.message);
+  }
+  return { reindexed: data.length, next_offset: data.length === 200 ? offset + 200 : null };
 }
 
 // Opus 5.5 pricing ($ per million tokens), for the running cost estimate.
@@ -331,12 +392,14 @@ async function stats(supabase) {
     ...statuses.map(st => count(supabase.from('track_metadata').select('ashreinu_event_id', { count: 'exact', head: true }).eq('status', st))),
   ]);
   const tokens = await allRows(() => supabase.from('track_metadata').select('input_tokens, output_tokens').eq('status', 'enriched'));
+  const outdated = await count(supabase.from('track_metadata').select('ashreinu_event_id', { count: 'exact', head: true })
+    .eq('status', 'enriched').eq('locked', false).or(`prompt_version.is.null,prompt_version.lt.${PROMPT_VERSION}`));
   const tin = tokens.reduce((a, r) => a + (r.input_tokens || 0), 0);
   const tout = tokens.reduce((a, r) => a + (r.output_tokens || 0), 0);
   const cost = tin / 1e6 * PRICE_IN + tout / 1e6 * PRICE_OUT;
   const counts = Object.fromEntries(statuses.map((st, i) => [st, byStatus[i]]));
   return {
-    candidates, ...counts,
+    candidates, ...counts, outdated, prompt_version: PROMPT_VERSION,
     not_collected: Math.max(0, candidates - statuses.reduce((a, st) => a + counts[st], 0)),
     tokens: { input: tin, output: tout }, cost_so_far: +cost.toFixed(2),
     avg_cost_per_track: counts.enriched ? +(cost / counts.enriched).toFixed(4) : null,
@@ -352,9 +415,15 @@ export default async function handler(req, res) {
   try {
     if (mode === 'collect') return res.status(200).json(await collectNext(supa(), Math.min(limit, 40)));
     if (mode === 'pending') {
-      const statusesWanted = req.query.retry ? ['collected', 'error'] : ['collected'];
-      const { data, error } = await supa().from('track_metadata').select('ashreinu_event_id')
-        .in('status', statusesWanted).order('ashreinu_event_id').limit(limit);
+      const supabase = supa();
+      let q = supabase.from('track_metadata').select('ashreinu_event_id').order('ashreinu_event_id').limit(limit);
+      if (req.query.upgrade) {
+        // Entries made with an older prompt version, never ones a person has edited.
+        q = q.eq('status', 'enriched').eq('locked', false).or(`prompt_version.is.null,prompt_version.lt.${PROMPT_VERSION}`);
+      } else {
+        q = q.in('status', req.query.retry ? ['collected', 'error'] : ['collected']);
+      }
+      const { data, error } = await q;
       if (error) throw new Error(error.message);
       return res.status(200).json({ ids: data.map(r => r.ashreinu_event_id) });
     }
@@ -363,6 +432,7 @@ export default async function handler(req, res) {
       return res.status(200).json(await enrichStored(supa(), parseInt(id, 10)));
     }
     if (mode === 'stats') return res.status(200).json(await stats(supa()));
+    if (mode === 'reindex') return res.status(200).json(await reindex(supa(), Math.max(0, parseInt(req.query.offset || '0', 10) || 0)));
     if (mode === 'source') {
       return res.status(200).json({ source: await fetchSource(id) });
     }
@@ -372,7 +442,8 @@ export default async function handler(req, res) {
       if (!source.outline && !source.transcript) {
         return res.status(200).json({ source, skipped: 'Ashreinu has no outline or transcript for this track' });
       }
-      return res.status(200).json({ source, ...(await enrich(source)) });
+      const topics = await loadTopics(supa());
+      return res.status(200).json({ source, audience: audienceFor(source.name, source.type), ...(await enrich(source, topics)), topicNames: Object.fromEntries(topics.leaves.map(t => [t.slug, t.name_en])) });
     }
     return res.status(400).json({ error: 'Unknown mode (use source, preview, collect, pending, enrich or stats)' });
   } catch (err) {

@@ -150,7 +150,7 @@ export default async function handler(req, res) {
       if (String(eventId) !== String(farbrengenId)) {
         const { data: cat } = await supabase
           .from('track_metadata')
-          .select('title_en, summary_en, key_points, topics, outline_he, transcript, transcript_kind')
+          .select('title_en, summary_en, key_points, main_topic, topics, occasions, people, outline_he, transcript, transcript_kind')
           .eq('ashreinu_event_id', eventId)
           .eq('status', 'enriched')
           .maybeSingle();
@@ -161,7 +161,9 @@ export default async function handler(req, res) {
             precise: false,
             catalogued: true,
             segments: [{
-              title_en: cat.title_en, summary_en: cat.summary_en, tags: cat.topics || [], key_points: cat.key_points || [],
+              title_en: cat.title_en, summary_en: cat.summary_en, key_points: cat.key_points || [],
+              main_topic: cat.main_topic, topic_slugs: [cat.main_topic, ...(cat.topics || [])].filter(Boolean),
+              occasions: cat.occasions || [], people: cat.people || [],
               outline_he: cat.outline_he, source_text: cat.transcript || null, transcript_kind: cat.transcript_kind,
             }]
           });
