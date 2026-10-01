@@ -204,6 +204,8 @@ input[type=number]{-moz-appearance:textfield}
   flex-shrink:0;white-space:nowrap;margin-top:5px;padding:3px 9px;background:var(--bg);border-radius:20px;
 }
 
+.csub{font-size:11px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-top:2px}
+.np-sub{font-size:12px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin:-4px 0 8px}
 .cpar{font-family:'Fraunces',serif;font-style:italic;font-size:13px;color:var(--ink-light);margin-top:3px}
 .cpar span{color:var(--ink-mid)}
 
@@ -506,6 +508,7 @@ input[type=number]{-moz-appearance:textfield}
       <div class="np-hero">
         <div class="np-type-badge" id="npTypeBadge"></div>
         <div class="np-title" id="npTitle"></div>
+        <div class="np-sub" id="npSub" style="display:none"></div>
         <div class="np-parent" id="npParent"></div>
         <div class="np-date" id="npDate"></div>
       </div>
@@ -959,13 +962,17 @@ function showSkeletons() {
 const rowsById = {};
 let currentOrder = []; // rids with audio, in the order they appear — powers next/prev
 
+// A human-confirmed title (from audio_text_links) beats Ashreinu's generic
+// label like "Sicha 1" — which then gets demoted to a small subheader.
+function trackTitle(row) { return row.confirmed_title || row.name || '(untitled)'; }
+
 function cardHtml(row) {
   const d = row.duration_ms;
   const lbl = typeLabel(row.type);
   const audioUrl = getAudioUrl(row);
   const rid = String(row.id);
   const link = lnk(row);
-  const titleAttr = esc(row.name||'').replace(/'/g,"\\'");
+  const titleAttr = esc(trackTitle(row)).replace(/'/g,"\\'");
   const farbrengenId = row.parent_id || row.id;
   rowsById[rid] = row;
   if (audioUrl) currentOrder.push(rid);
@@ -976,10 +983,11 @@ function cardHtml(row) {
       +'<div class="card-body">'
         +'<div class="card-toprow">'
           +(audioUrl
-              ? '<span class="cname cname-playable" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+esc(row.name||'(untitled)')+'</span>'
-              : '<span class="cname">'+esc(row.name||'(untitled)')+'</span>')
+              ? '<span class="cname cname-playable" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+esc(trackTitle(row))+'</span>'
+              : '<span class="cname">'+esc(trackTitle(row))+'</span>')
           +(lbl?'<span class="ctype-label">'+esc(lbl)+'</span>':'')
         +'</div>'
+        +(row.confirmed_title && row.name ? '<div class="csub">'+esc(row.name)+'</div>' : '')
         +(row.parent_name?'<div class="cpar">In <span>'+esc(row.parent_name)+'</span></div>':'')
         +'<div class="cmeta-row">'
           +(dstr(row)?'<span class="cmeta-item">'+calIcon+esc(dstr(row))+'</span>':'')
@@ -1142,7 +1150,7 @@ function playFromOrder(rid) {
   if (!row) return;
   const url = getAudioUrl(row);
   if (!url) return;
-  playTrack(rid, url, row.name || '');
+  playTrack(rid, url, trackTitle(row));
   document.getElementById('card-'+rid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function populateNowPlaying(rid) {
@@ -1155,7 +1163,9 @@ function populateNowPlaying(rid) {
   document.getElementById('npTypeBadge').textContent = lbl;
   document.getElementById('npTypeBadge').style.background = 'var(--border-soft)';
   document.getElementById('npTypeBadge').style.color = 'var(' + typeColorVar + ')';
-  document.getElementById('npTitle').textContent = row.name || '(untitled)';
+  document.getElementById('npTitle').textContent = trackTitle(row);
+  document.getElementById('npSub').textContent = row.confirmed_title ? (row.name || '') : '';
+  document.getElementById('npSub').style.display = row.confirmed_title && row.name ? 'block' : 'none';
   document.getElementById('npParent').textContent = row.parent_name || '';
   document.getElementById('npParent').style.display = row.parent_name ? 'block' : 'none';
   document.getElementById('npDate').textContent = dstr(row);
@@ -1276,7 +1286,11 @@ async function loadReadContent(farbrengenId, targetElId, autoExpandText, eventId
     const j = await r.json();
 
     let html;
-    if (!j.hasText || !j.segments?.length) {
+    if (j.unconfirmed) {
+      html = '<div class="read-empty">' + (j.candidateCount
+        ? 'This farbrengen has ' + j.candidateCount + ' transcribed ' + (j.candidateCount !== 1 ? 'sichos' : 'sicha') + ', but none has been matched to this specific track yet.'
+        : 'No transcribed source text available yet for this farbrengen.') + '</div>';
+    } else if (!j.hasText || !j.segments?.length) {
       html = '<div class="read-empty">No transcribed source text available yet for this farbrengen.</div>';
     } else {
       const preciseNote = j.precise

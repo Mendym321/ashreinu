@@ -84,12 +84,27 @@ export default async function handler(req, res) {
       tagFarbrengenIds = [...new Set((tagMatches || []).map(r => r.farbrengen_id))];
     } catch (e) { /* tags table may not have matches — fine, just skip */ }
 
+    // Confirmed-track search: a human-verified title/summary/tag match
+    // points at one exact audio track, so include just that track (not its
+    // whole farbrengen like the tag search above).
+    let confirmedEventIds = [];
+    try {
+      const [byText, byTag] = await Promise.all([
+        supabase.from('audio_text_links').select('ashreinu_event_id')
+          .or(`title_en.ilike.%${safe}%,summary_en.ilike.%${safe}%`),
+        supabase.from('audio_text_links').select('ashreinu_event_id')
+          .contains('tags', [safe.toLowerCase()])
+      ]);
+      confirmedEventIds = [...new Set([...(byText.data || []), ...(byTag.data || [])].map(r => r.ashreinu_event_id))];
+    } catch (e) { /* no confirmed links yet — fine, just skip */ }
+
+    const clauses = [`name.ilike.%${safe}%`, `parent_name.ilike.%${safe}%`];
     if (tagFarbrengenIds.length) {
       const idList = tagFarbrengenIds.join(',');
-      query = query.or(`name.ilike.%${safe}%,parent_name.ilike.%${safe}%,id.in.(${idList}),parent_id.in.(${idList})`);
-    } else {
-      query = query.or(`name.ilike.%${safe}%,parent_name.ilike.%${safe}%`);
+      clauses.push(`id.in.(${idList})`, `parent_id.in.(${idList})`);
     }
+    if (confirmedEventIds.length) clauses.push(`id.in.(${confirmedEventIds.join(',')})`);
+    query = query.or(clauses.join(','));
   }
 
   // Type matching: Ashreinu's real field spellings are "Nigun" (one g) and
@@ -133,6 +148,17 @@ export default async function handler(req, res) {
 
   const { data, error, count } = await query;
   if (error) return res.status(500).json({ error: error.message });
+
+  // Attach the human-confirmed title (if any) to each result, so the UI can
+  // show it as the main heading instead of the generic "Sicha 1" label.
+  if (data.length) {
+    const { data: links } = await supabase
+      .from('audio_text_links')
+      .select('ashreinu_event_id, title_en')
+      .in('ashreinu_event_id', data.map(r => r.id));
+    const titleById = Object.fromEntries((links || []).filter(l => l.title_en).map(l => [l.ashreinu_event_id, l.title_en]));
+    for (const row of data) row.confirmed_title = titleById[row.id] || null;
+  }
 
   res.setHeader('Cache-Control', 's-maxage=30');
   res.status(200).json({ results: data, count });
