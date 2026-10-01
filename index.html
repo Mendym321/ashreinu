@@ -349,6 +349,11 @@ body.audio-paused .eq i{animation-play-state:paused}
 .rd-title{font-size:27px;font-weight:800;letter-spacing:-.025em;line-height:1.18;color:var(--ink);margin-top:6px}
 .rd-badge{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:5px 11px 5px 9px;border-radius:14px;font-size:12.5px;font-weight:700;color:var(--farb);background:var(--hover)}
 .rd-badge svg{width:13px;height:13px}
+.rd-badge.neutral{color:var(--ink-mid)}
+.rd-kp{margin:14px 0 0 20px;font-size:15px;line-height:1.6;color:var(--ink-mid)}
+.rd-kp li{margin-bottom:4px}
+.rd-sublabel{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin:0 0 10px}
+.rd-outline{font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:calc(var(--rd-size,19px) * .9);line-height:1.9;color:var(--ink-mid);white-space:pre-line;margin-bottom:30px;padding-bottom:22px;border-bottom:1px solid var(--border)}
 .rd-summary{font-size:16.5px;line-height:1.65;color:var(--ink-mid);margin-top:14px}
 .rd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .rd-tags .chip{height:30px;padding:0 12px;font-size:13px}
@@ -1643,16 +1648,23 @@ async function loadTextPreview(rid) {
     }
     if (!j.hasText || !j.segments?.length) { el.innerHTML = '<p class="pv-note">No transcribed text for this farbrengen yet.</p>'; return; }
     const s = j.segments[0];
-    const { firstText } = renderSourceText(s.source_text, s.footnotes, 'pv');
+    const { firstText } = renderSourceText(s.source_text || s.outline_he, s.footnotes, 'pv');
     el.innerHTML =
-      (j.precise ? '<span class="rd-badge">' + ICON_CHECK + 'Verified match</span>' : '')
+      sourceBadge(j, false)
       + (s.summary_en ? '<p class="pv-summary">' + esc(s.summary_en) + '</p>' : '')
       + tagChipsHtml(s.tags)
       + (firstText ? '<div class="pv-excerpt" dir="rtl" lang="he">' + esc(firstText) + '</div>' : '')
-      + '<button class="pv-btn" onclick="openReader(\'' + rid + '\',' + fid + ')">Read full text</button>';
+      + '<button class="pv-btn" onclick="openReader(\'' + rid + '\',' + fid + ')">' + (s.source_text ? 'Read full text' : 'Read the outline') + '</button>';
   } catch (e) {
     el.innerHTML = '<p class="pv-note">Could not load the text. <button class="see-all" onclick="loadTextPreview(\'' + rid + '\')">Retry</button></p>';
   }
+}
+// Where an entry came from: a human confirmed it, or Claude wrote it from
+// Ashreinu's own outline for this track.
+function sourceBadge(j, long) {
+  if (j.precise) return '<span class="rd-badge">' + ICON_CHECK + (long ? 'Verified match for this track' : 'Verified match') + '</span>';
+  if (j.catalogued) return '<span class="rd-badge neutral">Summary from Ashreinu\'s outline</span>';
+  return '';
 }
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 function tagChipsHtml(tags) {
@@ -1730,11 +1742,14 @@ async function openReader(eventId, farbrengenId) {
           + '<header class="rd-head">'
             + (!many && kicker ? '<div class="rd-kicker">' + esc(kicker) + '</div>' : (many ? '<div class="rd-kicker">Sicha ' + (i + 1) + ' of ' + segs.length + '</div>' : ''))
             + '<h2 class="rd-title">' + esc(s.title_en || (row ? trackTitle(row) : 'Source text')) + '</h2>'
-            + (j.precise ? '<span class="rd-badge">' + ICON_CHECK + 'Verified match for this track</span>' : '')
+            + sourceBadge(j, true)
             + (s.summary_en ? '<p class="rd-summary">' + esc(s.summary_en) + '</p>' : '')
+            + ((s.key_points || []).length ? '<ul class="rd-kp">' + s.key_points.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul>' : '')
             + tagChipsHtml(s.tags)
           + '</header>'
-          + '<article class="rd-text" dir="rtl" lang="he">' + html + '</article>'
+          + (s.outline_he ? '<div class="rd-sublabel">Outline</div><div class="rd-outline" lang="he">' + esc(s.outline_he) + '</div>' : '')
+          + (s.source_text && s.outline_he ? '<div class="rd-sublabel">' + esc(s.transcript_kind || 'Hanacha') + '</div>' : '')
+          + (s.source_text ? '<article class="rd-text" dir="rtl" lang="he">' + html + '</article>' : '')
           + notesHtml
         + '</section>';
       }).join('<div class="rd-seg-sep"></div>');

@@ -8,10 +8,18 @@
 // text-to-audio matching to do. Claude reads them and writes English
 // metadata for that one track.
 //
+// Pilot / inspection (nothing saved):
 // GET /api/pipeline?mode=source&id=EVENT_ID   -> the track + its outline/transcript (no AI)
-// GET /api/pipeline?mode=preview&id=EVENT_ID  -> same, plus Claude's metadata (nothing saved)
+// GET /api/pipeline?mode=preview&id=EVENT_ID  -> same, plus Claude's metadata
+//
+// Production (writes to the track_metadata table — see supabase/track_metadata.sql):
+// GET /api/pipeline?mode=collect&limit=N      -> fetch outlines/hanachos for the next N tracks (no AI)
+// GET /api/pipeline?mode=pending&limit=N      -> ids that are collected and waiting for Claude
+// GET /api/pipeline?mode=enrich&id=EVENT_ID   -> run Claude on one collected track and save the entry
+// GET /api/pipeline?mode=stats                -> progress counts and total cost so far
 
 import Anthropic from '@anthropic-ai/sdk';
+import { createClient } from '@supabase/supabase-js';
 
 const ASHREINU = 'https://5qlaecnhel.execute-api.us-east-1.amazonaws.com/prod/ashreinu/api/v1';
 const MODEL = 'claude-opus-5-5';
@@ -213,11 +221,148 @@ async function enrich(src) {
   };
 }
 
+// ── Storage (Supabase) ──
+function supa() { return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY); }
+
+// PostgREST returns at most 1000 rows per request, whatever .limit() says,
+// so anything that needs "all" rows pages through with .range().
+async function allRows(buildQuery) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await buildQuery().range(from, from + 999);
+    if (error) throw new Error(error.message);
+    out.push(...data);
+    if (data.length < 1000) return out;
+  }
+}
+
+// Tracks worth cataloguing: real audio, not a whole-farbrengen container or
+// a niggun, and Ashreinu has an outline or a transcript for it.
+function candidateQuery(supabase, columns, opts) {
+  return supabase.from('ashreinu_events').select(columns, opts)
+    .not('audio_uri', 'is', null)
+    .neq('type', 'Farbrengen')
+    .not('type', 'ilike', '%nigun%')
+    .or('has_transcript.is.true,raw_data->>has_long_description.eq.true');
+}
+
+// Everything search should look at, in one lower-cased column.
+function buildSearchText(m, outline) {
+  return [m.title_en, m.title_he, m.summary_en, ...m.key_points, ...m.keywords, ...m.topics,
+          ...m.occasions, ...m.sources, outline].filter(Boolean).join(' \n ').toLowerCase();
+}
+
+async function collectNext(supabase, limit) {
+  const [candidates, done] = await Promise.all([
+    allRows(() => candidateQuery(supabase, 'id').order('id')),
+    allRows(() => supabase.from('track_metadata').select('ashreinu_event_id')),
+  ]);
+  const doneIds = new Set(done.map(r => r.ashreinu_event_id));
+  const next = candidates.map(r => r.id).filter(id => !doneIds.has(id)).slice(0, limit);
+
+  // Four at a time — gentle on Ashreinu's API, and fits in Vercel's 60s.
+  const results = [];
+  const queue = [...next];
+  await Promise.all([0, 1, 2, 3].map(async () => {
+    while (queue.length) {
+      const id = queue.shift();
+      try {
+        const src = await fetchSource(id);
+        const hasSource = !!(src.outline || src.transcript);
+        results.push({ ashreinu_event_id: id, outline_he: src.outline || null, transcript: src.transcript || null,
+          transcript_kind: src.transcript_kind, status: hasSource ? 'collected' : 'no_source', updated_at: new Date().toISOString() });
+      } catch (e) {
+        results.push({ ashreinu_event_id: id, status: 'error', error: 'collect: ' + e.message, updated_at: new Date().toISOString() });
+      }
+    }
+  }));
+  if (results.length) {
+    const { error } = await supabase.from('track_metadata').upsert(results, { onConflict: 'ashreinu_event_id' });
+    if (error) throw new Error(error.message);
+  }
+  return {
+    collected: results.filter(r => r.status === 'collected').length,
+    no_source: results.filter(r => r.status === 'no_source').length,
+    errors: results.filter(r => r.status === 'error').length,
+    remaining: candidates.length - doneIds.size - results.length,
+  };
+}
+
+async function enrichStored(supabase, id) {
+  const [{ data: tm, error: e1 }, { data: ev, error: e2 }] = await Promise.all([
+    supabase.from('track_metadata').select('*').eq('ashreinu_event_id', id).maybeSingle(),
+    supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month_name, hebrew_year, duration_ms').eq('id', id).maybeSingle(),
+  ]);
+  if (e1 || e2) throw new Error((e1 || e2).message);
+  if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
+  const src = {
+    id, name: ev?.name, type: ev?.type, parent_name: ev?.parent_name,
+    hebrew_date: ev?.hebrew_day ? `${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` : null,
+    duration_ms: ev?.duration_ms, outline: tm.outline_he || '', transcript: tm.transcript || '', transcript_kind: tm.transcript_kind,
+  };
+  try {
+    const r = await enrich(src);
+    const m = r.metadata;
+    const row = {
+      status: 'enriched', error: null,
+      title_en: m.title_en, title_he: m.title_he, summary_en: m.summary_en, key_points: m.key_points,
+      keywords: m.keywords, topics: m.topics, suggested_new_topics: m.suggested_new_topics,
+      occasions: m.occasions, sources: m.sources, confidence: m.confidence, confidence_reason: m.confidence_reason,
+      search_text: buildSearchText(m, tm.outline_he), model: r.model,
+      input_tokens: r.usage.input_tokens, output_tokens: r.usage.output_tokens,
+      enriched_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('track_metadata').update(row).eq('ashreinu_event_id', id);
+    if (error) throw new Error(error.message);
+    return { id, saved: true, metadata: m, warnings: r.warnings, usage: r.usage };
+  } catch (e) {
+    await supabase.from('track_metadata').update({ status: 'error', error: 'enrich: ' + e.message, updated_at: new Date().toISOString() }).eq('ashreinu_event_id', id);
+    throw e;
+  }
+}
+
+// Opus 5.5 pricing ($ per million tokens), for the running cost estimate.
+const PRICE_IN = 4, PRICE_OUT = 20;
+async function stats(supabase) {
+  const count = async (q) => { const { count, error } = await q; if (error) throw new Error(error.message); return count; };
+  const statuses = ['collected', 'enriched', 'no_source', 'error'];
+  const [candidates, ...byStatus] = await Promise.all([
+    count(candidateQuery(supabase, 'id', { count: 'exact', head: true })),
+    ...statuses.map(st => count(supabase.from('track_metadata').select('ashreinu_event_id', { count: 'exact', head: true }).eq('status', st))),
+  ]);
+  const tokens = await allRows(() => supabase.from('track_metadata').select('input_tokens, output_tokens').eq('status', 'enriched'));
+  const tin = tokens.reduce((a, r) => a + (r.input_tokens || 0), 0);
+  const tout = tokens.reduce((a, r) => a + (r.output_tokens || 0), 0);
+  const cost = tin / 1e6 * PRICE_IN + tout / 1e6 * PRICE_OUT;
+  const counts = Object.fromEntries(statuses.map((st, i) => [st, byStatus[i]]));
+  return {
+    candidates, ...counts,
+    not_collected: Math.max(0, candidates - statuses.reduce((a, st) => a + counts[st], 0)),
+    tokens: { input: tin, output: tout }, cost_so_far: +cost.toFixed(2),
+    avg_cost_per_track: counts.enriched ? +(cost / counts.enriched).toFixed(4) : null,
+  };
+}
+
 export default async function handler(req, res) {
   const { mode, id } = req.query;
-  if (!id || !/^\d+$/.test(id)) return res.status(400).json({ error: 'Missing or invalid ?id=' });
+  const needsId = ['source', 'preview', 'enrich'].includes(mode);
+  if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
+  const limit = Math.max(1, Math.min(parseInt(req.query.limit || '30', 10) || 30, 100));
 
   try {
+    if (mode === 'collect') return res.status(200).json(await collectNext(supa(), Math.min(limit, 40)));
+    if (mode === 'pending') {
+      const statusesWanted = req.query.retry ? ['collected', 'error'] : ['collected'];
+      const { data, error } = await supa().from('track_metadata').select('ashreinu_event_id')
+        .in('status', statusesWanted).order('ashreinu_event_id').limit(limit);
+      if (error) throw new Error(error.message);
+      return res.status(200).json({ ids: data.map(r => r.ashreinu_event_id) });
+    }
+    if (mode === 'enrich') {
+      if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+      return res.status(200).json(await enrichStored(supa(), parseInt(id, 10)));
+    }
+    if (mode === 'stats') return res.status(200).json(await stats(supa()));
     if (mode === 'source') {
       return res.status(200).json({ source: await fetchSource(id) });
     }
@@ -229,7 +374,7 @@ export default async function handler(req, res) {
       }
       return res.status(200).json({ source, ...(await enrich(source)) });
     }
-    return res.status(400).json({ error: 'Unknown mode (use source or preview)' });
+    return res.status(400).json({ error: 'Unknown mode (use source, preview, collect, pending, enrich or stats)' });
   } catch (err) {
     const status = err instanceof Anthropic.APIError ? 502 : 500;
     return res.status(status).json({ error: err.message });

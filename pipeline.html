@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Metadata Pilot</title>
+<title>Metadata Pipeline</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=David+Libre:wght@400;500&display=swap" rel="stylesheet">
@@ -64,14 +64,40 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
 .prev{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--hover);font-size:12.5px;line-height:1.5;color:var(--ink-mid)}
 .prev b{color:var(--ink)}
 .from-heading{font-size:12px;color:var(--ink-light);margin-top:4px}
+.prod{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin:6px 0 34px}
+.prod h2{font-size:18px;font-weight:800;letter-spacing:-.01em}
+.prod p{font-size:13.5px;color:var(--ink-mid);line-height:1.55;margin:4px 0 14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--elevated);border-radius:12px;padding:12px 14px}
+.tile b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.tile span{font-size:12px;color:var(--ink-light)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.log{margin-top:12px;font:12.5px/1.6 ui-monospace,Menlo,monospace;color:var(--ink-mid);background:var(--elevated);border-radius:10px;padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap;display:none}
 .err{color:var(--bad);font-size:13.5px;padding:16px 18px}
 .loading{color:var(--ink-light);font-size:13.5px;padding:16px 18px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Metadata pilot</h1>
-  <p class="lead">For each track, Claude reads Ashreinu's own Hebrew outline (and hanacha, when there is one) and writes an English title, summary, key points and tags. Compare each result with the outline on the left, then mark it. Nothing is saved to the database. This only previews quality.</p>
+  <h1>Metadata pipeline</h1>
+  <p class="lead">Builds the catalogue: for each track, Claude reads Ashreinu's own Hebrew outline (and hanacha) and writes an English title, summary, topics and keywords, which are saved to the database and shown in the app.</p>
+
+  <section class="prod">
+    <h2>Production</h2>
+    <p><b>1. Collect</b> copies Ashreinu's outlines and hanachos into the database (free, no AI). <b>2. Enrich</b> runs Claude on collected tracks and saves the result (costs money, and the estimate is shown before you start). You can stop and continue anytime; nothing is processed twice.</p>
+    <div class="tiles" id="prodTiles"><div class="tile"><b>…</b><span>loading</span></div></div>
+    <div class="row">
+      <button class="btn" id="collectBtn" onclick="collectAll()">Collect all (free)</button>
+      <button class="btn primary" onclick="enrichBatch(20)">Enrich next 20</button>
+      <button class="btn primary" onclick="enrichBatch(100)">Enrich next 100</button>
+      <button class="btn" onclick="enrichBatch(20, true)">Retry errors</button>
+      <button class="btn" id="stopBtn" onclick="stopRequested = true" disabled>Stop</button>
+    </div>
+    <div class="log" id="prodLog"></div>
+  </section>
+
+  <h2 style="font-size:18px;font-weight:800">Pilot (preview only)</h2>
+  <p class="lead">Try the current prompt on any tracks and compare each result with its outline. Nothing is saved.</p>
 
   <div class="controls">
     <input id="ids" value="8859,370,8792,8074,8012,8446,1153,7928,7360,1675,3715,3944,4133,4663,5055,5306,4,5402,5692,5009" aria-label="Track ids, comma separated">
@@ -85,6 +111,76 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
 <script>
 // Opus 5.5 pricing ($ per million tokens), for a rough cost estimate.
 const PRICE_IN = 4, PRICE_OUT = 20;
+
+// ── Production controls ──
+let stopRequested = false, busy = false;
+function plog(msg) { const el = document.getElementById('prodLog'); el.style.display = 'block'; el.textContent += msg + '\n'; el.scrollTop = el.scrollHeight; }
+async function api(params) {
+  const r = await fetch('/api/pipeline?' + new URLSearchParams(params));
+  const text = await r.text();
+  let j; try { j = JSON.parse(text); } catch (e) { throw new Error('Server error: ' + text.slice(0, 120)); }
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+let lastStats = null;
+async function refreshStats() {
+  try {
+    const st = lastStats = await api({ mode: 'stats' });
+    const tile = (n, label) => '<div class="tile"><b>' + n + '</b><span>' + label + '</span></div>';
+    document.getElementById('prodTiles').innerHTML =
+      tile(st.candidates.toLocaleString(), 'tracks with an outline or hanacha')
+      + tile(st.not_collected.toLocaleString(), 'not collected yet')
+      + tile(st.collected.toLocaleString(), 'waiting for Claude')
+      + tile(st.enriched.toLocaleString(), 'catalogued ✓')
+      + tile(st.error, 'errors')
+      + tile('$' + st.cost_so_far.toFixed(2), 'spent so far')
+      + tile(st.avg_cost_per_track ? '$' + st.avg_cost_per_track.toFixed(3) : '-', 'average per track')
+      + tile(st.avg_cost_per_track ? '$' + (st.avg_cost_per_track * (st.collected + st.not_collected)).toFixed(2) : '-', 'est. to finish (all tracks)');
+  } catch (e) {
+    document.getElementById('prodTiles').innerHTML = '<div class="err">Could not load stats: ' + esc(e.message) + (/track_metadata/.test(e.message) ? ' (has the SQL in supabase/track_metadata.sql been run?)' : '') + '</div>';
+  }
+}
+function setBusy(b) {
+  busy = b; stopRequested = false;
+  document.querySelectorAll('.prod .btn').forEach(x => x.disabled = b && x.id !== 'stopBtn');
+  document.getElementById('stopBtn').disabled = !b;
+}
+async function collectAll() {
+  if (busy) return; setBusy(true);
+  try {
+    while (!stopRequested) {
+      const r = await api({ mode: 'collect', limit: 40 });
+      plog('Collected ' + r.collected + ', no source ' + r.no_source + ', errors ' + r.errors + ' · ' + r.remaining + ' left');
+      await refreshStats();
+      if (r.remaining <= 0 || r.collected + r.no_source + r.errors === 0) break;
+    }
+    plog(stopRequested ? 'Stopped.' : 'Collect finished.');
+  } catch (e) { plog('Error: ' + e.message); }
+  setBusy(false);
+}
+async function enrichBatch(n, retry) {
+  if (busy) return;
+  const est = lastStats?.avg_cost_per_track ? ' (about $' + (lastStats.avg_cost_per_track * n).toFixed(2) + ' at the current average)' : ' (about $' + (0.05 * n).toFixed(2) + ' or less, rough estimate)';
+  if (!confirm('Run Claude on the next ' + n + ' tracks' + est + '?')) return;
+  setBusy(true);
+  try {
+    const { ids } = await api({ mode: 'pending', limit: n, ...(retry ? { retry: 1 } : {}) });
+    if (!ids.length) { plog('Nothing waiting. Run Collect first.'); setBusy(false); return; }
+    plog('Enriching ' + ids.length + ' tracks…');
+    const queue = [...ids]; let ok = 0, fail = 0;
+    await Promise.all([0, 1, 2].map(async () => {
+      while (queue.length && !stopRequested) {
+        const id = queue.shift();
+        try { const r = await api({ mode: 'enrich', id }); ok++; plog('✓ #' + id + ' ' + r.metadata.title_en); }
+        catch (e) { fail++; plog('✗ #' + id + ' ' + e.message); }
+      }
+    }));
+    plog((stopRequested ? 'Stopped' : 'Done') + ': ' + ok + ' saved, ' + fail + ' failed.');
+  } catch (e) { plog('Error: ' + e.message); }
+  await refreshStats();
+  setBusy(false);
+}
+refreshStats();
 const results = {};   // id -> response json
 let tokensIn = 0, tokensOut = 0, done = 0, total = 0;
 

@@ -1,15 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Attach the human-confirmed title (if any) to each row, so the UI can show
-// it as the main heading instead of the generic "Sicha 1" label.
+// Attach a real title to each row, so the UI can show it as the main heading
+// instead of the generic "Sicha 1" label. A title a human confirmed in
+// finder.html (audio_text_links) wins over the catalogue entry Claude wrote
+// from Ashreinu's outline (track_metadata).
 async function attachConfirmedTitles(supabase, rows) {
   if (!rows.length) return;
-  const { data: links } = await supabase
-    .from('audio_text_links')
-    .select('ashreinu_event_id, title_en')
-    .in('ashreinu_event_id', rows.map(r => r.id));
-  const titleById = Object.fromEntries((links || []).filter(l => l.title_en).map(l => [l.ashreinu_event_id, l.title_en]));
-  for (const row of rows) row.confirmed_title = titleById[row.id] || null;
+  const ids = rows.map(r => r.id);
+  const [{ data: links }, { data: catalogue }] = await Promise.all([
+    supabase.from('audio_text_links').select('ashreinu_event_id, title_en').in('ashreinu_event_id', ids),
+    supabase.from('track_metadata').select('ashreinu_event_id, title_en').eq('status', 'enriched').in('ashreinu_event_id', ids),
+  ]);
+  const verified = Object.fromEntries((links || []).filter(l => l.title_en).map(l => [l.ashreinu_event_id, l.title_en]));
+  const catalogued = Object.fromEntries((catalogue || []).filter(c => c.title_en).map(c => [c.ashreinu_event_id, c.title_en]));
+  for (const row of rows) {
+    row.confirmed_title = verified[row.id] || catalogued[row.id] || null;
+    row.title_source = verified[row.id] ? 'verified' : catalogued[row.id] ? 'catalogue' : null;
+  }
 }
 
 export default async function handler(req, res) {
@@ -111,6 +118,14 @@ export default async function handler(req, res) {
       ]);
       confirmedEventIds = [...new Set([...(byText.data || []), ...(byTag.data || [])].map(r => r.ashreinu_event_id))];
     } catch (e) { /* no confirmed links yet — fine, just skip */ }
+
+    // Catalogue search: title, summary, topics, keywords and the Hebrew
+    // outline, all kept lower-cased in one search_text column.
+    try {
+      const { data: hits } = await supabase.from('track_metadata').select('ashreinu_event_id')
+        .eq('status', 'enriched').ilike('search_text', `%${safe.toLowerCase()}%`).limit(300);
+      confirmedEventIds = [...new Set([...confirmedEventIds, ...(hits || []).map(r => r.ashreinu_event_id)])];
+    } catch (e) { /* catalogue not built yet — fine, just skip */ }
 
     const clauses = [`name.ilike.%${safe}%`, `parent_name.ilike.%${safe}%`];
     if (tagFarbrengenIds.length) {
