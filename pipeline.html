@@ -58,6 +58,10 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
 .verdict button.on.good{background:var(--good);border-color:var(--good);color:#fff}
 .verdict button.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
 .verdict input{flex:1;min-width:180px;height:34px;border-radius:17px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:0 14px}
+.warn{font-size:12.5px;font-weight:600;color:var(--warn);margin-top:8px}
+.prev{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--hover);font-size:12.5px;line-height:1.5;color:var(--ink-mid)}
+.prev b{color:var(--ink)}
+.from-heading{font-size:12px;color:var(--ink-light);margin-top:4px}
 .err{color:var(--bad);font-size:13.5px;padding:16px 18px}
 .loading{color:var(--ink-light);font-size:13.5px;padding:16px 18px}
 </style>
@@ -83,6 +87,11 @@ const results = {};   // id -> response json
 let tokensIn = 0, tokensOut = 0, done = 0, total = 0;
 
 function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+// The previous run's entry for each track, so a re-run can be compared.
+function readLast() { try { return JSON.parse(localStorage.getItem('pilot-last')) || {}; } catch (e) { return {}; } }
+function saveLast(v) { try { localStorage.setItem('pilot-last', JSON.stringify(v)); } catch (e) {} }
+const previous = {}; // id -> entry from the run before this one
+
 function readVerdicts() { try { return JSON.parse(localStorage.getItem('pilot-verdicts')) || {}; } catch (e) { return {}; } }
 function saveVerdicts(v) { try { localStorage.setItem('pilot-verdicts', JSON.stringify(v)); } catch (e) {} }
 
@@ -114,6 +123,8 @@ function cardHtml(id, j) {
   const right = j.skipped ? '<div class="col"><div class="label">Skipped</div><p class="sum">' + esc(j.skipped) + '</p></div>'
     : '<div class="col"><div class="label">Claude\'s catalogue entry</div>'
       + '<div class="t-en">' + esc(m.title_en) + '</div><div class="t-he">' + esc(m.title_he) + '</div>'
+      + (j.heading ? '<div class="from-heading">From the outline\'s heading: <span dir="rtl">' + esc(j.heading) + '</span></div>' : '')
+      + (j.warnings || []).map(w => '<div class="warn">⚠ ' + esc(w) + '</div>').join('')
       + '<p class="sum">' + esc(m.summary_en) + '</p>'
       + (m.key_points.length ? '<ul class="kp">' + m.key_points.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul>' : '')
       + '<div class="chips">' + m.topics.map(t => '<span class="chip">' + esc(t) + '</span>').join('')
@@ -121,6 +132,8 @@ function cardHtml(id, j) {
         + m.occasions.map(t => '<span class="chip occ">' + esc(t) + '</span>').join('') + '</div>'
       + (m.sources.length ? '<div class="meta-line"><b>Sources:</b> ' + esc(m.sources.join('; ')) + '</div>' : '')
       + '<div class="meta-line">Confidence: <b class="conf-' + m.confidence + '">' + m.confidence + '</b>, ' + esc(m.confidence_reason) + '</div>'
+      + (previous[id] && previous[id].title_en !== m.title_en
+          ? '<div class="prev"><b>Previous run:</b> ' + esc(previous[id].title_en) + '<br>' + esc(previous[id].summary_en) + '</div>' : '')
       + '<div class="meta-line">' + (j.usage ? j.usage.input_tokens.toLocaleString() + ' in / ' + j.usage.output_tokens.toLocaleString() + ' out tokens · ' + esc(j.model) : '') + '</div>'
     + '</div>';
   const v = readVerdicts()[id] || {};
@@ -146,6 +159,12 @@ async function runOne(id) {
     const text = await r.text();
     let j; try { j = JSON.parse(text); } catch (e) { j = { error: 'Server error: ' + text.slice(0, 120) }; }
     results[id] = j;
+    if (j.metadata) {
+      const last = readLast();
+      if (last[id]) previous[id] = last[id];
+      last[id] = { title_en: j.metadata.title_en, summary_en: j.metadata.summary_en };
+      saveLast(last);
+    }
     if (j.usage) { tokensIn += j.usage.input_tokens || 0; tokensOut += j.usage.output_tokens || 0; }
   } catch (e) { results[id] = { error: e.message }; }
   done++; renderCard(id); renderStats();
