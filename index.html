@@ -539,18 +539,19 @@ let debounceTimer = null;
 
 // ── Curated collections: named occasions mapped to their real Hebrew date(s).
 // Multi-day chagim list every day; some (like Chanukah) cross a month boundary.
+// Month numbers follow Ashreinu's 13-month scheme (see HEBCAL_MONTH_MAP).
 const COLLECTIONS = [
   { name: "Yud-Tes Kislev", sub: "19 Kislev", dates: [[3,19]] },
   { name: "Chanukah", sub: "25 Kislev – 3 Tevet", dates: [[3,25],[3,26],[3,27],[3,28],[3,29],[3,30],[4,1],[4,2],[4,3]] },
   { name: "Yud Shevat", sub: "10 Shevat", dates: [[5,10]] },
-  { name: "Purim", sub: "14 Adar", dates: [[6,14]] },
-  { name: "Erev Pesach", sub: "14 Nissan", dates: [[7,14]] },
-  { name: "Pesach", sub: "15–22 Nissan", dates: [[7,15],[7,16],[7,17],[7,18],[7,19],[7,20],[7,21],[7,22]] },
-  { name: "Lag BaOmer", sub: "18 Iyar", dates: [[8,18]] },
-  { name: "Erev Shavuos", sub: "5 Sivan", dates: [[9,5]] },
-  { name: "Shavuos", sub: "6–7 Sivan", dates: [[9,6],[9,7]] },
-  { name: "Yud-Beis Tammuz", sub: "12 Tammuz", dates: [[10,12]] },
-  { name: "Erev Rosh Hashanah", sub: "29 Elul", dates: [[12,29]] },
+  { name: "Purim", sub: "14 Adar", dates: [[7,14]] },
+  { name: "Erev Pesach", sub: "14 Nissan", dates: [[8,14]] },
+  { name: "Pesach", sub: "15–22 Nissan", dates: [[8,15],[8,16],[8,17],[8,18],[8,19],[8,20],[8,21],[8,22]] },
+  { name: "Lag BaOmer", sub: "18 Iyar", dates: [[9,18]] },
+  { name: "Erev Shavuos", sub: "5 Sivan", dates: [[10,5]] },
+  { name: "Shavuos", sub: "6–7 Sivan", dates: [[10,6],[10,7]] },
+  { name: "Yud-Beis Tammuz", sub: "12 Tammuz", dates: [[11,12]] },
+  { name: "Erev Rosh Hashanah", sub: "29 Elul", dates: [[13,29]] },
   { name: "Rosh Hashanah", sub: "1–2 Tishrei", dates: [[1,1],[1,2]] },
   { name: "Yom Kippur", sub: "10 Tishrei", dates: [[1,10]] },
   { name: "Erev Sukkos", sub: "14 Tishrei", dates: [[1,14]] },
@@ -764,10 +765,13 @@ async function search() {
 }
 
 // ── Hebrew calendar awareness ──
+// Ashreinu numbers months 1–13 and always reserves 6 for Adar I, even in
+// non-leap years: plain Adar (and Adar II) is 7, Nissan 8 ... Elul 13.
+// Verified against real Ashreinu events (e.g. 12 Nissan 5747 → month 8).
 const HEBCAL_MONTH_MAP = {
   'Tishrei':1,'Cheshvan':2,'Kislev':3,'Tevet':4,"Sh'vat":5,'Shevat':5,
-  'Adar':6,'Adar I':6,'Adar II':6,'Nisan':7,'Nissan':7,'Iyyar':8,'Iyar':8,
-  'Sivan':9,'Tamuz':10,'Tammuz':10,'Av':11,'Elul':12
+  'Adar I':6,'Adar':7,'Adar II':7,'Nisan':8,'Nissan':8,'Iyyar':9,'Iyar':9,
+  'Sivan':10,'Tamuz':11,'Tammuz':11,'Av':12,'Elul':13
 };
 let todayHebrew = null; // { year, month, day, monthName, displayStr }
 
@@ -828,7 +832,7 @@ function getUpcomingCollections(count) {
     .map(c => {
       const startOrd = approxOrdinal(c.dates[0][0], c.dates[0][1]);
       let diff = startOrd - todayOrd;
-      if (diff < 0) diff += 360; // wrap forward into next year
+      if (diff < 0) diff += 13 * 30; // wrap forward into next year (13-month numbering)
       return { ...c, diff };
     })
     .sort((a, b) => a.diff - b.diff)
