@@ -44,7 +44,9 @@ h1{font-size:24px;font-weight:800;letter-spacing:-.02em}
 details{margin-top:12px}
 summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-mid)}
 .t-en{font-size:20px;font-weight:800;letter-spacing:-.015em;line-height:1.25}
-.t-he{font-family:'David Libre',serif;direction:rtl;font-size:17px;color:var(--ink-mid);margin-top:4px}
+.t-he{font-size:12px;color:var(--ink-light);margin-top:6px}
+.t-he span{font-family:'David Libre',serif;font-size:14.5px;color:var(--ink-mid)}
+.chip.kw{background:none;border:1px solid var(--border);color:var(--ink-mid);font-weight:500}
 .sum{font-size:14.5px;line-height:1.6;color:var(--ink-mid);margin-top:10px}
 ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -122,7 +124,7 @@ function cardHtml(id, j) {
     + '</div>';
   const right = j.skipped ? '<div class="col"><div class="label">Skipped</div><p class="sum">' + esc(j.skipped) + '</p></div>'
     : '<div class="col"><div class="label">Claude\'s catalogue entry</div>'
-      + '<div class="t-en">' + esc(m.title_en) + '</div><div class="t-he">' + esc(m.title_he) + '</div>'
+      + '<div class="t-en">' + esc(m.title_en) + '</div><div class="t-he">Hebrew heading: <span dir="rtl">' + esc(m.title_he) + '</span></div>'
       + (j.heading ? '<div class="from-heading">From the outline\'s heading: <span dir="rtl">' + esc(j.heading) + '</span></div>' : '')
       + (j.warnings || []).map(w => '<div class="warn">⚠ ' + esc(w) + '</div>').join('')
       + '<p class="sum">' + esc(m.summary_en) + '</p>'
@@ -130,6 +132,7 @@ function cardHtml(id, j) {
       + '<div class="chips">' + m.topics.map(t => '<span class="chip">' + esc(t) + '</span>').join('')
         + m.suggested_new_topics.map(t => '<span class="chip new" title="Suggested new topic">+ ' + esc(t) + '</span>').join('')
         + m.occasions.map(t => '<span class="chip occ">' + esc(t) + '</span>').join('') + '</div>'
+      + ((m.keywords || []).length ? '<div class="label" style="margin-top:12px">Search keywords</div><div class="chips" style="margin-top:4px">' + m.keywords.map(k => '<span class="chip kw">' + esc(k) + '</span>').join('') + '</div>' : '')
       + (m.sources.length ? '<div class="meta-line"><b>Sources:</b> ' + esc(m.sources.join('; ')) + '</div>' : '')
       + '<div class="meta-line">Confidence: <b class="conf-' + m.confidence + '">' + m.confidence + '</b>, ' + esc(m.confidence_reason) + '</div>'
       + (previous[id] && previous[id].title_en !== m.title_en
