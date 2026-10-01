@@ -41,37 +41,6 @@
 html{scroll-behavior:smooth;transition:background-color .2s}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:96px;-webkit-font-smoothing:antialiased;transition:background-color .2s,color .2s}
 
-/* ═══ Header ═══ */
-header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 28px 22px;position:sticky;top:0;z-index:20;box-shadow:var(--shadow-lg)}
-.header-inner{max-width:720px;margin:0 auto}
-.wordmark{display:flex;align-items:center;gap:12px;transition:opacity .15s}
-.wordmark:hover{opacity:0.8}
-.wordmark:hover .wordmark-icon{transform:scale(1.05)}
-.wordmark-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#c9962f,#8a6420);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.3);transition:transform .15s}
-
-/* ═══ Header top row + Browse menu ═══ */
-.header-top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
-.browse-menu-wrap{position:relative}
-.browse-menu-btn{
-  display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#e8ddc8;
-  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:9px;
-  padding:8px 14px;cursor:pointer;transition:all .15s;
-}
-.browse-menu-btn:hover{background:rgba(255,255,255,0.1)}
-.browse-menu-btn svg{width:15px;height:15px}
-.browse-menu-dropdown{
-  position:absolute;top:calc(100% + 8px);left:0;background:var(--surface);border-radius:12px;
-  box-shadow:var(--shadow-lg);border:1px solid var(--border);min-width:220px;padding:8px;z-index:50;
-  display:none;
-}
-.browse-menu-dropdown.open{display:block}
-.browse-menu-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;
-  font-size:13.5px;color:var(--ink-mid);transition:background .15s;
-}
-.browse-menu-item:hover{background:var(--bg);color:var(--ink)}
-.browse-menu-item svg{width:16px;height:16px;flex-shrink:0;color:var(--gold-dim)}
-
 /* ═══ Bottom sheets (shared mechanic: Now Playing + Browse) ═══ */
 .sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:39;display:none}
 .sheet-backdrop.open{display:block}
@@ -108,53 +77,6 @@ header{background:linear-gradient(180deg,#161310 0%,#1e1a15 100%);padding:32px 2
 .browse-prompt-text strong{display:block;font-family:'Inter',sans-serif;font-size:16px;color:var(--ink);margin-bottom:3px}
 .browse-prompt-text span{font-size:12.5px;color:var(--ink-light)}
 .browse-prompt svg{width:20px;height:20px;color:var(--gold-dim);flex-shrink:0}
-.wordmark-icon svg{width:16px;height:16px;color:#1a1408}
-.wordmark-text h1{font-family:'Inter',sans-serif;font-weight:600;font-size:22px;color:#f3e9d2;letter-spacing:0.005em;line-height:1}
-.wordmark-text span{font-size:10px;color:#8a8270;text-transform:uppercase;letter-spacing:0.14em;font-weight:600;display:block;margin-top:3px}
-
-.search-box{position:relative}
-.search-box input{
-  width:100%;font-family:'Inter',sans-serif;font-size:16px;padding:15px 48px 15px 18px;
-  border:1px solid rgba(255,255,255,0.08);border-radius:11px;background:rgba(255,255,255,0.06);
-  color:#f3ede0;outline:none;transition:all .18s;
-}
-.search-box input::placeholder{color:#7a7364}
-.search-box input:focus{background:rgba(255,255,255,0.1);border-color:rgba(201,150,47,0.5);box-shadow:0 0 0 3px rgba(201,150,47,0.12)}
-.search-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);color:#8a8270;pointer-events:none}
-.search-icon svg{width:18px;height:18px;display:block}
-.search-icon.loading svg{animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* ═══ Filter row ═══ */
-.filter-row{display:flex;gap:10px;margin-top:16px;align-items:center;flex-wrap:wrap}
-.segmented{display:inline-flex;background:rgba(255,255,255,0.06);border-radius:9px;padding:3px;gap:2px}
-.seg-btn{
-  font-family:inherit;font-size:12.5px;font-weight:500;padding:7px 13px;border-radius:7px;
-  border:none;background:none;color:#a39a86;cursor:pointer;transition:all .15s;white-space:nowrap;
-}
-.seg-btn:hover{color:#e8ddc8}
-.seg-btn.active{background:#c9962f;color:#211705;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
-
-.mini-field{display:flex;align-items:center;background:rgba(255,255,255,0.06);border-radius:9px;overflow:hidden;border:1px solid transparent;transition:border-color .15s}
-.mini-field:focus-within{border-color:rgba(201,150,47,0.4)}
-.mini-field input, .mini-field select{
-  background:none;border:none;color:#e8ddc8;font-family:inherit;font-size:12.5px;font-weight:500;
-  padding:8px 12px;outline:none;cursor:pointer;
-}
-.mini-field input{width:64px;cursor:text}
-.mini-field input::placeholder{color:#7a7364}
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-input[type=number]{-moz-appearance:textfield}
-.mini-field select{appearance:none;-webkit-appearance:none;padding-right:28px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7364' stroke-width='1.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 10px center;
-}
-
-/* ═══ Body ═══ */
-.wrap{max-width:720px;margin:0 auto;padding:26px 28px}
-#rmeta{font-size:13px;color:var(--ink-light);margin-bottom:16px;min-height:20px;display:flex;align-items:center;gap:7px;font-weight:500}
-
 /* ═══ Landing ═══ */
 .landing{padding:70px 8px 30px;text-align:center}
 .landing-mark{width:52px;height:52px;margin:0 auto 22px;border-radius:14px;background:linear-gradient(135deg,#e9dcb8,#c9962f22);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
@@ -168,74 +90,6 @@ input[type=number]{-moz-appearance:textfield}
 }
 .example-pill:hover{border-color:var(--gold);color:var(--gold-dim);box-shadow:var(--shadow-md);transform:translateY(-1px)}
 
-/* ═══ Skeleton ═══ */
-.skel-card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);padding:18px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
-.skel-line{height:12px;border-radius:4px;background:linear-gradient(90deg,var(--border-soft) 25%,var(--border) 50%,var(--border-soft) 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
-@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
-.skel-line.title{width:58%;height:17px;margin-bottom:11px}
-.skel-line.meta{width:32%}
-
-/* ═══ Result cards ═══ */
-.results-list{display:flex;flex-direction:column;gap:9px}
-.card{
-  background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius);
-  padding:17px 19px;margin-bottom:10px;transition:all .16s;box-shadow:var(--shadow-sm);
-}
-.card:hover{border-color:var(--border);box-shadow:var(--shadow-md);transform:translateY(-1px)}
-.card.playing{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),var(--shadow-md);background:var(--gold-bg)}
-
-.ctop{display:flex;align-items:flex-start;gap:12px}
-.type-badge{
-  flex-shrink:0;margin-top:3px;width:8px;height:8px;border-radius:50%;position:relative;
-}
-.type-badge::after{content:'';position:absolute;inset:-4px;border-radius:50%;background:currentColor;opacity:0.15}
-.dot-sicha{background:var(--sicha);color:var(--sicha)}
-.dot-maamar{background:var(--maamar);color:var(--maamar)}
-.dot-farb{background:var(--farb);color:var(--farb)}
-.dot-niggun{background:var(--niggun);color:var(--niggun)}
-.dot-other{background:var(--ink-faint);color:var(--ink-faint)}
-
-.card-body{flex:1;min-width:0}
-.card-toprow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.cname{
-  font-family:'Inter',sans-serif;font-size:17.5px;font-weight:600;color:var(--ink);
-  text-decoration:none;line-height:1.4;display:block;letter-spacing:-0.005em;
-}
-.cname-playable{cursor:pointer}
-.cname:hover{color:var(--gold-dim)}
-.ctype-label{
-  font-size:10px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.08em;font-weight:700;
-  flex-shrink:0;white-space:nowrap;margin-top:5px;padding:3px 9px;background:var(--bg);border-radius:20px;
-}
-
-.csub{font-size:11px;color:var(--ink-light);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-top:2px}
-.cpar{font-family:'Inter',sans-serif;font-size:13px;color:var(--ink-light);margin-top:3px}
-.cpar span{color:var(--ink-mid)}
-
-.cmeta-row{display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}
-.cmeta-item{font-size:12px;color:var(--ink-light);display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
-.cmeta-item svg{width:12px;height:12px;opacity:0.7}
-
-.action-row{display:flex;align-items:center;gap:16px;margin-left:auto}
-.play-toggle{
-  display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
-  color:var(--gold-dim);cursor:pointer;user-select:none;padding:5px 0;transition:color .15s;
-}
-.play-toggle svg{width:13px;height:13px;flex-shrink:0}
-.play-toggle:hover{color:var(--gold)}
-
-.olink{color:var(--ink-light);text-decoration:none;font-weight:500;font-size:12.5px;display:inline-flex;align-items:center;gap:4px;transition:color .15s}
-.olink svg{width:11px;height:11px}
-.olink:hover{color:var(--gold-dim)}
-
-.read-toggle{
-  display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
-  color:#2e7d4f;cursor:pointer;user-select:none;padding:5px 0;transition:color .15s;
-}
-.read-toggle svg{width:13px;height:13px;flex-shrink:0}
-.read-toggle:hover{color:#1f5e3a}
-.read-panel{display:none;margin-top:14px;border-top:1px solid var(--border-soft);padding-top:14px}
-.read-panel.open{display:block}
 .read-seg{background:var(--bg);border-radius:10px;padding:14px 16px;margin-bottom:10px}
 .read-seg h5{font-family:'Inter',sans-serif;font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
 .read-seg .rsummary{font-size:12.5px;color:var(--ink-mid);margin-bottom:8px;line-height:1.6}
@@ -259,22 +113,7 @@ input[type=number]{-moz-appearance:textfield}
 .read-expand:hover{color:var(--gold-dim)}
 .read-empty{font-size:13px;color:var(--ink-light);font-style:italic;padding:8px 0}
 
-/* ═══ Group-by-farbrengen results ═══ */
-.farb-group{margin-bottom:18px}
-.farb-group-head{
-  display:flex;align-items:baseline;gap:10px;padding:10px 4px;margin-bottom:6px;
-  border-bottom:1px solid var(--border);cursor:pointer;
-}
-.farb-group-head h4{font-family:'Inter',sans-serif;font-weight:600;font-size:16px;color:var(--ink)}
-.farb-group-head .fg-date{font-size:12px;color:var(--ink-light)}
-.farb-group-head .fg-count{font-size:11.5px;color:var(--ink-light);margin-left:auto}
-.farb-group-items{display:flex;flex-direction:column;gap:8px}
-
 .empty{color:var(--ink-light);font-size:14.5px;line-height:1.9;padding:60px 0;text-align:center;font-family:'Inter',sans-serif}
-
-/* ═══ Today's date strip ═══ */
-.today-strip{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#a39a86;margin-top:2px}
-.today-strip strong{color:#e8ddc8;font-weight:600}
 
 /* ═══ Homepage sections ═══ */
 .home-section{margin-bottom:34px}
@@ -319,6 +158,129 @@ input[type=number]{-moz-appearance:textfield}
 
 .filters-row-wrap{display:none}
 .filters-row-wrap.active{display:flex}
+
+/* ═══ App header — same surface as the page; a shadow appears once you scroll ═══ */
+header{position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;transition:box-shadow .2s}
+header.scrolled{box-shadow:0 1px 0 var(--border-soft),0 8px 24px rgba(0,0,0,.18)}
+.header-inner{max-width:720px;margin:0 auto}
+.appbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.wordmark{display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0;-webkit-tap-highlight-color:transparent}
+.wordmark-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(140deg,#e2b456,#8a6420);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.wordmark-icon svg{width:19px;height:19px;color:#1a1408}
+.wordmark-text{min-width:0}
+.wordmark-text h1{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);line-height:1.15}
+.wordmark-text span{font-size:12.5px;color:var(--ink-light);font-weight:500;display:block;white-space:nowrap}
+.appbar-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.appbar-actions .icon-btn{width:40px;height:40px}
+.browse-btn{
+  display:flex;align-items:center;gap:7px;height:40px;padding:0 15px 0 12px;border-radius:20px;border:none;
+  background:var(--hover);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s;
+}
+.browse-btn:hover{background:var(--track)}
+.browse-btn svg{width:18px;height:18px}
+
+/* ═══ Search — a pill, icon on the left, clear button on the right ═══ */
+.search-box{
+  position:relative;display:flex;align-items:center;height:50px;background:var(--elevated);border-radius:25px;
+  border:1.5px solid var(--border-soft);transition:border-color .15s,box-shadow .15s;
+}
+.search-box:focus-within{border-color:var(--gold);box-shadow:0 0 0 4px rgba(217,166,63,.14)}
+.search-icon{display:flex;padding:0 8px 0 17px;color:var(--ink-light);flex-shrink:0}
+.search-icon svg{width:20px;height:20px}
+.search-icon.loading svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.search-box input{flex:1;min-width:0;height:100%;border:none;background:none;outline:none;color:var(--ink);font:inherit;font-size:16px;padding:0 4px}
+.search-box input::placeholder{color:var(--ink-light)}
+.search-box input::-webkit-search-cancel-button{display:none}
+.search-box .search-clear{display:none;margin-right:5px;width:38px;height:38px}
+.search-box.has-text .search-clear{display:flex}
+
+/* ═══ Filter chips — one swipeable row, never wraps ═══ */
+.chips{gap:8px;margin:12px -16px 0;padding:0 16px 2px;overflow-x:auto;scrollbar-width:none;align-items:center}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex-shrink:0;height:34px;padding:0 15px;border-radius:17px;border:none;background:var(--hover);color:var(--ink);
+  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;white-space:nowrap;
+  transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;
+}
+.chip:hover{background:var(--track)}
+.chip.active{background:var(--gold);color:#1a1408}
+.chip-divider{width:1px;height:20px;background:var(--border);flex-shrink:0}
+.chip-select{padding:0;position:relative}
+.chip-select select{
+  appearance:none;-webkit-appearance:none;background:none;border:none;color:inherit;font:inherit;
+  height:100%;padding:0 32px 0 15px;cursor:pointer;outline:none;
+}
+.chip-select select option{background:var(--surface);color:var(--ink)}
+.chip-select::after{
+  content:'';position:absolute;right:14px;top:50%;width:6px;height:6px;pointer-events:none;opacity:.75;
+  border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-70%) rotate(45deg);
+}
+
+/* ═══ Results — a farbrengen is an "album", its sichos/niggunim are tracks ═══ */
+.wrap{max-width:720px;margin:0 auto;padding:12px 16px 24px}
+#rmeta{font-size:13px;color:var(--ink-light);margin:4px 0 14px;font-weight:500;min-height:18px}
+.album{margin-bottom:30px}
+.album-head{display:flex;align-items:center;gap:14px}
+.album-cover{width:72px;height:72px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.album-info{flex:1;min-width:0}
+.album-kicker{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
+.album-title{font-size:18px;font-weight:700;color:var(--ink);line-height:1.25;letter-spacing:-.015em;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.album-sub{font-size:13px;color:var(--ink-light);margin-top:3px}
+.album-actions{display:flex;align-items:center;gap:2px;margin:10px 0 6px}
+.album-actions .icon-btn{color:var(--ink-light)}
+.album-actions .icon-btn:hover,.album-actions .icon-btn.on{color:var(--ink)}
+.album-actions .spacer{flex:1}
+.play-all{
+  width:50px;height:50px;border-radius:50%;background:var(--gold);color:#1a1408;border:none;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25);transition:transform .12s;
+}
+.play-all:active{transform:scale(.92)}
+.play-all svg{width:22px;height:22px}
+.show-tracks{
+  display:block;margin:6px 0 0;padding:10px 0;background:none;border:none;color:var(--ink-mid);
+  font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+}
+.show-tracks:hover{color:var(--ink)}
+
+.track{
+  display:flex;align-items:center;gap:12px;padding:7px 8px;margin:0 -8px;border-radius:10px;cursor:pointer;
+  transition:background .15s;-webkit-tap-highlight-color:transparent;
+}
+.track:hover{background:var(--hover)}
+.track.no-audio{cursor:default}
+.track.no-audio:hover{background:none}
+.track-cover{width:46px;height:46px;border-radius:7px}
+.track-info{flex:1;min-width:0}
+.track-title{font-size:15px;font-weight:600;color:var(--ink);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.track-sub{font-size:13px;color:var(--ink-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track.playing .track-title{color:var(--gold)}
+.track .icon-btn{color:var(--ink-light)}
+.track .icon-btn.on{color:var(--gold)}
+.loose{margin-bottom:6px}
+
+/* Animated equalizer replaces the cover icon on the track that's playing */
+.eq{display:none;gap:3px;align-items:flex-end;height:18px}
+.eq i{width:3px;height:6px;background:#fff;border-radius:1px;animation:eq 1s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:-.45s}
+.eq i:nth-child(3){animation-delay:-.75s}
+@keyframes eq{0%,100%{height:5px}50%{height:18px}}
+.track.playing .cover svg{display:none}
+.track.playing .eq{display:flex}
+body.audio-paused .eq i{animation-play-state:paused}
+
+.read-panel{display:none;margin:4px 0 12px}
+.read-panel.open{display:block}
+
+/* ═══ Skeleton rows while loading ═══ */
+.skel-row{display:flex;align-items:center;gap:12px;padding:7px 0}
+.skel-cover{width:46px;height:46px;border-radius:7px;flex-shrink:0}
+.skel-lines{flex:1}
+.skel-cover,.skel-line{background:linear-gradient(90deg,var(--hover) 25%,var(--track) 50%,var(--hover) 75%);background-size:800px 100%;animation:shimmer 1.3s infinite}
+.skel-line{height:12px;border-radius:4px}
+.skel-line.title{width:62%;height:14px;margin-bottom:8px}
+.skel-line.meta{width:34%}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
 
 /* ═══ Type "covers" — a colored tile per content type stands in for album art ═══ */
 .cover{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
@@ -404,67 +366,56 @@ input[type=number]{-moz-appearance:textfield}
 .np-text-card{background:var(--surface);border-radius:16px;padding:18px 18px 8px;margin-top:32px}
 .np-text-label{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px}
 
-@media (max-width:520px){
-  header{padding:24px 18px 18px}
-  .wrap{padding:20px 18px}
-  .cname{font-size:16.5px}
-  .filter-row{gap:8px}
-}
 </style>
 </head>
 <body>
 
-<header>
+<header id="appHeader">
   <div class="header-inner">
-    <div class="header-top-row">
-      <div class="wordmark" onclick="goHome()" style="cursor:pointer" title="Back to home">
+    <div class="appbar">
+      <div class="wordmark" onclick="goHome()" title="Back to home">
         <div class="wordmark-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
         </div>
         <div class="wordmark-text">
           <h1>Ashreinu</h1>
-          <span>Archive Search</span>
+          <span id="todayStrip">Archive Search</span>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="browse-menu-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark" style="padding:8px">
+      <div class="appbar-actions">
+        <button class="icon-btn sm" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Switch light or dark mode" title="Light / dark">
           <svg id="themeIconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
           <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
         </button>
-        <div class="browse-menu-wrap">
-        <button class="browse-menu-btn" onclick="openBrowseSheet()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <button class="browse-btn" onclick="openBrowseSheet()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           Browse
         </button>
       </div>
-      </div>
     </div>
-    <div class="today-strip" id="todayStrip"></div>
-    <div class="search-box">
-      <input type="text" id="q" placeholder="Search by title or tag — e.g. teshuva, geulah, 19 Kislev…" autocomplete="off" />
-      <div class="search-icon" id="searchIcon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </div>
+    <div class="search-box" id="searchBox">
+      <span class="search-icon" id="searchIcon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input type="search" id="q" placeholder="Search sichos, topics, dates…" autocomplete="off" enterkeyhint="search" />
+      <button class="icon-btn sm search-clear" onclick="clearSearch()" aria-label="Clear search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
-    <div class="filter-row filters-row-wrap" id="filterRow">
-      <div class="segmented">
-        <button class="seg-btn active" data-type="" onclick="setType('',this)">All</button>
-        <button class="seg-btn" data-type="sicha" onclick="setType('sicha',this)">Sicha</button>
-        <button class="seg-btn" data-type="maamar" onclick="setType('maamar',this)">Ma'amar</button>
-        <button class="seg-btn" data-type="nigun" onclick="setType('nigun',this)">Nigun</button>
-      </div>
-      <div class="mini-field">
-        <input type="number" id="yf" placeholder="Year" oninput="debouncedSearch()" />
-      </div>
-      <div class="mini-field">
-        <select id="mf" onchange="search()">
-          <option value="">Month</option>
-          <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
-          <option>Tevet</option><option>Shevat</option><option>Adar</option>
-          <option>Nissan</option><option>Iyar</option><option>Sivan</option>
-          <option>Tammuz</option><option>Av</option><option>Elul</option>
-        </select>
-      </div>
+    <div class="chips filters-row-wrap" id="filterRow">
+      <button class="chip active" data-type="" onclick="setType('',this)">All</button>
+      <button class="chip" data-type="sicha" onclick="setType('sicha',this)">Sichos</button>
+      <button class="chip" data-type="maamar" onclick="setType('maamar',this)">Ma'amarim</button>
+      <button class="chip" data-type="nigun" onclick="setType('nigun',this)">Niggunim</button>
+      <span class="chip-divider"></span>
+      <label class="chip chip-select" id="yearChip"><select id="yf" onchange="search()" aria-label="Year"><option value="">Year</option></select></label>
+      <label class="chip chip-select" id="monthChip"><select id="mf" onchange="search()" aria-label="Month">
+        <option value="">Month</option>
+        <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
+        <option>Tevet</option><option>Shevat</option><option>Adar</option>
+        <option>Nissan</option><option>Iyar</option><option>Sivan</option>
+        <option>Tammuz</option><option>Av</option><option>Elul</option>
+      </select></label>
     </div>
   </div>
 </header>
@@ -736,16 +687,17 @@ function goHome() {
   document.getElementById('q').value = '';
   document.getElementById('yf').value = '';
   document.getElementById('mf').value = '';
-  document.querySelectorAll('.seg-btn').forEach(el => el.classList.remove('active'));
-  document.querySelector('.seg-btn[data-type=""]')?.classList.add('active');
+  document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
+  document.querySelector('.chip[data-type=""]')?.classList.add('active');
   document.getElementById('filterRow').classList.remove('active');
+  syncSearchClear(); syncFilterChips();
   showLanding();
 }
 
 function setType(t, el) {
   currentType = t;
   currentDates = null;
-  document.querySelectorAll('.seg-btn').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   search();
 }
@@ -761,6 +713,7 @@ function debouncedSearch() {
 
 let searchToken = 0;
 async function search() {
+  syncSearchClear();
   const q  = document.getElementById('q').value.trim();
   const yf = document.getElementById('yf').value;
   const mf = document.getElementById('mf').value;
@@ -771,6 +724,7 @@ async function search() {
     return;
   }
   document.getElementById('filterRow').classList.add('active');
+  syncFilterChips();
 
   const myToken = ++searchToken;
   document.getElementById('searchIcon').classList.add('loading');
@@ -813,7 +767,7 @@ async function search() {
 const HEBCAL_MONTH_MAP = {
   'Tishrei':1,'Cheshvan':2,'Kislev':3,'Tevet':4,"Sh'vat":5,'Shevat':5,
   'Adar':6,'Adar I':6,'Adar II':6,'Nisan':7,'Nissan':7,'Iyyar':8,'Iyar':8,
-  'Sivan':9,'Tamuz':10,'Tammuz':11,'Av':11,'Elul':12
+  'Sivan':9,'Tamuz':10,'Tammuz':10,'Av':11,'Elul':12
 };
 let todayHebrew = null; // { year, month, day, monthName, displayStr }
 
@@ -825,11 +779,8 @@ async function loadTodayHebrewDate() {
     const j = await r.json();
     const monthNum = HEBCAL_MONTH_MAP[j.hm] || null;
     todayHebrew = { year: j.hy, month: monthNum, day: j.hd, monthName: j.hm };
-    document.getElementById('todayStrip').innerHTML =
-      '<span>Today: <strong>' + esc(j.hd) + ' ' + esc(j.hm) + ' ' + esc(j.hy) + '</strong></span>';
-  } catch (e) {
-    document.getElementById('todayStrip').textContent = '';
-  }
+    document.getElementById('todayStrip').textContent = j.hd + ' ' + j.hm + ' ' + j.hy;
+  } catch (e) { /* keep the default "Archive Search" subtitle */ }
 }
 
 const MONTH_LIST = ['Tishrei','Cheshvan','Kislev','Tevet','Shevat','Adar','Nissan','Iyar','Sivan','Tammuz','Av','Elul'];
@@ -842,8 +793,8 @@ function browseByMonth(monthName) {
 function browseByType(type) {
   currentDates = null;
   currentType = type;
-  document.querySelectorAll('.seg-btn').forEach(c => c.classList.remove('active'));
-  document.querySelector('.seg-btn[data-type="'+type+'"]')?.classList.add('active');
+  document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.remove('active'));
+  document.querySelector('.chip[data-type="'+type+'"]')?.classList.add('active');
   document.getElementById('q').value = '';
   search();
 }
@@ -854,14 +805,14 @@ function browseByCollection(idx) {
   document.getElementById('q').value = '';
   document.getElementById('yf').value = '';
   document.getElementById('mf').value = '';
-  document.querySelectorAll('.seg-btn').forEach(el => el.classList.remove('active'));
-  document.querySelector('.seg-btn[data-type=""]')?.classList.add('active');
+  document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
+  document.querySelector('.chip[data-type=""]')?.classList.add('active');
   document.getElementById('rmeta').dataset.collectionName = c.name;
   search();
 }
 function browseByYear(year) {
   currentDates = null;
-  document.getElementById('yf').value = year;
+  setYearFilter(year);
   search();
 }
 
@@ -945,75 +896,100 @@ async function loadOnThisDay() {
 }
 
 function quickSearchYear(year) {
-  document.getElementById('yf').value = year;
+  setYearFilter(year);
   document.getElementById('q').value = todayHebrew.monthName;
   search();
 }
 
 function showSkeletons() {
   let html = '';
-  for (let i = 0; i < 5; i++) {
-    html += '<div class="skel-card"><div class="skel-line title"></div><div class="skel-line meta"></div></div>';
+  for (let i = 0; i < 7; i++) {
+    html += '<div class="skel-row"><div class="skel-cover"></div><div class="skel-lines"><div class="skel-line title"></div><div class="skel-line meta"></div></div></div>';
   }
   document.getElementById('res').innerHTML = html;
 }
 
-// Track full row data by id so playTrack/openNowPlaying can pull rich
-// metadata (parent name, date, type) without re-parsing the DOM.
+// Track full row data by id so the player can pull rich metadata
+// (parent name, date, type) without re-parsing the DOM.
 const rowsById = {};
-let currentOrder = []; // rids with audio, in the order they appear — powers next/prev
+let currentOrder = []; // playable track ids, top to bottom as shown — powers next/prev
+
+// The play queue is simply every playable row on screen, in order. Rebuilt
+// after anything changes what's on screen (new results, "show all tracks").
+function rebuildOrder() {
+  currentOrder = [...document.querySelectorAll('.track[data-playable]')].map(el => el.dataset.rid);
+}
 
 // A human-confirmed title (from audio_text_links) beats Ashreinu's generic
-// label like "Sicha 1" — which then gets demoted to a small subheader.
+// label like "Sicha 1" — which then gets demoted to the subtitle.
 function trackTitle(row) { return row.confirmed_title || row.name || '(untitled)'; }
+function hebDate(row) { return row.hebrew_day ? row.hebrew_day + ' ' + row.hebrew_month_name + ' ' + row.hebrew_year : ''; }
 
-function cardHtml(row) {
-  const d = row.duration_ms;
-  const lbl = typeLabel(row.type);
-  const audioUrl = getAudioUrl(row);
+const ICON_BOOK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>';
+const ICON_EXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
+// One track row. `loose` = shown on its own (not under its farbrengen), so
+// the subtitle has to carry the farbrengen name and date itself.
+function trackRowHtml(row, loose) {
   const rid = String(row.id);
-  const link = lnk(row);
-  const titleAttr = esc(trackTitle(row)).replace(/'/g,"\\'");
-  const farbrengenId = row.parent_id || row.id;
   rowsById[rid] = row;
-  if (audioUrl) currentOrder.push(rid);
+  const playable = !!getAudioUrl(row);
+  const farbrengenId = row.parent_id || row.id;
+  const label = row.confirmed_title ? row.name : typeLabel(row.type);
+  const sub = loose
+    ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
+    : [label, dur(row.duration_ms)];
+  const isNigun = typeKey(row.type) === 'niggun';
+  return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + '" id="card-' + rid + '" data-rid="' + rid + '"'
+      + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
+      + '<div class="track-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, false) + '<span class="eq"><i></i><i></i><i></i></span></div>'
+      + '<div class="track-info">'
+        + '<div class="track-title">' + esc(trackTitle(row)) + '</div>'
+        + '<div class="track-sub">' + esc(sub.filter(Boolean).join(' · ')) + '</div>'
+      + '</div>'
+      + (isNigun ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();toggleRead(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
+    + '</div>'
+    + '<div class="read-panel" id="readpanel-' + rid + '"></div>';
+}
 
-  return '<div class="card" id="card-'+rid+'">'
-    +'<div class="ctop">'
-      +'<div class="type-badge '+typeDot(row.type)+'"></div>'
-      +'<div class="card-body">'
-        +'<div class="card-toprow">'
-          +(audioUrl
-              ? '<span class="cname cname-playable" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+esc(trackTitle(row))+'</span>'
-              : '<span class="cname">'+esc(trackTitle(row))+'</span>')
-          +(lbl?'<span class="ctype-label">'+esc(lbl)+'</span>':'')
-        +'</div>'
-        +(row.confirmed_title && row.name ? '<div class="csub">'+esc(row.name)+'</div>' : '')
-        +(row.parent_name?'<div class="cpar">In <span>'+esc(row.parent_name)+'</span></div>':'')
-        +'<div class="cmeta-row">'
-          +(dstr(row)?'<span class="cmeta-item">'+calIcon+esc(dstr(row))+'</span>':'')
-          +(d?'<span class="cmeta-item">'+clockIcon+dur(d)+'</span>':'')
-          +'<div class="action-row">'
-          +(audioUrl?'<span class="play-toggle" onclick="playTrack(\''+rid+'\',\''+audioUrl+'\',\''+titleAttr+'\')">'+playIcon+'Play</span>':'')
-          +'<span class="read-toggle" id="readbtn-'+rid+'" onclick="toggleRead(\''+rid+'\','+farbrengenId+')">'+bookIcon+'Read source</span>'
-          +'<a class="olink" href="'+link+'" target="_blank">Open in Ashreinu'+extIcon+'</a>'
-          +'</div>'
-        +'</div>'
-        +'<div class="read-panel" id="readpanel-'+rid+'"></div>'
-      +'</div>'
-    +'</div>'
-  +'</div>';
+// A farbrengen rendered like an album: cover, title, date, actions, then
+// its tracks. `head` is the farbrengen's own row when the search returned it.
+function albumHtml(fid, head, tracks) {
+  if (head) rowsById[String(fid)] = head;
+  const any = head || tracks[0];
+  const title = head ? trackTitle(head) : (any.parent_name || 'Farbrengen');
+  const farbIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + TYPE_ICONS.farb + '</svg>';
+  const sub = [hebDate(any), any.secular_year ? dstr(any).split(' · ').pop() : ''].filter(Boolean).join(' · ');
+  return '<section class="album" id="album-' + fid + '">'
+    + '<div class="album-head">'
+      + '<div class="album-cover cover cover-farb">' + farbIcon + '</div>'
+      + '<div class="album-info">'
+        + '<div class="album-kicker">Farbrengen</div>'
+        + '<div class="album-title">' + esc(title) + '</div>'
+        + '<div class="album-sub">' + esc(sub) + '</div>'
+      + '</div>'
+    + '</div>'
+    + '<div class="album-actions">'
+      + '<button class="icon-btn sm" id="readbtn-' + fid + '" onclick="toggleRead(\'' + fid + '\',' + fid + ')" aria-label="Read the farbrengen\'s source text" title="Read source text">' + ICON_BOOK + '</button>'
+      + '<a class="icon-btn sm" href="https://ashreinu.app/player?parentEvent=' + fid + '" target="_blank" rel="noopener" aria-label="Open in Ashreinu" title="Open in Ashreinu">' + ICON_EXT + '</a>'
+      + '<span class="spacer"></span>'
+      + '<button class="play-all" onclick="playAlbum(' + fid + ')" aria-label="Play this farbrengen">' + ICON_PLAY + '</button>'
+    + '</div>'
+    + '<div class="read-panel" id="readpanel-' + fid + '"></div>'
+    + '<div id="album-tracks-' + fid + '">' + tracks.map(r => trackRowHtml(r, false)).join('') + '</div>'
+    + '<button class="show-tracks" id="album-more-' + fid + '" onclick="loadAlbumTracks(' + fid + ')">'
+      + (tracks.length ? 'Show the whole farbrengen' : 'Show tracks') + '</button>'
+  + '</section>';
 }
 
 function renderCards(items) {
   const el = document.getElementById('res');
-  if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; return; }
-  currentOrder = [];
+  if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; currentOrder = []; return; }
 
   // Group consecutive items that belong to the same farbrengen (results
   // already come back in chronological order, so same-farbrengen items
-  // are naturally adjacent) — shows sichos/niggunim/ma'amarim nested under
-  // their farbrengen instead of a flat list.
+  // are naturally adjacent).
   const groups = [];
   let lastKey = null;
   for (const row of items) {
@@ -1029,29 +1005,38 @@ function renderCards(items) {
   }
 
   el.innerHTML = groups.map(g => {
-    // A "group" of just one plain item (no clear farbrengen context) renders
-    // as a single ungrouped card — grouping only adds value with 2+ items
-    // or when we actually have the parent farbrengen's own info to head it.
-    if (g.items.length === 1 && !g.farbrengenRow) {
-      return cardHtml(g.items[0]);
-    }
-
-    const head = g.farbrengenRow || g.items[0];
-    const headDate = dstr(head);
-    const subItems = g.farbrengenRow ? g.items.filter(r => r.id !== g.farbrengenRow.id) : g.items;
-
-    return '<div class="farb-group">'
-      + '<div class="farb-group-head">'
-        + '<h4>' + esc(head.name || head.parent_name || '(untitled)') + '</h4>'
-        + (headDate ? '<span class="fg-date">' + esc(headDate) + '</span>' : '')
-        + '<span class="fg-count">' + g.items.length + ' item' + (g.items.length!==1?'s':'') + '</span>'
-      + '</div>'
-      + '<div class="farb-group-items">'
-        + (g.farbrengenRow ? cardHtml(g.farbrengenRow) : '')
-        + subItems.map(cardHtml).join('')
-      + '</div>'
-    + '</div>';
+    // A lone track with no farbrengen context renders as a single row;
+    // grouping only adds value with 2+ items or the farbrengen's own info.
+    if (g.items.length === 1 && !g.farbrengenRow) return '<div class="loose">' + trackRowHtml(g.items[0], true) + '</div>';
+    const tracks = g.farbrengenRow ? g.items.filter(r => r.id !== g.farbrengenRow.id) : g.items;
+    return albumHtml(g.key, g.farbrengenRow, tracks);
   }).join('');
+  rebuildOrder();
+}
+
+// Replace an album's matched tracks with ALL of the farbrengen's tracks, in
+// recording order. Optionally start playing the first one.
+async function loadAlbumTracks(fid, thenPlay) {
+  const box = document.getElementById('album-tracks-' + fid);
+  const more = document.getElementById('album-more-' + fid);
+  if (more) { more.disabled = true; more.textContent = 'Loading…'; }
+  try {
+    const r = await fetch('/api/search?parentId=' + fid);
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    const tracks = (j.results || []).filter(t => t.audio_uri);
+    box.innerHTML = tracks.length ? tracks.map(t => trackRowHtml(t, false)).join('') : '<div class="read-empty">No audio tracks found for this farbrengen.</div>';
+    if (more) more.remove();
+    rebuildOrder();
+    if (thenPlay && tracks.length) playFromOrder(String(tracks[0].id));
+  } catch (e) {
+    if (more) { more.disabled = false; more.textContent = 'Could not load tracks — tap to retry'; }
+  }
+}
+function playAlbum(fid) {
+  const first = document.querySelector('#album-tracks-' + fid + ' .track[data-playable]');
+  if (first) playFromOrder(first.dataset.rid);
+  else loadAlbumTracks(fid, true);
 }
 
 // ── Player: persistent mini bar + slide-up full "Now Playing" view ──
@@ -1062,7 +1047,7 @@ let currentTrackId = null;
 // has a recognizable visual even though the archive has no artwork.
 const TYPE_ICONS = {
   sicha: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
-  maamar: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  maamar: '<path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>',
   niggun: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
   farb: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   other: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/>'
@@ -1086,7 +1071,7 @@ function trackSubtitle(row) {
 }
 
 function playTrack(id, url, title) {
-  document.querySelectorAll('.card.playing').forEach(c => c.classList.remove('playing'));
+  document.querySelectorAll('.track.playing').forEach(c => c.classList.remove('playing'));
   const card = document.getElementById('card-'+id);
   if (card) card.classList.add('playing');
 
@@ -1122,14 +1107,14 @@ function setPlayIcon(playing) {
 }
 // Icons follow the audio element's real state, so lock-screen/headphone
 // controls keep the on-screen buttons in sync too.
-audioEl.addEventListener('play', () => setPlayIcon(true));
-audioEl.addEventListener('pause', () => setPlayIcon(false));
+audioEl.addEventListener('play', () => { setPlayIcon(true); document.body.classList.remove('audio-paused'); });
+audioEl.addEventListener('pause', () => { setPlayIcon(false); document.body.classList.add('audio-paused'); });
 audioEl.addEventListener('ended', () => { setPlayIcon(false); playNext(); });
 
 function closePlayer() {
   audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
   document.getElementById('playerBar').classList.remove('open');
-  document.querySelectorAll('.card.playing').forEach(c => c.classList.remove('playing'));
+  document.querySelectorAll('.track.playing').forEach(c => c.classList.remove('playing'));
   currentTrackId = null;
   closeNowPlaying();
 }
@@ -1291,7 +1276,7 @@ function updateSkipButtons() {
 function playNext() {
   const idx = currentOrder.indexOf(currentTrackId);
   if (idx === -1 || idx >= currentOrder.length - 1) return;
-  playFromOrder(currentOrder[idx + 1]);
+  playFromOrder(currentOrder[idx + 1], true);
 }
 function playPrev() {
   // Like every music app: "previous" restarts the track if you're more
@@ -1299,15 +1284,15 @@ function playPrev() {
   if (audioEl.currentTime > 5) { audioEl.currentTime = 0; return; }
   const idx = currentOrder.indexOf(currentTrackId);
   if (idx <= 0) return;
-  playFromOrder(currentOrder[idx - 1]);
+  playFromOrder(currentOrder[idx - 1], true);
 }
-function playFromOrder(rid) {
+function playFromOrder(rid, scrollTo) {
   const row = rowsById[rid];
   if (!row) return;
   const url = getAudioUrl(row);
   if (!url) return;
   playTrack(rid, url, trackTitle(row));
-  document.getElementById('card-'+rid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (scrollTo) document.getElementById('card-'+rid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function populateNowPlaying(rid) {
   const row = rowsById[rid];
@@ -1470,10 +1455,10 @@ async function toggleRead(rid, farbrengenId) {
   const btn = document.getElementById('readbtn-' + rid);
   const isOpen = panel.classList.contains('open');
 
-  if (isOpen) { panel.classList.remove('open'); return; }
+  if (isOpen) { panel.classList.remove('open'); btn?.classList.remove('on'); return; }
 
   panel.classList.add('open');
-  btn.style.color = '#1f5e3a';
+  btn?.classList.add('on');
   panel.innerHTML = '<div class="read-empty">Loading…</div>';
 
   const tempId = 'temp-' + rid;
@@ -1481,13 +1466,47 @@ async function toggleRead(rid, farbrengenId) {
   await loadReadContent(farbrengenId, tempId, false, rid);
 }
 
-document.getElementById('q').addEventListener('input', debouncedSearch);
+document.getElementById('q').addEventListener('input', () => { syncSearchClear(); debouncedSearch(); });
+
+// ── Header helpers ──
+function syncSearchClear() {
+  document.getElementById('searchBox').classList.toggle('has-text', !!document.getElementById('q').value);
+}
+function clearSearch() {
+  document.getElementById('q').value = '';
+  syncSearchClear();
+  document.getElementById('q').focus();
+  search();
+}
+function syncFilterChips() {
+  document.getElementById('yearChip').classList.toggle('active', !!document.getElementById('yf').value);
+  document.getElementById('monthChip').classList.toggle('active', !!document.getElementById('mf').value);
+}
+// Year picker lists only years that actually exist in the archive.
+async function loadYearOptions() {
+  try {
+    const j = await (await fetch('/api/search?distinct=years')).json();
+    const sel = document.getElementById('yf');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Year</option>' + (j.years || []).map(y => '<option>' + y + '</option>').join('');
+    sel.value = current;
+  } catch (e) { /* picker just stays empty */ }
+}
+function setYearFilter(year) {
+  const sel = document.getElementById('yf');
+  if (![...sel.options].some(o => o.value === String(year))) sel.add(new Option(year, year));
+  sel.value = String(year);
+}
+window.addEventListener('scroll', () => {
+  document.getElementById('appHeader').classList.toggle('scrolled', window.scrollY > 4);
+}, { passive: true });
 document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'){ clearTimeout(debounceTimer); search(); } });
 
 // ── Init ──
 (async function init() {
   initTheme();
   enableSwipeToDismiss('browseHandle', closeBrowseSheet);
+  loadYearOptions();
   await loadTodayHebrewDate();
   showLanding();
 })();
