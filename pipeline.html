@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metadata Pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=David+Libre:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#ede7da;--ink-mid:#b3aa98;--ink-light:#8a8270;--bg:#161310;--surface:#211d17;--elevated:#2b261f;
+  --border:#332e25;--hover:rgba(255,255,255,0.08);--gold:#d9a63f;--good:#4fbf82;--warn:#e0a24f;--bad:#e07a6f;
+}
+@media (prefers-color-scheme: light){
+  :root{--ink:#1b1712;--ink-mid:#5c5648;--ink-light:#93897a;--bg:#f7f4ee;--surface:#fffdf9;--elevated:#ffffff;
+    --border:#e6ded0;--hover:rgba(27,23,18,0.06);--gold:#a3762f;--good:#2e7d4f;--warn:#b8721a;--bad:#b0443a}
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;padding:20px 16px 60px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.lead{color:var(--ink-mid);font-size:14.5px;line-height:1.6;margin:6px 0 18px;max-width:720px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
+.controls input{flex:1;min-width:220px;height:42px;border-radius:21px;border:1px solid var(--border);background:var(--elevated);color:var(--ink);font:inherit;font-size:13.5px;padding:0 16px}
+.btn{height:42px;border-radius:21px;border:none;padding:0 18px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;background:var(--hover);color:var(--ink)}
+.btn.primary{background:var(--gold);color:#1a1408}
+.btn:disabled{opacity:.5;cursor:default}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:14px 2px 22px;font-size:13px;color:var(--ink-light)}
+.stats b{color:var(--ink);font-weight:700}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:16px;overflow:hidden}
+.card-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:14px 18px;border-bottom:1px solid var(--border)}
+.card-head strong{font-size:15px}
+.card-head span{font-size:12.5px;color:var(--ink-light)}
+.pill{font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:10px;background:var(--hover);color:var(--ink-mid)}
+.cols{display:grid;grid-template-columns:1fr 1fr}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.col{padding:16px 18px;min-width:0}
+.col + .col{border-left:1px solid var(--border)}
+@media (max-width:760px){.col + .col{border-left:none;border-top:1px solid var(--border)}}
+.label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin-bottom:8px}
+.hebrew{font-family:'David Libre',serif;direction:rtl;font-size:16.5px;line-height:1.8;white-space:pre-wrap;max-height:340px;overflow:auto;text-align:right}
+details{margin-top:12px}
+summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-mid)}
+.t-en{font-size:20px;font-weight:800;letter-spacing:-.015em;line-height:1.25}
+.t-he{font-family:'David Libre',serif;direction:rtl;font-size:17px;color:var(--ink-mid);margin-top:4px}
+.sum{font-size:14.5px;line-height:1.6;color:var(--ink-mid);margin-top:10px}
+ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;background:var(--hover)}
+.chip.new{background:none;border:1px dashed var(--ink-light);color:var(--ink-mid)}
+.chip.occ{color:var(--gold)}
+.meta-line{font-size:12.5px;color:var(--ink-light);margin-top:10px;line-height:1.5}
+.conf-high{color:var(--good)}.conf-medium{color:var(--warn)}.conf-low{color:var(--bad)}
+.verdict{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--border);background:var(--elevated)}
+.verdict button{height:34px;border-radius:17px;border:1px solid var(--border);background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:600;padding:0 14px;cursor:pointer}
+.verdict button.on.good{background:var(--good);border-color:var(--good);color:#fff}
+.verdict button.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.verdict input{flex:1;min-width:180px;height:34px;border-radius:17px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:0 14px}
+.err{color:var(--bad);font-size:13.5px;padding:16px 18px}
+.loading{color:var(--ink-light);font-size:13.5px;padding:16px 18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Metadata pilot</h1>
+  <p class="lead">For each track, Claude reads Ashreinu's own Hebrew outline (and hanacha, when there is one) and writes an English title, summary, key points and tags. Compare each result with the outline on the left, then mark it. Nothing is saved to the database. This only previews quality.</p>
+
+  <div class="controls">
+    <input id="ids" value="8859,370,8792,8074,8012,8446,1153,7928,7360,1675,3715,3944,4133,4663,5055,5306,4,5402,5692,5009" aria-label="Track ids, comma separated">
+    <button class="btn primary" id="runBtn" onclick="runPilot()">Run pilot</button>
+    <button class="btn" onclick="copyFeedback()">Copy my feedback</button>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div id="cards"></div>
+</div>
+
+<script>
+// Opus 5.5 pricing ($ per million tokens), for a rough cost estimate.
+const PRICE_IN = 4, PRICE_OUT = 20;
+const results = {};   // id -> response json
+let tokensIn = 0, tokensOut = 0, done = 0, total = 0;
+
+function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function readVerdicts() { try { return JSON.parse(localStorage.getItem('pilot-verdicts')) || {}; } catch (e) { return {}; } }
+function saveVerdicts(v) { try { localStorage.setItem('pilot-verdicts', JSON.stringify(v)); } catch (e) {} }
+
+function renderStats() {
+  const cost = tokensIn / 1e6 * PRICE_IN + tokensOut / 1e6 * PRICE_OUT;
+  const v = readVerdicts();
+  const good = Object.values(v).filter(x => x.verdict === 'good').length;
+  const bad = Object.values(v).filter(x => x.verdict === 'bad').length;
+  document.getElementById('stats').innerHTML =
+    '<span>Done <b>' + done + ' / ' + total + '</b></span>'
+    + '<span>Tokens <b>' + tokensIn.toLocaleString() + '</b> in · <b>' + tokensOut.toLocaleString() + '</b> out</span>'
+    + '<span>Est. cost <b>$' + cost.toFixed(2) + '</b></span>'
+    + '<span>Your marks <b>' + good + '</b> good · <b>' + bad + '</b> needs work</span>';
+}
+
+function cardHtml(id, j) {
+  if (!j) return '<div class="loading">Working on track ' + id + '…</div>';
+  if (j.error) return '<div class="err">Track ' + id + ': ' + esc(j.error) + ' <button class="btn" onclick="runOne(' + id + ')">Retry</button></div>';
+  const s = j.source, m = j.metadata;
+  const head = '<div class="card-head"><strong>' + esc(s.name) + '</strong>'
+    + '<span>' + esc([s.hebrew_date, s.parent_name, s.duration_ms ? Math.round(s.duration_ms / 60000) + ' min' : ''].filter(Boolean).join(' · ')) + '</span>'
+    + (s.outline ? '<span class="pill">OUTLINE</span>' : '')
+    + (s.transcript ? '<span class="pill">' + esc((s.transcript_kind || 'TRANSCRIPT').toUpperCase()) + '</span>' : '')
+    + '<span>#' + s.id + '</span></div>';
+  const left = '<div class="col">'
+    + (s.outline ? '<div class="label">Ashreinu outline</div><div class="hebrew">' + esc(s.outline) + '</div>' : '<div class="label">No outline (hanacha only)</div>')
+    + (s.transcript ? '<details' + (s.outline ? '' : ' open') + '><summary>Hanacha (' + s.transcript.length.toLocaleString() + ' characters)</summary><div class="hebrew" style="margin-top:8px">' + esc(s.transcript.slice(0, 4000)) + (s.transcript.length > 4000 ? '\n…' : '') + '</div></details>' : '')
+    + '</div>';
+  const right = j.skipped ? '<div class="col"><div class="label">Skipped</div><p class="sum">' + esc(j.skipped) + '</p></div>'
+    : '<div class="col"><div class="label">Claude\'s catalogue entry</div>'
+      + '<div class="t-en">' + esc(m.title_en) + '</div><div class="t-he">' + esc(m.title_he) + '</div>'
+      + '<p class="sum">' + esc(m.summary_en) + '</p>'
+      + (m.key_points.length ? '<ul class="kp">' + m.key_points.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul>' : '')
+      + '<div class="chips">' + m.topics.map(t => '<span class="chip">' + esc(t) + '</span>').join('')
+        + m.suggested_new_topics.map(t => '<span class="chip new" title="Suggested new topic">+ ' + esc(t) + '</span>').join('')
+        + m.occasions.map(t => '<span class="chip occ">' + esc(t) + '</span>').join('') + '</div>'
+      + (m.sources.length ? '<div class="meta-line"><b>Sources:</b> ' + esc(m.sources.join('; ')) + '</div>' : '')
+      + '<div class="meta-line">Confidence: <b class="conf-' + m.confidence + '">' + m.confidence + '</b>, ' + esc(m.confidence_reason) + '</div>'
+      + '<div class="meta-line">' + (j.usage ? j.usage.input_tokens.toLocaleString() + ' in / ' + j.usage.output_tokens.toLocaleString() + ' out tokens · ' + esc(j.model) : '') + '</div>'
+    + '</div>';
+  const v = readVerdicts()[id] || {};
+  const verdict = j.skipped ? '' : '<div class="verdict">'
+    + '<button class="good' + (v.verdict === 'good' ? ' on' : '') + '" onclick="mark(' + id + ',\'good\')">✓ Good</button>'
+    + '<button class="bad' + (v.verdict === 'bad' ? ' on' : '') + '" onclick="mark(' + id + ',\'bad\')">✎ Needs work</button>'
+    + '<input placeholder="What\'s off? (optional)" value="' + esc(v.note || '') + '" onchange="note(' + id + ', this.value)">'
+    + '</div>';
+  return head + '<div class="cols">' + left + right + '</div>' + verdict;
+}
+function renderCard(id) { document.getElementById('card-' + id).innerHTML = cardHtml(id, results[id]); }
+
+function mark(id, verdict) {
+  const v = readVerdicts(); v[id] = { ...(v[id] || {}), verdict }; saveVerdicts(v);
+  renderCard(id); renderStats();
+}
+function note(id, text) { const v = readVerdicts(); v[id] = { ...(v[id] || {}), note: text }; saveVerdicts(v); }
+
+async function runOne(id) {
+  results[id] = null; renderCard(id);
+  try {
+    const r = await fetch('/api/pipeline?mode=preview&id=' + id);
+    const text = await r.text();
+    let j; try { j = JSON.parse(text); } catch (e) { j = { error: 'Server error: ' + text.slice(0, 120) }; }
+    results[id] = j;
+    if (j.usage) { tokensIn += j.usage.input_tokens || 0; tokensOut += j.usage.output_tokens || 0; }
+  } catch (e) { results[id] = { error: e.message }; }
+  done++; renderCard(id); renderStats();
+}
+
+async function runPilot() {
+  const ids = document.getElementById('ids').value.split(/[^\d]+/).filter(Boolean);
+  if (!ids.length) return;
+  document.getElementById('runBtn').disabled = true;
+  done = 0; total = ids.length; tokensIn = 0; tokensOut = 0;
+  document.getElementById('cards').innerHTML = ids.map(id => '<div class="card" id="card-' + id + '"></div>').join('');
+  ids.forEach(id => { results[id] = null; renderCard(id); });
+  renderStats();
+  // Three at a time: fast, but gentle on Ashreinu's API and our rate limits.
+  const queue = [...ids];
+  await Promise.all([0, 1, 2].map(async () => { while (queue.length) await runOne(queue.shift()); }));
+  document.getElementById('runBtn').disabled = false;
+}
+
+// A compact text summary of your marks, to paste back into the chat.
+function copyFeedback() {
+  const v = readVerdicts();
+  const lines = Object.keys(results).filter(id => results[id]?.metadata).map(id => {
+    const m = results[id].metadata, x = v[id] || {};
+    return '#' + id + ' ' + (x.verdict === 'good' ? '✓' : x.verdict === 'bad' ? '✎' : '·') + ' "' + m.title_en + '"' + (x.note ? ' (' + x.note + ')' : '');
+  });
+  const text = lines.join('\n') || 'No results yet';
+  navigator.clipboard?.writeText(text).then(() => alert('Copied ' + lines.length + ' lines, so you can paste them into the chat.'), () => prompt('Copy this:', text));
+}
+</script>
+</body>
+</html>
