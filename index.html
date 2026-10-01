@@ -1101,6 +1101,9 @@ function playTrack(id, url, title) {
   if (row) setCover(document.getElementById('miniCover'), row, false);
   document.getElementById('playerBar').classList.add('open');
   document.getElementById('playerFill').style.width = '0%';
+  document.getElementById('npFill').style.width = '0%';
+  document.getElementById('npCur').textContent = '0:00';
+  renderDuration();
   updateMediaSession(row, title);
 
   // Like Spotify: tapping play keeps you where you are (mini bar only).
@@ -1130,9 +1133,18 @@ function closePlayer() {
   currentTrackId = null;
   closeNowPlaying();
 }
+// Some browsers (notably Safari) can't work out the length of a streamed
+// .opus file and report it as Infinity. The archive already knows every
+// track's exact length (duration_ms), so fall back to that.
+function trackDuration() {
+  if (isFinite(audioEl.duration) && audioEl.duration > 0) return audioEl.duration;
+  const row = rowsById[currentTrackId];
+  return row && row.duration_ms ? row.duration_ms / 1000 : 0;
+}
 function skipBy(seconds) {
-  if (!audioEl.duration) return;
-  audioEl.currentTime = Math.max(0, Math.min(audioEl.duration, audioEl.currentTime + seconds));
+  const total = trackDuration();
+  if (!total) return;
+  audioEl.currentTime = Math.max(0, Math.min(total, audioEl.currentTime + seconds));
 }
 
 // ── Playback speed (remembered on this device) ──
@@ -1161,25 +1173,26 @@ function fmtTime(s) {
 }
 let isSeeking = false;
 function renderProgress(time) {
-  if (!audioEl.duration) return;
-  const pct = (time / audioEl.duration * 100) + '%';
+  const total = trackDuration();
+  if (!total) return;
+  const pct = Math.min(100, time / total * 100) + '%';
   document.getElementById('playerFill').style.width = pct;
   document.getElementById('npFill').style.width = pct;
   document.getElementById('npCur').textContent = fmtTime(time);
 }
 audioEl.addEventListener('timeupdate', () => { if (!isSeeking) renderProgress(audioEl.currentTime); });
-audioEl.addEventListener('loadedmetadata', () => {
-  document.getElementById('npDur').textContent = fmtTime(audioEl.duration);
-});
+function renderDuration() { document.getElementById('npDur').textContent = fmtTime(trackDuration()); }
+audioEl.addEventListener('loadedmetadata', renderDuration);
+audioEl.addEventListener('durationchange', renderDuration);
 (function bindSeek() {
   const bar = document.getElementById('npSeek');
   const timeAt = e => {
     const rect = bar.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * (audioEl.duration || 0);
+    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * trackDuration();
   };
   let pending = 0;
   bar.addEventListener('pointerdown', e => {
-    if (!audioEl.duration) return;
+    if (!trackDuration()) return;
     isSeeking = true; bar.setPointerCapture(e.pointerId);
     pending = timeAt(e); renderProgress(pending);
   });
@@ -1306,7 +1319,7 @@ function populateNowPlaying(rid) {
   document.getElementById('npSub').textContent = trackSubtitle(row);
   document.getElementById('npParent').textContent = row.parent_name || trackTitle(row);
   document.getElementById('npExt').href = lnk(row);
-  document.getElementById('npDur').textContent = fmtTime(audioEl.duration);
+  renderDuration();
 
   const farbrengenId = row.parent_id || row.id;
   loadReadContent(farbrengenId, 'npReadContent', true, rid);
