@@ -636,7 +636,7 @@ body.audio-paused .eq i{animation-play-state:paused}
     </div>
     <div class="browse-pane" id="pane-topics"><div id="browseTopics"></div></div>
     <div class="browse-pane active" id="pane-type"><div class="tile-grid" id="browseTypeGrid"></div></div>
-    <div class="browse-pane" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
+    <div class="browse-pane" id="pane-collections"><div id="browseCollectionsGrid"></div></div>
     <div class="browse-pane" id="pane-months"><div class="card-grid" id="browseMonthsGrid"></div></div>
     <div class="browse-pane" id="pane-years"><div class="chip-wrap" id="browseYearsScroll"><div class="shelf-empty">Loading…</div></div></div>
   </div>
@@ -647,27 +647,51 @@ let currentType = '';
 let currentDates = null; // active collection filter: [[month,day], ...] or null
 let debounceTimer = null;
 
-// ── Curated collections: named occasions mapped to their real Hebrew date(s).
-// Multi-day chagim list every day; some (like Chanukah) cross a month boundary.
+// ── Occasions: named days mapped to their Hebrew date(s), any year.
 // Month numbers follow Ashreinu's 13-month scheme (see HEBCAL_MONTH_MAP).
+// Each window also covers the recorded days around it: the Rebbe didn't
+// record on Shabbos or Yom Tov, so e.g. Simchas Torah's audio is from Motzaei
+// Simchas Torah and Isru Chag. `tag` is the catalogue's name for the occasion
+// (talks ABOUT it, said on any date); `kind` groups the Occasions menu.
+// Seasons are browse-only: "Now: Elul" for a whole month isn't news.
+function dayRange(m, from, to) { const out = []; for (let d = from; d <= to; d++) out.push([m, d]); return out; }
 const COLLECTIONS = [
-  { name: "Yud-Tes Kislev", sub: "19 Kislev", dates: [[3,19]] },
-  { name: "Chanukah", sub: "25 Kislev – 3 Tevet", dates: [[3,25],[3,26],[3,27],[3,28],[3,29],[3,30],[4,1],[4,2],[4,3]] },
-  { name: "Yud Shevat", sub: "10 Shevat", dates: [[5,10]] },
-  { name: "Purim", sub: "14 Adar", dates: [[7,14]] },
-  { name: "Erev Pesach", sub: "14 Nissan", dates: [[8,14]] },
-  { name: "Pesach", sub: "15–22 Nissan", dates: [[8,15],[8,16],[8,17],[8,18],[8,19],[8,20],[8,21],[8,22]] },
-  { name: "Lag BaOmer", sub: "18 Iyar", dates: [[9,18]] },
-  { name: "Erev Shavuos", sub: "5 Sivan", dates: [[10,5]] },
-  { name: "Shavuos", sub: "6–7 Sivan", dates: [[10,6],[10,7]] },
-  { name: "Yud-Beis Tammuz", sub: "12 Tammuz", dates: [[11,12]] },
-  { name: "Erev Rosh Hashanah", sub: "29 Elul", dates: [[13,29]] },
-  { name: "Rosh Hashanah", sub: "1–2 Tishrei", dates: [[1,1],[1,2]] },
-  { name: "Yom Kippur", sub: "10 Tishrei", dates: [[1,10]] },
-  { name: "Erev Sukkos", sub: "14 Tishrei", dates: [[1,14]] },
-  { name: "Sukkos", sub: "15–21 Tishrei", dates: [[1,15],[1,16],[1,17],[1,18],[1,19],[1,20],[1,21]] },
-  { name: "Shmini Atzeres & Simchas Torah", sub: "22–23 Tishrei", dates: [[1,22],[1,23]] },
+  { name: "Rosh Hashanah", sub: "29 Elul – 2 Tishrei", kind: 'yomtov', tag: 'Rosh Hashanah', dates: [[13,29],[1,1],[1,2]] },
+  { name: "Tzom Gedalyah", sub: "3–4 Tishrei", kind: 'fast', dates: [[1,3],[1,4]] },
+  { name: "Yom Kippur", sub: "9–10 Tishrei", kind: 'yomtov', tag: 'Yom Kippur', dates: [[1,9],[1,10]] },
+  { name: "Yud-Gimmel Tishrei", sub: "13 Tishrei", kind: 'chassidic', dates: [[1,13]] },
+  { name: "Sukkos", sub: "14–21 Tishrei", kind: 'yomtov', tag: 'Sukkos', dates: dayRange(1, 14, 21) },
+  { name: "Shmini Atzeres & Simchas Torah", sub: "22–24 Tishrei", kind: 'yomtov', tag: 'Shmini Atzeres & Simchas Torah', dates: dayRange(1, 22, 24) },
+  { name: "Chof Cheshvan", sub: "20 Cheshvan", kind: 'chassidic', dates: [[2,20]] },
+  { name: "Yud Kislev", sub: "10 Kislev", kind: 'chassidic', tag: 'Yud Kislev', dates: [[3,10]] },
+  { name: "Yud-Daled Kislev", sub: "14 Kislev", kind: 'chassidic', tag: 'Yud-Daled Kislev', dates: [[3,14]] },
+  { name: "Yud-Tes Kislev", sub: "19–20 Kislev", kind: 'chassidic', tag: 'Yud-Tes Kislev', dates: [[3,19],[3,20]] },
+  { name: "Chanukah", sub: "25 Kislev – 3 Teves", kind: 'yomtov', tag: 'Chanukah', dates: [...dayRange(3, 25, 30), ...dayRange(4, 1, 3)] },
+  { name: "Hei Teves", sub: "5 Teves", kind: 'chassidic', tag: 'Hei Teves', dates: [[4,5]] },
+  { name: "Asara B'Teves", sub: "10 Teves", kind: 'fast', dates: [[4,10]] },
+  { name: "Yud Shevat", sub: "10 Shevat", kind: 'chassidic', tag: 'Yud Shevat', dates: [[5,10]] },
+  { name: "Tu BiShvat", sub: "15 Shevat", kind: 'yomtov', tag: 'Tu BiShvat', dates: [[5,15]] },
+  { name: "Chof-Beis Shevat", sub: "22 Shevat", kind: 'chassidic', tag: 'Chof-Beis Shevat', dates: [[5,22]] },
+  { name: "Purim", sub: "13–15 Adar", kind: 'yomtov', tag: 'Purim', dates: [[7,13],[7,14],[7,15]] },
+  { name: "Yud-Alef Nissan", sub: "11 Nissan", kind: 'chassidic', tag: 'Yud-Alef Nissan', dates: [[8,11]] },
+  { name: "Yud-Gimmel Nissan", sub: "13 Nissan", kind: 'chassidic', tag: 'Yud-Gimmel Nissan', dates: [[8,13]] },
+  { name: "Pesach", sub: "14–22 Nissan", kind: 'yomtov', tag: 'Pesach', dates: dayRange(8, 14, 22) },
+  { name: "Pesach Sheini", sub: "14 Iyar", kind: 'yomtov', tag: 'Pesach Sheini', dates: [[9,14]] },
+  { name: "Lag BaOmer", sub: "18 Iyar", kind: 'yomtov', tag: 'Lag BaOmer', dates: [[9,18]] },
+  { name: "Shavuos", sub: "5–7 Sivan", kind: 'yomtov', tag: 'Shavuos', dates: dayRange(10, 5, 7) },
+  { name: "Chof-Ches Sivan", sub: "28 Sivan", kind: 'chassidic', tag: 'Chof-Ches Sivan', dates: [[10,28]] },
+  { name: "Gimmel Tammuz", sub: "3 Tammuz", kind: 'chassidic', tag: 'Gimmel Tammuz', dates: [[11,3]] },
+  { name: "Yud-Beis Tammuz", sub: "12–13 Tammuz", kind: 'chassidic', tag: 'Yud-Beis Tammuz', dates: [[11,12],[11,13]] },
+  { name: "Shiva Asar B'Tammuz", sub: "17 Tammuz", kind: 'fast', tag: "The Three Weeks & Tisha B'Av", dates: [[11,17],[11,18]] },
+  { name: "Tisha B'Av", sub: "9 Av", kind: 'fast', tag: "The Three Weeks & Tisha B'Av", dates: [[12,9],[12,10]] },
+  { name: "Tu B'Av", sub: "15 Av", kind: 'yomtov', tag: "Tu B'Av", dates: [[12,15]] },
+  { name: "Chof Av", sub: "20 Av", kind: 'chassidic', tag: 'Chof Av', dates: [[12,20]] },
+  { name: "Chai Elul", sub: "18 Elul", kind: 'chassidic', tag: 'Chai Elul', dates: [[13,18]] },
+  { name: "Elul", sub: "The whole month", kind: 'season', tag: 'Elul', dates: dayRange(13, 1, 29) },
+  { name: "Sefiras HaOmer", sub: "16 Nissan – 5 Sivan", kind: 'season', tag: 'Sefiras HaOmer', dates: [...dayRange(8, 16, 30), ...dayRange(9, 1, 29), ...dayRange(10, 1, 5)] },
+  { name: "The Three Weeks", sub: "17 Tammuz – 9 Av", kind: 'season', tag: "The Three Weeks & Tisha B'Av", dates: [...dayRange(11, 17, 29), ...dayRange(12, 1, 10)] },
 ];
+const OCCASION_KINDS = [['yomtov', 'Yom Tov'], ['chassidic', 'Chassidic days'], ['fast', 'Fast days'], ['season', 'Seasons']];
 
 function getAudioUrl(row) {
   if (!row.audio_uri) return null;
@@ -790,8 +814,11 @@ async function loadBrowseSheetContent() {
   if (!browseStaticLoaded) {
     browseStaticLoaded = true;
     document.getElementById('browseTypeGrid').innerHTML = typeTilesHtml(true);
-    document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) =>
-      '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('');
+    document.getElementById('browseCollectionsGrid').innerHTML = OCCASION_KINDS.map(([kind, label]) =>
+      '<div class="browse-group"><h4>' + label + '</h4><div class="card-grid">'
+      + COLLECTIONS.map((c, i) => c.kind !== kind ? '' :
+          '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('')
+      + '</div></div>').join('');
     document.getElementById('browseMonthsGrid').innerHTML = MONTH_LIST.map(m =>
       '<div class="occasion" onclick="closeBrowseSheet();browseByMonth(\'' + m + '\')"><strong>' + m + '</strong></div>').join('');
   }
@@ -861,6 +888,8 @@ async function search() {
   if (yf) params.set('year', yf);
   if (mf) params.set('month', mf);
   if (currentDates) params.set('dates', JSON.stringify(currentDates));
+  const occasionTag = currentDates ? document.getElementById('rmeta').dataset.collectionTag : '';
+  if (occasionTag) params.set('occasion', occasionTag);
 
   try {
     const r = await fetch('/api/search?' + params.toString());
@@ -945,6 +974,7 @@ function browseByCollection(idx) {
   document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
   document.querySelector('.chip[data-type=""]')?.classList.add('active');
   document.getElementById('rmeta').dataset.collectionName = c.name;
+  document.getElementById('rmeta').dataset.collectionTag = c.tag || '';
   search();
 }
 function browseByYear(year) {
@@ -953,23 +983,30 @@ function browseByYear(year) {
   search();
 }
 
-// Approximate day-ordinal for sorting "what's coming up" — treats every
-// Hebrew month as 30 days for comparison purposes only (exact leap-year/
-// month-length arithmetic isn't needed just to rank occasions by proximity).
+// Where an occasion stands relative to today. Treats every Hebrew month as
+// 30 days, which is plenty to rank occasions by how soon they come; the only
+// labels shown from it are "Now" (today is one of its days), "Today" and
+// "Tomorrow" (same or next day), which the approximation gets right.
 function approxOrdinal(month, day) { return month * 30 + day; }
-
+function occasionTiming(c) {
+  const today = approxOrdinal(todayHebrew.month, todayHebrew.day);
+  const diffs = c.dates.map(([m, d]) => ((approxOrdinal(m, d) - today) % 390 + 390) % 390);
+  const now = diffs.includes(0);
+  // For "now", how far into it we are doesn't matter; otherwise days to its first day.
+  return { now, diff: now ? 0 : Math.min(...diffs), started: now && c.dates.length > 1 && !(c.dates[0][0] === todayHebrew.month && c.dates[0][1] === todayHebrew.day) };
+}
 function getUpcomingCollections(count) {
   if (!todayHebrew || !todayHebrew.month) return [];
-  const todayOrd = approxOrdinal(todayHebrew.month, todayHebrew.day);
   return COLLECTIONS
-    .map(c => {
-      const startOrd = approxOrdinal(c.dates[0][0], c.dates[0][1]);
-      let diff = startOrd - todayOrd;
-      if (diff < 0) diff += 13 * 30; // wrap forward into next year (13-month numbering)
-      return { ...c, diff };
-    })
-    .sort((a, b) => a.diff - b.diff)
+    .filter(c => c.kind !== 'season')
+    .map(c => ({ ...c, ...occasionTiming(c) }))
+    .sort((a, b) => a.diff - b.diff || (b.now - a.now))
     .slice(0, count);
+}
+function occasionHeading(c) {
+  if (c.now) return (c.started ? 'Now: ' : 'Today: ') + c.name;
+  if (c.diff === 1) return 'Tomorrow: ' + c.name;
+  return 'Coming up: ' + c.name;
 }
 
 // ── "Continue listening": recently played tracks + where you stopped in each.
@@ -1030,9 +1067,6 @@ function continueCardHtml(row) {
 
 async function showLanding() {
   document.getElementById('rmeta').textContent = '';
-  const upcoming = getUpcomingCollections(4);
-  const next = upcoming[0];
-  const idxOf = c => COLLECTIONS.findIndex(x => x.name === c.name);
   const recent = getRecent();
 
   // Search is the primary action (in the header). Below it: what you were
@@ -1043,6 +1077,7 @@ async function showLanding() {
       ? '<div class="home-section"><div class="home-section-head"><h3>Continue listening</h3></div>'
         + '<div class="shelf">' + recent.map(continueCardHtml).join('') + '</div></div>'
       : '')
+    + '<div class="home-section" id="upSection" style="display:none"></div>'
     + '<div class="home-section" id="newSection" style="display:none">'
       + '<div class="home-section-head"><h3>Newly catalogued</h3></div>'
       + '<div class="shelf" id="newShelf"></div>'
@@ -1052,18 +1087,6 @@ async function showLanding() {
       + '<div class="home-sub" id="otdSub"></div>'
       + '<div class="shelf" id="otdShelf"></div>'
     + '</div>'
-    + (next
-      ? '<div class="home-section">'
-        + '<div class="home-section-head"><h3>Coming up: ' + esc(next.name) + '</h3>'
-          + '<button class="see-all" onclick="browseByCollection(' + idxOf(next) + ')">See all</button></div>'
-        + '<div class="home-sub">' + esc(next.sub) + ', across the years</div>'
-        + '<div class="shelf" id="upShelf">' + shelfSkeleton() + '</div>'
-        + (upcoming.length > 1
-          ? '<div class="chip-scroll" style="margin-top:14px">' + upcoming.slice(1).map(c =>
-              '<button class="chip" onclick="browseByCollection(' + idxOf(c) + ')">' + esc(c.name) + '</button>').join('') + '</div>'
-          : '')
-      + '</div>'
-      : '')
     + (topicGroups().some(g => topicCount(g) > 0)
       ? '<div class="home-section"><div class="home-section-head"><h3>Explore topics</h3>'
         + '<button class="see-all" onclick="openBrowseSheet(\'topics\')">All topics</button></div>'
@@ -1077,28 +1100,66 @@ async function showLanding() {
 
   loadOnThisDay();
   loadNewlyCatalogued();
-  if (next) loadFarbrengenShelf('upShelf', next.dates, 'No recordings for ' + next.name + ' yet.');
+  loadComingUp();
   getYears().then(years => {
     const el = document.getElementById('homeYears');
     if (el) el.innerHTML = years.map(y => '<button class="chip" onclick="browseByYear(' + y + ')">' + y + '</button>').join('');
   });
 }
 
-// Farbrengens held on any of the given [month, day] dates, any year.
-async function fetchFarbrengensOn(dates) {
-  const r = await fetch('/api/search?type=farbrengen&limit=24&dates=' + encodeURIComponent(JSON.stringify(dates)));
-  const j = await r.json();
-  if (j.error) throw new Error(j.error);
-  return j.results || [];
+// Every recorded event (farbrengen, Kos Shel Brachah, rally, sicha...) held on
+// any of the given [month, day] dates, any year, plus, when the occasion has
+// a catalogue name, the talks tagged with it. Main events first (farbrengens,
+// then sichos and the like, then davening), newest year first within each.
+function eventRank(row) {
+  const t = (row.type || '').toLowerCase();
+  if (t === 'farbrengen') return 0;
+  if (/shacharis|minchah|ma.ariv|maftir|prayer|hataras|kidush levanah/.test(t)) return 2;
+  return 1;
 }
-async function loadFarbrengenShelf(elId, dates, emptyText) {
-  const el = document.getElementById(elId);
-  try {
-    const rows = await fetchFarbrengensOn(dates);
-    if (!document.getElementById(elId)) return; // user navigated away
-    el.innerHTML = rows.length ? rows.map(farbrengenCardHtml).join('') : '<div class="shelf-empty">' + esc(emptyText) + '</div>';
-  } catch (e) {
-    if (document.getElementById(elId)) el.innerHTML = '<div class="shelf-empty">Could not load.</div>';
+async function fetchEventsOn(dates, occasionTag) {
+  const params = new URLSearchParams({ toplevel: '1', limit: '300', dates: JSON.stringify(dates) });
+  if (occasionTag) params.set('occasion', occasionTag);
+  const j = await (await fetch('/api/search?' + params)).json();
+  if (j.error) throw new Error(j.error);
+  const rows = (j.results || []).sort((a, b) => eventRank(a) - eventRank(b) || (b.hebrew_year || 0) - (a.hebrew_year || 0));
+  return { rows, talks: j.talks || [] };
+}
+// A home card for one event: a farbrengen (or anything with tracks inside)
+// opens as an album; a single recording plays on tap.
+function eventCardHtml(row) {
+  if (row.type === 'Farbrengen' || !row.audio_uri) return farbrengenCardHtml(row);
+  rowsById[String(row.id)] = row;
+  return '<div class="shelf-card" onclick="playFromOrder(\'' + row.id + '\')">'
+    + '<div class="shelf-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, true) + '</div>'
+    + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
+    + '<div class="shelf-sub">' + esc(row.secular_year || hebDate(row)) + '</div>'
+  + '</div>';
+}
+// "Coming up": the nearest occasion that actually has recordings (or tagged
+// talks). One with nothing is skipped rather than shown as an empty shelf.
+async function loadComingUp() {
+  const upcoming = getUpcomingCollections(6);
+  const idxOf = c => COLLECTIONS.findIndex(x => x.name === c.name);
+  for (const c of upcoming) {
+    let found;
+    try { found = await fetchEventsOn(c.dates, c.tag); } catch (e) { return; }
+    const section = document.getElementById('upSection');
+    if (!section) return; // user navigated away
+    if (!found.rows.length && !found.talks.length) continue;
+    const others = upcoming.filter(o => o !== c && !o.now).slice(0, 3);
+    section.innerHTML =
+      '<div class="home-section-head"><h3>' + esc(occasionHeading(c)) + '</h3>'
+        + '<button class="see-all" onclick="browseByCollection(' + idxOf(c) + ')">See all</button></div>'
+      + '<div class="home-sub">' + esc(c.sub) + ', across the years</div>'
+      + (found.talks.length ? '<div class="shelf">' + found.talks.slice(0, 12).map(continueCardHtml).join('') + '</div>' : '')
+      + (found.rows.length ? '<div class="shelf"' + (found.talks.length ? ' style="margin-top:14px"' : '') + '>' + found.rows.slice(0, 20).map(eventCardHtml).join('') + '</div>' : '')
+      + (others.length
+        ? '<div class="chip-scroll" style="margin-top:14px">' + others.map(o =>
+            '<button class="chip" onclick="browseByCollection(' + idxOf(o) + ')">' + esc(o.name) + '</button>').join('') + '</div>'
+        : '');
+    section.style.display = 'block';
+    return;
   }
 }
 
@@ -1116,11 +1177,11 @@ async function loadNewlyCatalogued() {
 async function loadOnThisDay() {
   if (!todayHebrew || !todayHebrew.month) return;
   try {
-    const rows = await fetchFarbrengensOn([[todayHebrew.month, todayHebrew.day]]);
+    const { rows } = await fetchEventsOn([[todayHebrew.month, todayHebrew.day]]);
     const section = document.getElementById('otdSection');
     if (!section || !rows.length) return; // nothing recorded today — keep the section hidden
     document.getElementById('otdSub').textContent = todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years';
-    document.getElementById('otdShelf').innerHTML = rows.map(farbrengenCardHtml).join('');
+    document.getElementById('otdShelf').innerHTML = rows.slice(0, 20).map(eventCardHtml).join('');
     section.style.display = 'block';
   } catch (e) { /* leave hidden */ }
 }

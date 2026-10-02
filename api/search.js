@@ -78,7 +78,7 @@ async function attachConfirmedTitles(supabase, rows) {
 
 export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-  const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '', parentId = '' } = req.query;
+  const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '', parentId = '', occasion = '', toplevel = '' } = req.query;
 
   // Newest catalogued talks (home "Newly catalogued" shelf).
   if (req.query.recent) {
@@ -197,7 +197,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ years });
   }
 
-  let query = supabase.from('ashreinu_events').select('*', { count: 'exact' }).limit(parseInt(limit, 10));
+  // Home shelves (toplevel) need only the row fields, not the large raw_data.
+  let query = supabase.from('ashreinu_events').select(toplevel ? ROW_FIELDS : '*', { count: 'exact' }).limit(Math.min(parseInt(limit, 10) || 200, 300));
 
   // Tag search: if the query text matches a saved tag on any farbrengen's
   // written text, fold that whole farbrengen (and all its sub-events) into
@@ -246,6 +247,9 @@ export default async function handler(req, res) {
 
   if (year) query = query.eq('hebrew_year', parseInt(year, 10));
   if (month) query = query.eq('hebrew_month_name', month);
+  // Only whole events (a farbrengen, a Kos Shel Brachah, a rally...), not the
+  // tracks inside them: the home shelves show one card per event.
+  if (toplevel) query = query.is('parent_id', null);
 
   // Collections: a named occasion (e.g. Sukkos) maps to a specific set of
   // [month,day] pairs, possibly spanning more than one Hebrew month (like
@@ -277,7 +281,14 @@ export default async function handler(req, res) {
   query = query.or('type.eq.Farbrengen,audio_uri.not.is.null');
 
   // Ranked "Talks" from the catalogue run alongside the chronological list.
-  const talksPromise = q
+  // On an occasion page, "Talks" are the catalogue entries tagged with that
+  // occasion, whatever date they were said on.
+  const talksPromise = occasion && !q
+    ? supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').contains('occasions', [String(occasion)]).limit(100)
+        .then(({ data, error }) => { if (error) throw new Error(error.message); return rowsForIds(supabase, data.map(r => r.ashreinu_event_id), {}); })
+        .then(talks => ({ talks, matchedTopics: [] }))
+        .catch(e => ({ talks: [], matchedTopics: [], talksError: e.message }))
+    : q
     ? loadTopics(supabase).then(topics => searchTalks(supabase, q, topics, { type, year, month, dates }))
         // catalogue not set up yet: the list still works, but say why Talks is empty
         .catch(e => ({ talks: [], matchedTopics: [], talksError: e.message }))
