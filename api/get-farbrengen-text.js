@@ -147,7 +147,10 @@ export default async function handler(req, res) {
       // No human-confirmed link, but the catalogue has an entry Claude wrote
       // from Ashreinu's own outline for this exact track. Its text is the
       // track's own hanacha when there is one (else the outline is shown).
-      if (String(eventId) !== String(farbrengenId)) {
+      // Checked even when eventId === farbrengenId: a standalone event (a
+      // private audience, a Kos Shel Brachah) has no parent, so it is its own
+      // "farbrengen", yet it can be catalogued. Real farbrengens never are.
+      {
         const { data: cat } = await supabase
           .from('track_metadata')
           .select('title_en, summary_en, key_points, main_topic, topics, occasions, people, outline_he, transcript, transcript_kind')

@@ -1974,8 +1974,10 @@ function readerIsOpen() { return document.getElementById('reader').classList.con
 // eventId === farbrengenId means "the whole farbrengen's text".
 async function openReader(eventId, farbrengenId) {
   eventId = String(eventId);
-  const whole = eventId === String(farbrengenId);
   const row = rowsById[eventId];
+  // "The whole farbrengen" only for a real farbrengen: a standalone event
+  // (private audience, Kos Shel Brachah...) is its own parent but is one talk.
+  const whole = eventId === String(farbrengenId) && (!row || row.type === 'Farbrengen' || !row.audio_uri);
   const reader = document.getElementById('reader');
   if (!readerIsOpen()) {
     if (!history.state?.reader) history.pushState({ reader: true }, '');
