@@ -279,14 +279,15 @@ export default async function handler(req, res) {
   // Ranked "Talks" from the catalogue run alongside the chronological list.
   const talksPromise = q
     ? loadTopics(supabase).then(topics => searchTalks(supabase, q, topics, { type, year, month, dates }))
-        .catch(() => ({ talks: [], matchedTopics: [] }))   // catalogue not set up yet: list still works
+        // catalogue not set up yet: the list still works, but say why Talks is empty
+        .catch(e => ({ talks: [], matchedTopics: [], talksError: e.message }))
     : Promise.resolve({ talks: [], matchedTopics: [] });
 
-  const [{ data, error, count }, { talks, matchedTopics }] = await Promise.all([query, talksPromise]);
+  const [{ data, error, count }, { talks, matchedTopics, talksError }] = await Promise.all([query, talksPromise]);
   if (error) return res.status(500).json({ error: error.message });
 
   await attachConfirmedTitles(supabase, data);
 
   res.setHeader('Cache-Control', 's-maxage=30');
-  res.status(200).json({ results: data, count, talks, matchedTopics });
+  res.status(200).json({ results: data, count, talks, matchedTopics, ...(talksError ? { talksError } : {}) });
 }

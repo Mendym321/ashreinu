@@ -146,7 +146,10 @@ async function refreshStats() {
       + (st.outdated ? tile(st.outdated, 'made with older instructions') : '')
       + tile('$' + st.cost_so_far.toFixed(2), 'spent so far')
       + tile(st.avg_cost_per_track ? '$' + st.avg_cost_per_track.toFixed(3) : '-', 'average per track')
-      + tile(st.avg_cost_per_track ? '$' + (st.avg_cost_per_track * (st.collected + st.not_collected)).toFixed(2) : '-', 'est. to finish (all tracks)');
+      + tile(st.avg_cost_per_track ? '$' + (st.avg_cost_per_track * (st.collected + st.not_collected)).toFixed(2) : '-', 'est. to finish (all tracks)')
+      + tile(st.search_ready ? '✓' : '✗', st.search_ready ? 'keyword search ready' : 'keyword search NOT set up: run supabase/002_topics_and_search.sql')
+      + (st.unindexed ? tile(st.unindexed, 'catalogued but not searchable yet: press Rebuild search index') : '');
+    if (st.search_error) console.warn('search_catalogue:', st.search_error);
   } catch (e) {
     document.getElementById('prodTiles').innerHTML = '<div class="err">Could not load stats: ' + esc(e.message) + (/track_metadata/.test(e.message) ? ' (has the SQL in supabase/track_metadata.sql been run?)' : '') + '</div>';
   }

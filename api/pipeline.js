@@ -29,7 +29,7 @@ const MODEL = 'claude-opus-5-5';
 
 // Bump when the prompt or schema changes meaningfully; entries made with an
 // older version can then be re-run ("upgrade") without touching locked ones.
-const PROMPT_VERSION = 2;
+const PROMPT_VERSION = 3;
 
 // Topics come from the `topics` table (editable in Supabase), so the menu
 // can change without a code change. Cached briefly between requests.
@@ -57,7 +57,7 @@ function buildSchema(topicSlugs) {
     required: ['title_en', 'title_he', 'summary_en', 'key_points', 'main_topic', 'other_topics', 'suggested_new_topics',
                'occasions', 'parsha', 'people', 'sources', 'phrases', 'confidence', 'confidence_reason'],
     properties: {
-      title_en: { type: 'string', description: 'Natural, clear English title of the idea: 3-8 words, at most ~55 characters' },
+      title_en: { type: 'string', description: 'Short, catchy English title, like an episode title: 2-6 words, at most ~40 characters. A title, not a sentence.' },
       title_he: { type: 'string', description: 'Short Hebrew heading (the outline\'s own heading when it has one)' },
       summary_en: { type: 'string', description: '1-3 natural sentences explaining the idea, within the word limit given' },
       key_points: { type: 'array', items: { type: 'string' }, description: 'For multi-point outlines: one plain-English bullet per main point; otherwise empty' },
@@ -85,13 +85,16 @@ Accuracy:
 - If part of the material is unclear, leave it out rather than guess.
 
 Title (shown in a track list, like a song title in a music app):
-- The idea of the talk in natural, concrete words: 3-8 words, at most ~55 characters.
+- SHORT: 2-6 words, at most ~40 characters. Shorter is better. The summary does the explaining; the title only has to name the idea and make someone want to tap.
+- It must read like a TITLE (an episode or chapter name), not a sentence: no full claims with a verb chain ("The Rebbe Explains Why Every Jew Must…"), no "How X Leads to Y Through Z". Use a punchy noun phrase or a short question.
+- Title Case.
 - Someone with a basic Jewish background should understand it at a glance. Widely known words are fine (Moshiach, Shabbos, Pesach, mitzvah, tzedakah, Torah, the Rebbe); avoid unexplained insider terms (e.g. "Dira Betachtonim", "Mesirus Nefesh", "Hiskashrus") in the title.
 - Not clinical or abstract ("Festivals and Ordinary Weekdays" says nothing), not a bare list of terms, no filler ("A Sicha on…", "The Rebbe Explains…").
 - A question is fine when the talk itself asks it ("Why…?").
 - If the outline has its own heading, it tells you the subject; still phrase the English title naturally.
 - If the track covers several unrelated subjects, title the main one.
-- Good: "Six-Day War Lessons for the Inner Battle" — concrete, natural, says the idea.
+- Good: "The Inner Six-Day War", "Why a Second Pesach?", "Light in the Darkest Hour", "The Power of One Mitzvah", "Bread of Shame".
+- Bad (too long, sentence-like): "How the Six-Day War Teaches Us to Fight Our Inner Battles Every Day" → "The Inner Six-Day War".
 
 Summary: 1-3 natural sentences (up to 4 for long multi-point outlines), within the word limit given. Start with the substance, not "In this sicha" or "The Rebbe explains that".
 
@@ -99,7 +102,7 @@ Key points: only for outlines with several distinct points: one plain-English bu
 
 Worked example (a different track, to show the style):
 Outline: "ביאור במאמר הצ"צ 'להבין ענין פסח שני' מבאר שפסח שני (יסוד) הוא למע' מפסח ראשון (מלכות) – לכאורה ה"ז סתירה לפשטות הענין, ולתורת אדמו"ר מוהריי"צ 'ניטאָ קיין פאַרפאַלן'; והביאור – פסח שני הוא תיקון לקרבן פסח, אבל ביחס לשאר עניני העבודה דפסח … הוא למע' מהם"
-Good title: "Is the Second Pesach Greater Than the First?"
+Good title: "Why the Second Pesach Is Higher"
 Good summary: "The Tzemach Tzedek writes that Pesach Sheini, the make-up Pesach for those who missed the first, is in a sense higher than the original. The Rebbe asks how a make-up can be higher, and explains: as a correction for the missed offering it comes second, but in other respects it stands above the first."
 Bad title: "Pesach Sheini: Yesod and Malchus" (insider terms, says nothing to most listeners).
 
@@ -186,7 +189,7 @@ function outlineHeading(outline, points) {
 function checkEntry(m, budget) {
   const warnings = [];
   const titleWords = m.title_en.trim().split(/\s+/).length;
-  if (m.title_en.length > 60 || titleWords > 9) warnings.push(`Title is long (${titleWords} words, ${m.title_en.length} chars)`);
+  if (m.title_en.length > 45 || titleWords > 7) warnings.push(`Title is long (${titleWords} words, ${m.title_en.length} chars)`);
   const sumWords = m.summary_en.trim().split(/\s+/).length;
   if (sumWords > budget.summaryWords * 1.25) warnings.push(`Summary is ${sumWords} words (limit ${budget.summaryWords})`);
   if (budget.points <= 1 && m.key_points.length > 1) warnings.push(`${m.key_points.length} key points for a one-point outline`);
@@ -399,8 +402,14 @@ async function stats(supabase) {
   const tout = tokens.reduce((a, r) => a + (r.output_tokens || 0), 0);
   const cost = tin / 1e6 * PRICE_IN + tout / 1e6 * PRICE_OUT;
   const counts = Object.fromEntries(statuses.map((st, i) => [st, byStatus[i]]));
+  // Search health: does the ranked search function exist, and how many
+  // catalogued tracks have no search words yet (need "Rebuild search index")?
+  const probe = await supabase.rpc('search_catalogue', { q_simple: 'test', q_english: 'test', q_raw: 'test', topic_slugs: [], max_results: 1 });
+  const unindexed = await count(supabase.from('track_metadata').select('ashreinu_event_id', { count: 'exact', head: true })
+    .eq('status', 'enriched').or('search_b.is.null,search_b.eq.'));
   return {
     candidates, ...counts, outdated, prompt_version: PROMPT_VERSION,
+    search_ready: !probe.error, search_error: probe.error?.message || null, unindexed,
     not_collected: Math.max(0, candidates - statuses.reduce((a, st) => a + counts[st], 0)),
     tokens: { input: tin, output: tout }, cost_so_far: +cost.toFixed(2),
     avg_cost_per_track: counts.enriched ? +(cost / counts.enriched).toFixed(4) : null,
