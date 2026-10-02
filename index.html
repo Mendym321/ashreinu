@@ -282,12 +282,9 @@ body.audio-paused .eq i{animation-play-state:paused}
    the photo; other events get a date page colored by decade; anything else
    gets a quiet cover so the catalogued talks stand out. */
 .cover-talk{background:var(--tg);align-items:stretch;justify-content:flex-start;flex-direction:column;text-align:left}
-.cover-talk > svg{position:absolute;right:-8%;bottom:-8%;width:62%;height:62%;opacity:.16}
-.track-cover.cover-talk > svg,.mini-cover.cover-talk > svg,.jump-cover.cover-talk > svg,.ep-cover.cover-talk > svg,.album-cover.cover-talk > svg{position:static;width:50%;height:50%;opacity:.95;margin:auto}
+.cover-talk > svg{width:46%;height:46%;opacity:.95;margin:auto}
 .cv-title{position:relative;font-weight:800;letter-spacing:-.02em;line-height:1.12;padding:12px 12px 0;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;font-size:16px}
-.cv-kicker{position:absolute;left:12px;right:12px;bottom:10px;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .np-cover .cv-title{font-size:30px;padding:24px 24px 0;-webkit-line-clamp:5}
-.np-cover .cv-kicker{left:24px;bottom:20px;font-size:12px}
 .cover-photo{background:#2a2622 center/cover no-repeat}
 .cover-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6),transparent 55%);pointer-events:none}
 .cover-photo .np-cover-label{z-index:1}
@@ -306,8 +303,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 .cv-year{font-size:13px;font-weight:800;letter-spacing:-.01em}
 .mini-cover .cv-year{font-size:12px}
 .album-cover .cv-date b{font-size:26px}.album-cover .cv-date span{font-size:9px}.album-cover .cv-date{margin-top:0}
-.cover-quiet{background:var(--hover);color:var(--ink-light)}
-.cover-quiet svg{opacity:.7}
+.cover-soft{filter:saturate(.72) brightness(.96)}
 
 /* ═══ Shared round icon button — 44px is the minimum comfortable tap target ═══ */
 .icon-btn{
@@ -1450,17 +1446,6 @@ const TYPE_ICONS = {
   other: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/>'
 };
 function typeKey(t) { return typeDot(t).replace('dot-', ''); }
-const GROUP_ICONS = {
-  'g-moshiach': '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
-  'g-avodah': '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
-  'g-community': TYPE_ICONS.farb,
-  'g-outreach': '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
-  'g-family': '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
-  'g-torah': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
-  'g-time': '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
-  'g-chabad': '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
-  'g-world': '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
-};
 function svgIcon(paths) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>'; }
 function topicGroupSlug(slug) { const t = TOPIC_BY_SLUG[slug]; return t ? (t.parent_slug || t.slug) : null; }
 // Decade of the recording (5710s, 5720s...), for date covers.
@@ -1468,17 +1453,18 @@ function eraIndex(year) { return Math.max(0, Math.min(4, Math.floor(((year || 57
 // What a cover shows, in order of how much it tells you about what's inside.
 function coverSpec(row) {
   const group = row.confirmed_title && row.main_topic ? topicGroupSlug(row.main_topic) : null;
-  if (group) return { kind: 'talk', cls: 'cover-talk tg-' + groupIndex(row.main_topic), icon: GROUP_ICONS[group] || TYPE_ICONS.sicha };
+  if (group) return { kind: 'talk', cls: 'cover-talk tg-' + groupIndex(row.main_topic) };
   if (row.photo) return { kind: 'photo', cls: 'cover-photo' };
   if (!row.parent_id && row.hebrew_day) return { kind: 'date', cls: 'cover-date era-' + eraIndex(row.hebrew_year) };
-  return { kind: 'quiet', cls: 'cover-quiet' };
+  // Not catalogued yet: its type's color (sicha, ma'amar, niggun...), a little softer.
+  return { kind: 'type', cls: 'cover-' + typeKey(row.type) + ' cover-soft' };
 }
 function coverInner(row, withLabel, big) {
   const spec = coverSpec(row);
   const typeIcon = svgIcon(TYPE_ICONS[typeKey(row.type)]);
   const label = '<div class="np-cover-label"><span>' + esc(typeLabel(row.type) || '') + '</span><strong>' + esc(row.hebrew_year || '') + '</strong></div>';
-  if (spec.kind === 'talk') return svgIcon(spec.icon) + (withLabel
-    ? '<div class="cv-title">' + esc(trackTitle(row)) + '</div><div class="cv-kicker">' + esc(topicName(row.main_topic)) + '</div>' : '');
+  // Color says the topic, text says the idea, the label says the format.
+  if (spec.kind === 'talk') return withLabel ? '<div class="cv-title">' + esc(trackTitle(row)) + '</div>' + label : typeIcon;
   if (spec.kind === 'photo') return withLabel ? label : '';
   const datePage = '<div class="cv-date"><b>' + esc(row.hebrew_day) + '</b><span>' + esc(row.hebrew_month_name || '') + '</span></div>';
   if (spec.kind === 'date') return withLabel ? datePage + label : big ? datePage : '<span class="cv-year">' + esc(row.hebrew_year || '') + '</span>';
