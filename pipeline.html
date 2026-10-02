@@ -199,8 +199,14 @@ async function collectAll() {
 }
 async function enrichBatch(n, retry, upgrade) {
   if (busy) return;
+  // Upgrade only re-does entries made with older instructions, so the real
+  // count is however many of those there are (up to n), not n itself.
+  if (upgrade && lastStats && typeof lastStats.outdated === 'number') {
+    if (!lastStats.outdated) { plog('Every entry is already on the latest instructions.'); return; }
+    n = Math.min(n, lastStats.outdated);
+  }
   const est = lastStats?.avg_cost_per_track ? ' (about $' + (lastStats.avg_cost_per_track * n).toFixed(2) + ' at the current average)' : ' (about $' + (0.05 * n).toFixed(2) + ' or less, rough estimate)';
-  if (!confirm('Run Claude on the next ' + n + ' tracks' + est + '?')) return;
+  if (!confirm((upgrade ? 'Re-do ' + n + ' entries made with older instructions' : 'Run Claude on the next ' + n + ' tracks') + est + '?')) return;
   setBusy(true);
   try {
     const { ids } = await api({ mode: 'pending', limit: n, ...(retry ? { retry: 1 } : {}), ...(upgrade ? { upgrade: 1 } : {}) });
