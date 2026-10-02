@@ -125,8 +125,23 @@ const PRICE_IN = 4, PRICE_OUT = 20;
 // ── Production controls ──
 let stopRequested = false, busy = false;
 function plog(msg) { const el = document.getElementById('prodLog'); el.style.display = 'block'; el.textContent += msg + '\n'; el.scrollTop = el.scrollHeight; }
+// The pipeline is password-protected (PIPELINE_KEY in Vercel). The password
+// is asked once and remembered on this device only.
+function pipelineKey(forceAsk) {
+  let k = ''; try { k = localStorage.getItem('pipeline-key') || ''; } catch (e) {}
+  if (!k || forceAsk) {
+    k = (prompt(forceAsk ? 'That password didn\'t work. Pipeline password:' : 'Pipeline password:') || '').trim();
+    try { localStorage.setItem('pipeline-key', k); } catch (e) {}
+  }
+  return k;
+}
+async function pipelineFetch(query) {
+  let r = await fetch('/api/pipeline?' + query, { headers: { 'x-pipeline-key': pipelineKey() } });
+  if (r.status === 401) r = await fetch('/api/pipeline?' + query, { headers: { 'x-pipeline-key': pipelineKey(true) } });
+  return r;
+}
 async function api(params) {
-  const r = await fetch('/api/pipeline?' + new URLSearchParams(params));
+  const r = await pipelineFetch(new URLSearchParams(params));
   const text = await r.text();
   let j; try { j = JSON.parse(text); } catch (e) { throw new Error('Server error: ' + text.slice(0, 120)); }
   if (j.error) throw new Error(j.error);
@@ -340,7 +355,7 @@ function note(id, text) { const v = readVerdicts(); v[id] = { ...(v[id] || {}), 
 async function runOne(id) {
   results[id] = null; renderCard(id);
   try {
-    const r = await fetch('/api/pipeline?mode=preview&id=' + id);
+    const r = await pipelineFetch('mode=preview&id=' + id);
     const text = await r.text();
     let j; try { j = JSON.parse(text); } catch (e) { j = { error: 'Server error: ' + text.slice(0, 120) }; }
     results[id] = j;

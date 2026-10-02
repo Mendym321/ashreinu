@@ -20,6 +20,7 @@
 // GET /api/pipeline?mode=list&offset=N        -> catalogued entries, newest first (for review)
 // GET /api/pipeline?mode=reindex&offset=N     -> rebuild search text from stored fields (no AI), 200 at a time
 
+import { timingSafeEqual } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { OCCASIONS, PARSHIYOS, audienceFor, normalize, hebrewSearchForms } from '../lib/vocab.js';
@@ -416,7 +417,19 @@ async function stats(supabase) {
   };
 }
 
+// The pipeline spends money (Claude) and writes to the catalogue, so every
+// call needs the password set as PIPELINE_KEY in Vercel. If it isn't set,
+// nothing runs: a missing setting must never leave the door open.
+function keyOk(req) {
+  const expected = process.env.PIPELINE_KEY || '';
+  const given = String(req.headers?.['x-pipeline-key'] || '');
+  if (!expected || given.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+}
+
 export default async function handler(req, res) {
+  if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
+  if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
   const { mode, id } = req.query;
   const needsId = ['source', 'preview', 'enrich'].includes(mode);
   if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
