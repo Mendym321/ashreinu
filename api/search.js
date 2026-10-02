@@ -119,6 +119,15 @@ export default async function handler(req, res) {
     return res.status(200).json({ results: await rowsForIds(supabase, ids.slice(0, n), {}) });
   }
 
+  // One event's row by id (e.g. a farbrengen opened from one of its tracks).
+  if (req.query.event) {
+    const { data, error } = await supabase.from('ashreinu_events').select(ROW_FIELDS).eq('id', parseInt(req.query.event, 10)).maybeSingle();
+    if (error) return res.status(500).json({ error: error.message });
+    if (data) await attachConfirmedTitles(supabase, [data]);
+    res.setHeader('Cache-Control', 's-maxage=300');
+    return res.status(200).json({ result: data || null });
+  }
+
   // Topic list (the browsing menu), with how many talks each has as main topic.
   if (req.query.topics) {
     const topics = await loadTopics(supabase);
@@ -213,7 +222,10 @@ export default async function handler(req, res) {
       const { data, error } = await supabase
         .from('ashreinu_events')
         .select('hebrew_year')
-        .eq('type', 'Farbrengen')
+        // Every whole event, not only ones labelled "Farbrengen": from 5749
+        // Ashreinu files the Rebbe's talks as "Sicha" etc., so a
+        // Farbrengen-only list stopped at 5748.
+        .is('parent_id', null)
         .not('hebrew_year', 'is', null)
         .order('hebrew_year', { ascending: true })
         .range(offset, offset + pageSize - 1);

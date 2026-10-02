@@ -349,6 +349,9 @@ body.audio-paused .eq i{animation-play-state:paused}
 .np-top-mid{flex:1;min-width:0;text-align:center}
 .np-top-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
 .np-top-parent{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.farb-link{cursor:pointer;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 35%,transparent);text-underline-offset:3px}
+.farb-link:hover{color:var(--gold)}
+.farb-link svg{width:13px;height:13px;vertical-align:-2px}
 .np-scroll{flex:1;overflow-y:auto;min-height:0;overscroll-behavior:contain}
 .np-inner{max-width:520px;margin:0 auto;padding:12px 24px calc(40px + env(safe-area-inset-bottom))}
 .np-cover{width:min(100%,320px);aspect-ratio:1;margin:12px auto 28px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
@@ -434,6 +437,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 .rd-summary{font-size:16.5px;line-height:1.65;color:var(--ink-mid);margin-top:14px}
 .rd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .rd-tags .chip{height:30px;padding:0 12px;font-size:13px}
+.rd-tags .chip.topic-chip{padding-left:26px}
 
 .rd-text{
   font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:var(--rd-size,19px);line-height:2;
@@ -675,15 +679,15 @@ body.audio-paused .eq i{animation-play-state:paused}
   </div>
   <div class="sheet-scroll" id="browseScroll">
     <div class="browse-tabs">
+      <button class="chip active" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
       <button class="chip" data-pane="topics" onclick="switchBrowseTab('topics')">Topics</button>
-      <button class="chip active" data-pane="type" onclick="switchBrowseTab('type')">Type</button>
-      <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
-      <button class="chip" data-pane="months" onclick="switchBrowseTab('months')">Months</button>
       <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
+      <button class="chip" data-pane="months" onclick="switchBrowseTab('months')">Months</button>
+      <button class="chip" data-pane="type" onclick="switchBrowseTab('type')">Type</button>
     </div>
-    <div class="browse-pane" id="pane-topics"><div id="browseTopics"></div></div>
-    <div class="browse-pane active" id="pane-type"><div class="tile-grid" id="browseTypeGrid"></div></div>
-    <div class="browse-pane" id="pane-collections"><div id="browseCollectionsGrid"></div></div>
+    <div class="browse-pane active" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
+    <div class="browse-pane" id="pane-topics"><div class="tile-grid" id="browseTopics"></div></div>
+    <div class="browse-pane" id="pane-type"><div class="tile-grid" id="browseTypeGrid"></div></div>
     <div class="browse-pane" id="pane-months"><div class="card-grid" id="browseMonthsGrid"></div></div>
     <div class="browse-pane" id="pane-years"><div class="chip-wrap" id="browseYearsScroll"><div class="shelf-empty">Loading…</div></div></div>
   </div>
@@ -723,6 +727,7 @@ const COLLECTIONS = [
   { name: "Yud-Alef Nissan", sub: "11 Nissan", kind: 'chassidic', tag: 'Yud-Alef Nissan', dates: [[8,11]] },
   { name: "Yud-Gimmel Nissan", sub: "13 Nissan", kind: 'chassidic', tag: 'Yud-Gimmel Nissan', dates: [[8,13]] },
   { name: "Pesach", sub: "14–22 Nissan", kind: 'yomtov', tag: 'Pesach', dates: dayRange(8, 14, 22) },
+  { name: "Sefiras HaOmer", sub: "16 Nissan – 5 Sivan", kind: 'season', tag: 'Sefiras HaOmer', dates: [...dayRange(8, 16, 30), ...dayRange(9, 1, 29), ...dayRange(10, 1, 5)] },
   { name: "Pesach Sheini", sub: "14 Iyar", kind: 'yomtov', tag: 'Pesach Sheini', dates: [[9,14]] },
   { name: "Lag BaOmer", sub: "18 Iyar", kind: 'yomtov', tag: 'Lag BaOmer', dates: [[9,18]] },
   { name: "Shavuos", sub: "5–7 Sivan", kind: 'yomtov', tag: 'Shavuos', dates: dayRange(10, 5, 7) },
@@ -730,15 +735,13 @@ const COLLECTIONS = [
   { name: "Gimmel Tammuz", sub: "3 Tammuz", kind: 'chassidic', tag: 'Gimmel Tammuz', dates: [[11,3]] },
   { name: "Yud-Beis Tammuz", sub: "12–13 Tammuz", kind: 'chassidic', tag: 'Yud-Beis Tammuz', dates: [[11,12],[11,13]] },
   { name: "Shiva Asar B'Tammuz", sub: "17 Tammuz", kind: 'fast', tag: "The Three Weeks & Tisha B'Av", dates: [[11,17],[11,18]] },
+  { name: "The Three Weeks", sub: "17 Tammuz – 9 Av", kind: 'season', tag: "The Three Weeks & Tisha B'Av", dates: [...dayRange(11, 17, 29), ...dayRange(12, 1, 10)] },
   { name: "Tisha B'Av", sub: "9 Av", kind: 'fast', tag: "The Three Weeks & Tisha B'Av", dates: [[12,9],[12,10]] },
   { name: "Tu B'Av", sub: "15 Av", kind: 'yomtov', tag: "Tu B'Av", dates: [[12,15]] },
   { name: "Chof Av", sub: "20 Av", kind: 'chassidic', tag: 'Chof Av', dates: [[12,20]] },
-  { name: "Chai Elul", sub: "18 Elul", kind: 'chassidic', tag: 'Chai Elul', dates: [[13,18]] },
   { name: "Elul", sub: "The whole month", kind: 'season', tag: 'Elul', dates: dayRange(13, 1, 29) },
-  { name: "Sefiras HaOmer", sub: "16 Nissan – 5 Sivan", kind: 'season', tag: 'Sefiras HaOmer', dates: [...dayRange(8, 16, 30), ...dayRange(9, 1, 29), ...dayRange(10, 1, 5)] },
-  { name: "The Three Weeks", sub: "17 Tammuz – 9 Av", kind: 'season', tag: "The Three Weeks & Tisha B'Av", dates: [...dayRange(11, 17, 29), ...dayRange(12, 1, 10)] },
+  { name: "Chai Elul", sub: "18 Elul", kind: 'chassidic', tag: 'Chai Elul', dates: [[13,18]] },
 ];
-const OCCASION_KINDS = [['yomtov', 'Yom Tov'], ['chassidic', 'Chassidic days'], ['fast', 'Fast days'], ['season', 'Seasons']];
 
 function getAudioUrl(row) {
   if (!row.audio_uri) return null;
@@ -842,7 +845,7 @@ function openBrowseSheet(tab) {
   }
   document.getElementById('browseSheet').classList.add('open');
   document.getElementById('browseBackdrop').classList.add('open');
-  switchBrowseTab(tab || (TOPICS.length ? 'topics' : 'type'));
+  switchBrowseTab(tab || 'collections');
   loadBrowseSheetContent();
 }
 function closeBrowseSheet(fromBackButton) {
@@ -861,18 +864,16 @@ async function loadBrowseSheetContent() {
   if (!browseStaticLoaded) {
     browseStaticLoaded = true;
     document.getElementById('browseTypeGrid').innerHTML = typeTilesHtml(true);
-    document.getElementById('browseCollectionsGrid').innerHTML = OCCASION_KINDS.map(([kind, label]) =>
-      '<div class="browse-group"><h4>' + label + '</h4><div class="card-grid">'
-      + COLLECTIONS.map((c, i) => c.kind !== kind ? '' :
-          '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('')
-      + '</div></div>').join('');
+    // One list in calendar order, Tishrei to Elul.
+    document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) =>
+      '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('');
     document.getElementById('browseMonthsGrid').innerHTML = MONTH_LIST.map(m =>
       '<div class="occasion" onclick="closeBrowseSheet();browseByMonth(\'' + m + '\')"><strong>' + m + '</strong></div>').join('');
   }
+  // Nine calm category tiles, like a music app's browse grid; each group's
+  // page shows its sub-topics.
   document.getElementById('browseTopics').innerHTML = TOPICS.length
-    ? topicGroups().map(g => '<div class="browse-group"><h4>' + esc(g.name_en) + '</h4><div class="chip-wrap">'
-        + '<button class="chip topic-chip active tg-' + groupIndex(g.slug) + '" onclick="openTopic(\'' + g.slug + '\')">All</button>'
-        + TOPICS.filter(t => t.parent_slug === g.slug).map(topicChipHtml).join('') + '</div></div>').join('')
+    ? topicTilesHtml(false)
     : '<div class="shelf-empty">Topics will appear once the catalogue is set up.</div>';
   const years = await getYears();
   document.getElementById('browseYearsScroll').innerHTML = years.length
@@ -1285,8 +1286,22 @@ async function openTopic(slug) {
   }
 }
 
-function openFarbrengen(fid) {
-  const head = rowsById[String(fid)];
+// The farbrengen a track belongs to, as a link to its full page.
+function farbrengenLinkHtml(row, withArrow) {
+  return '<span class="farb-link" role="link" tabindex="0" onclick="event.stopPropagation();goToFarbrengen(' + row.parent_id + ')" title="Open the whole farbrengen">'
+    + esc(row.parent_name) + (withArrow ? ' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' : '') + '</span>';
+}
+function goToFarbrengen(fid) {
+  closeReader(); closeNowPlaying(); closeBrowseSheet();
+  openFarbrengen(fid);
+}
+async function openFarbrengen(fid) {
+  let head = rowsById[String(fid)];
+  // Opened from one of its tracks: fetch the farbrengen's own row first, so
+  // the page gets its title, date and cover.
+  if (!head) {
+    try { head = (await (await fetch('/api/search?event=' + fid)).json()).result || undefined; } catch (e) { /* the tracks still load */ }
+  }
   document.getElementById('filterRow').classList.remove('active');
   document.getElementById('rmeta').innerHTML =
     '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
@@ -1332,7 +1347,7 @@ function trackRowHtml(row, loose, withSummary) {
   const farbrengenId = row.parent_id || row.id;
   const label = row.confirmed_title ? row.name : typeLabel(row.type);
   const sub = withSummary
-    ? [row.main_topic ? topicName(row.main_topic) : label, hebDate(row), dur(row.duration_ms)]
+    ? [row.main_topic ? topicName(row.main_topic) : label, row.parent_id && row.parent_name ? row.parent_name : hebDate(row), dur(row.duration_ms)]
     : loose
       ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
       : [label, dur(row.duration_ms)];
@@ -1342,7 +1357,8 @@ function trackRowHtml(row, loose, withSummary) {
       + coverHtml('track-cover', row, false, '<span class="eq"><i></i><i></i><i></i></span>')
       + '<div class="track-info">'
         + '<div class="track-title">' + esc(trackTitle(row)) + '</div>'
-        + '<div class="track-sub">' + esc(sub.filter(Boolean).join(' · ')) + '</div>'
+        + '<div class="track-sub">' + sub.filter(Boolean).map(part => part === row.parent_name && row.parent_id
+            ? farbrengenLinkHtml(row) : esc(part)).join(' · ') + '</div>'
         + (withSummary && row.summary_en ? '<div class="track-summary">' + esc(row.summary_en) + '</div>' : '')
       + '</div>'
       + (isNigun ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
@@ -1770,7 +1786,7 @@ function populateNowPlaying(rid) {
   setCover(document.getElementById('npCover'), row, true);
   document.getElementById('npTitle').textContent = trackTitle(row);
   document.getElementById('npSub').textContent = trackSubtitle(row);
-  document.getElementById('npParent').textContent = row.parent_name || trackTitle(row);
+  document.getElementById('npParent').innerHTML = row.parent_id && row.parent_name ? farbrengenLinkHtml(row, true) : esc(row.parent_name || trackTitle(row));
   document.getElementById('npExt').href = lnk(row);
   renderDuration();
 
@@ -1966,9 +1982,9 @@ async function openReader(eventId, farbrengenId) {
   }
   closeFootnote();
   reader.style.setProperty('--np-tint', 'var(--tint-' + (row ? typeKey(row.type) : 'farb') + ')');
-  document.getElementById('readerParent').textContent = whole
-    ? (row ? trackTitle(row) : 'Farbrengen')
-    : (row?.parent_name || (row ? trackTitle(row) : ''));
+  document.getElementById('readerParent').innerHTML = whole
+    ? esc(row ? trackTitle(row) : 'Farbrengen')
+    : row?.parent_id && row.parent_name ? farbrengenLinkHtml(row, true) : esc(row?.parent_name || (row ? trackTitle(row) : ''));
   document.getElementById('readerKicker').textContent = whole ? 'Farbrengen text' : 'Source text';
   document.getElementById('readerScroll').scrollTop = 0;
   const body = document.getElementById('readerBody');
