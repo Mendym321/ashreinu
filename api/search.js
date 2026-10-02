@@ -38,6 +38,32 @@ function applyFilters(query, { type, year, month, dates }) {
   return query;
 }
 
+// Catalogued talks for an occasion: those said on its days (any year), plus
+// those tagged with it though said on another date. The date is a fact, so a
+// talk given on Sukkos stays on the Sukkos shelf whatever its tags say.
+async function occasionTalks(supabase, occasion, dates) {
+  const onDays = [];
+  if (dates) {
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await applyFilters(supabase.from('ashreinu_events').select('id').not('audio_uri', 'is', null).not('parent_id', 'is', null), { dates })
+        .order('id').range(from, from + 999);
+      if (error) throw new Error(error.message);
+      onDays.push(...data.map(r => r.id));
+      if (data.length < 1000) break;
+    }
+  }
+  const catalogued = [];
+  for (let i = 0; i < onDays.length; i += 200) {
+    const { data, error } = await supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').in('ashreinu_event_id', onDays.slice(i, i + 200));
+    if (error) throw new Error(error.message);
+    catalogued.push(...data.map(r => r.ashreinu_event_id));
+  }
+  const { data: tagged, error } = await supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').contains('occasions', [occasion]).limit(100);
+  if (error) throw new Error(error.message);
+  const ids = [...new Set([...catalogued, ...tagged.map(r => r.ashreinu_event_id)])].slice(0, 100);
+  return rowsForIds(supabase, ids, {});
+}
+
 // Fetch track rows for catalogue ids, keep the given order, attach titles and topics.
 async function rowsForIds(supabase, ids, filters) {
   if (!ids.length) return [];
@@ -325,8 +351,7 @@ export default async function handler(req, res) {
   // On an occasion page, "Talks" are the catalogue entries tagged with that
   // occasion, whatever date they were said on.
   const talksPromise = occasion && !q
-    ? supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').contains('occasions', [String(occasion)]).limit(100)
-        .then(({ data, error }) => { if (error) throw new Error(error.message); return rowsForIds(supabase, data.map(r => r.ashreinu_event_id), {}); })
+    ? occasionTalks(supabase, String(occasion), dates)
         .then(talks => ({ talks, matchedTopics: [] }))
         .catch(e => ({ talks: [], matchedTopics: [], talksError: e.message }))
     : q
