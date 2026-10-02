@@ -30,7 +30,7 @@ const MODEL = 'claude-opus-5-5';
 
 // Bump when the prompt or schema changes meaningfully; entries made with an
 // older version can then be re-run ("upgrade") without touching locked ones.
-const PROMPT_VERSION = 4;
+const PROMPT_VERSION = 5;
 
 // Topics come from the `topics` table (editable in Supabase), so the menu
 // can change without a code change. Cached briefly between requests.
@@ -90,7 +90,7 @@ Title (shown in a track list, like a song title in a music app):
 - It must read like a TITLE (an episode or chapter name), not a sentence: no full claims with a verb chain ("The Rebbe Explains Why Every Jew Must…"), no "How X Leads to Y Through Z". Use a punchy noun phrase or a short question.
 - Title Case.
 - Lead with what is DISTINCTIVE about this talk (its story, question, surprise, image or practical instruction) rather than its general theme. A title that could fit fifty different talks ("The Rebbe Still Leads", "Tests That Lift Us Up", "The Seventh Generation") is too generic; find this talk's own angle.
-- But the subject must stay clear: a listener should know roughly what it's about. A hook with no subject ("A Wave of the Hand", "Holding All Three Keys") is too vague.
+- But the subject must stay clear: a listener should know roughly what it's about. If the hook is a story or image, pair it with the subject ("The Sukkos Water and David's Warriors", not just "David's Water from Bethlehem"). A hook with no subject at all ("A Wave of the Hand", "Holding All Three Keys") is too vague.
 - Someone with a basic Jewish background should understand it at a glance. Widely known words are fine (Moshiach, Shabbos, Pesach, mitzvah, tzedakah, Torah, the Rebbe); avoid unexplained insider terms (e.g. "Dira Betachtonim", "Mesirus Nefesh", "Hiskashrus") in the title.
 - Not clinical or abstract ("Festivals and Ordinary Weekdays" says nothing), not a bare list of terms, no filler ("A Sicha on…", "The Rebbe Explains…").
 - A question is fine when the talk itself asks it ("Why…?").
@@ -117,8 +117,8 @@ Classification. These power browsing and search, so consistency matters more tha
 - suggested_new_topics: only if an important theme fits no topic on the menu (a person reviews these). Usually empty.
 - occasions: occasions the talk is for or substantially about. Don't add one just because of the date it was said: a talk given on Purim about something else gets no "Purim".
 - parsha: the weekly Torah portion the talk discusses, or "none".
-- people: people the talk meaningfully discusses (e.g. Avraham Avinu, Mordechai, Rashbi, the Alter Rebbe, the Previous Rebbe), in common Chabad English. Not people only cited as a source.
-- sources: works cited, at book level ("Tanya", "Zohar", "Rambam, Hilchos Teshuvah", "Bamidbar"), not chapter and verse.
+- people: at most 4 people the talk is really ABOUT or tells a story about (e.g. Avraham Avinu, Mordechai, Rashbi, the Alter Rebbe, the Previous Rebbe), in common Chabad English. Not people only quoted or cited in passing ("as the Tzemach Tzedek writes").
+- sources: at most 4 works the talk actually builds on, at book level ("Tanya", "Zohar", "Rambam, Hilchos Teshuvah", "Bamidbar"). Not every citation or footnote, and not standard commentaries mentioned in passing (Rashi on a verse).
 - phrases: famous sayings or expressions the talk quotes or centres on, as people remember them ("lechatchila ariber", "nahama dekisufa", "ufaratzta"). Usually empty.
 
 confidence: high if the material clearly covers the talk; medium if brief or partial; low if very thin or unclear.`;
@@ -167,7 +167,13 @@ async function fetchSource(id) {
 // How long the entry may be, derived from the source: a one-line outline
 // gets a one-sentence summary. Points are numbered "1)" or lettered "א.".
 function lengthBudget(src) {
-  if (!src.outline) return { summaryWords: 60, points: 5 };
+  // Hanacha only (no outline): keep it short too. A full transcript has far
+  // more detail than a listener needs; the summary gives the idea, and only
+  // a long talk with clearly separate parts gets a few bullets.
+  if (!src.outline) {
+    const len = (src.transcript || '').length;
+    return len < 2500 ? { summaryWords: 35, points: 0 } : len < 8000 ? { summaryWords: 45, points: 0 } : { summaryWords: 55, points: 3 };
+  }
   const words = src.outline.split(/\s+/).filter(Boolean).length;
   const points = (src.outline.match(/(?:^|\s)\d{1,2}\)|(?:^|\n)\s*[א-ת]{1,2}\.\s/g) || []).length;
   return { summaryWords: Math.max(25, Math.min(75, Math.round(words * 0.8))), points: Math.min(points, 6) };
@@ -213,7 +219,7 @@ async function enrich(src, topics) {
     src.transcript ? `\n<hanacha kind="${src.transcript_kind || 'unknown'}">\n${src.transcript}\n</hanacha>` : null,
     heading ? `\nThe outline's own heading (written by the archive's editors): «${heading}». Use it as title_he (verbatim or lightly shortened). It tells you the subject; phrase title_en naturally, not as a literal translation.` : null,
     `\nLength limits for this track: summary at most ${budget.summaryWords} words; ` +
-      (budget.points > 1 ? `at most ${budget.points} key points (one per outline point).` : 'no key points (single-point outline).'),
+      (budget.points > 1 ? `at most ${budget.points} key points (one per main part of the talk).` : 'no key points.'),
   ].filter(Boolean).join('\n');
 
   const response = await client.beta.messages.create({
