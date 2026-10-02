@@ -73,6 +73,14 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
 .tile b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em}
 .tile span{font-size:12px;color:var(--ink-light)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.field{height:42px;border-radius:21px;border:1px solid var(--border);background:var(--elevated);color:var(--ink);font:inherit;font-size:14px;padding:0 14px}
+.row-label{font-size:13px;font-weight:700;color:var(--ink-mid);min-width:64px}
+.cov{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px}
+.cov th,.cov td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--border)}
+.cov th:first-child,.cov td:first-child{text-align:left}
+.cov th{font-size:12px;color:var(--ink-light);font-weight:700}
+.cov tr.total td{font-weight:800}
+.redo-check{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:700;color:var(--ink-mid);cursor:pointer}
 .log{margin-top:12px;font:12.5px/1.6 ui-monospace,Menlo,monospace;color:var(--ink-mid);background:var(--elevated);border-radius:10px;padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap;display:none}
 .err{color:var(--bad);font-size:13.5px;padding:16px 18px}
 .loading{color:var(--ink-light);font-size:13.5px;padding:16px 18px}
@@ -88,9 +96,22 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
     <p><b>1. Collect</b> copies Ashreinu's outlines and hanachos into the database (free, no AI). <b>2. Enrich</b> runs Claude on collected tracks and saves the result (costs money, and the estimate is shown before you start). You can stop and continue anytime; nothing is processed twice.</p>
     <div class="tiles" id="prodTiles"><div class="tile"><b>…</b><span>loading</span></div></div>
     <div class="row">
+      <span class="row-label">Run</span>
+      <input class="field" id="runCount" type="number" min="1" max="3000" value="20" style="width:96px" aria-label="How many tracks">
+      <select class="field" id="runOrder" aria-label="Which tracks first">
+        <option value="old">oldest first (5711 on)</option>
+        <option value="new">newest first</option>
+        <option value="mix">mixed across all years</option>
+      </select>
+      <button class="btn primary" onclick="enrichBatch(+document.getElementById('runCount').value || 20, false, false, document.getElementById('runOrder').value)">Enrich</button>
+    </div>
+    <div class="row">
+      <span class="row-label">Redo</span>
+      <input class="field" id="redoIds" placeholder="track ids, e.g. 22, 26, 4" style="flex:1;min-width:200px" aria-label="Track ids to redo">
+      <button class="btn" onclick="redoTracks(parseIds(document.getElementById('redoIds').value))" title="Re-run Claude on these tracks with the current instructions (replaces their entries)">Redo these tracks</button>
+    </div>
+    <div class="row">
       <button class="btn" id="collectBtn" onclick="collectAll()">Collect all (free)</button>
-      <button class="btn primary" onclick="enrichBatch(20)">Enrich next 20</button>
-      <button class="btn primary" onclick="enrichBatch(100)">Enrich next 100</button>
       <button class="btn" onclick="enrichBatch(20, true)">Retry errors</button>
       <button class="btn" onclick="enrichBatch(50, false, true)" title="Re-run entries made with older instructions (locked entries are skipped)">Upgrade older entries</button>
       <button class="btn" onclick="reindexAll()" title="After editing entries or topic aliases in Supabase: rebuild what search looks at (free)">Rebuild search index</button>
@@ -100,9 +121,17 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
   </section>
 
   <section style="margin:0 0 34px">
+    <h2 style="font-size:18px;font-weight:800">Archive coverage</h2>
+    <p class="lead" style="margin-bottom:12px">Every audio track in the archive by kind: how many hours, how many have Ashreinu's own outline or hanacha (so Claude can catalogue them now), and how many are done. The rest are the gaps.</p>
+    <div class="row"><button class="btn" onclick="loadCoverage()">Show coverage (free)</button></div>
+    <div id="coverage"></div>
+  </section>
+
+  <section style="margin:0 0 34px">
     <h2 style="font-size:18px;font-weight:800">Review catalogued</h2>
     <p class="lead" style="margin-bottom:12px">The latest entries saved to the database, each next to its outline. "Open in app" shows it the way listeners will.</p>
-    <div class="row"><button class="btn primary" onclick="loadReview(0)">Show latest 20</button><button class="btn" id="reviewMore" onclick="loadReview(reviewOffset)" style="display:none">Show 20 more</button></div>
+    <div class="row"><button class="btn primary" onclick="loadReview(0)">Show latest 20</button><button class="btn" id="reviewMore" onclick="loadReview(reviewOffset)" style="display:none">Show 20 more</button>
+      <button class="btn" id="redoChecked" onclick="redoTracks([...document.querySelectorAll('.redo-box:checked')].map(b => +b.value))" style="display:none">Redo ticked</button></div>
     <div id="reviewCards" style="margin-top:16px"></div>
   </section>
 
@@ -161,6 +190,7 @@ async function refreshStats() {
       + (st.outdated ? tile(st.outdated, 'made with older instructions') : '')
       + tile('$' + st.cost_so_far.toFixed(2), 'spent so far')
       + tile(st.avg_cost_per_track ? '$' + st.avg_cost_per_track.toFixed(3) : '-', 'average per track')
+      + (st.enriched ? tile(Math.round(st.tokens.input / st.enriched).toLocaleString() + ' / ' + Math.round(st.tokens.output / st.enriched).toLocaleString(), 'avg tokens in / out per track') : '')
       + tile(st.avg_cost_per_track ? '$' + (st.avg_cost_per_track * (st.collected + st.not_collected)).toFixed(2) : '-', 'est. to finish (all tracks)')
       + tile(st.search_ready ? '✓' : '✗', st.search_ready ? 'keyword search ready' : 'keyword search NOT set up: run supabase/002_topics_and_search.sql')
       + (st.unindexed ? tile(st.unindexed, 'catalogued but not searchable yet: press Rebuild search index') : '');
@@ -212,7 +242,7 @@ async function collectAll() {
   } catch (e) { plog('Error: ' + e.message); }
   setBusy(false);
 }
-async function enrichBatch(n, retry, upgrade) {
+async function enrichBatch(n, retry, upgrade, order) {
   if (busy) return;
   // Upgrade only re-does entries made with older instructions, so the real
   // count is however many of those there are (up to n), not n itself.
@@ -224,21 +254,61 @@ async function enrichBatch(n, retry, upgrade) {
   if (!confirm((upgrade ? 'Re-do ' + n + ' entries made with older instructions' : 'Run Claude on the next ' + n + ' tracks') + est + '?')) return;
   setBusy(true);
   try {
-    const { ids } = await api({ mode: 'pending', limit: n, ...(retry ? { retry: 1 } : {}), ...(upgrade ? { upgrade: 1 } : {}) });
+    const { ids } = await api({ mode: 'pending', limit: n, order: order || 'old', ...(retry ? { retry: 1 } : {}), ...(upgrade ? { upgrade: 1 } : {}) });
     if (!ids.length) { plog(upgrade ? 'Every entry is already on the latest instructions.' : 'Nothing waiting. Run Collect first.'); setBusy(false); return; }
-    plog('Enriching ' + ids.length + ' tracks…');
-    const queue = [...ids]; let ok = 0, fail = 0;
-    await Promise.all([0, 1, 2].map(async () => {
-      while (queue.length && !stopRequested) {
-        const id = queue.shift();
-        try { const r = await api({ mode: 'enrich', id }); ok++; plog('✓ #' + id + ' ' + r.metadata.title_en); }
-        catch (e) { fail++; plog('✗ #' + id + ' ' + e.message); }
-      }
-    }));
-    plog((stopRequested ? 'Stopped' : 'Done') + ': ' + ok + ' saved, ' + fail + ' failed.');
+    await runEnrich(ids);
   } catch (e) { plog('Error: ' + e.message); }
   await refreshStats();
   setBusy(false);
+}
+// Run Claude on these ids, three at a time. A redo shows the old title next to the new one.
+async function runEnrich(ids) {
+  plog('Enriching ' + ids.length + ' tracks…');
+  const queue = [...ids]; let ok = 0, fail = 0;
+  await Promise.all([0, 1, 2].map(async () => {
+    while (queue.length && !stopRequested) {
+      const id = queue.shift();
+      try {
+        const r = await api({ mode: 'enrich', id });
+        if (r.skipped) { plog('– #' + id + ' skipped: ' + r.skipped); continue; }
+        ok++; plog('✓ #' + id + ' ' + r.metadata.title_en + (r.previous_title && r.previous_title !== r.metadata.title_en ? '   (was: ' + r.previous_title + ')' : ''));
+      }
+      catch (e) { fail++; plog('✗ #' + id + ' ' + e.message); }
+    }
+  }));
+  plog((stopRequested ? 'Stopped' : 'Done') + ': ' + ok + ' saved, ' + fail + ' failed.');
+}
+function parseIds(text) { return [...new Set(String(text).split(/[^0-9]+/).filter(Boolean).map(Number))]; }
+function syncRedoChecked() {
+  const n = document.querySelectorAll('.redo-box:checked').length;
+  const b = document.getElementById('redoChecked');
+  b.style.display = n ? '' : 'none'; b.textContent = 'Redo ticked (' + n + ')';
+}
+// Re-run chosen tracks with the current instructions (replaces their entries).
+async function redoTracks(ids) {
+  if (busy) return;
+  if (!ids.length) { plog('Type or tick the track ids to redo first.'); return; }
+  const est = lastStats?.avg_cost_per_track ? ' (about $' + (lastStats.avg_cost_per_track * ids.length).toFixed(2) + ')' : '';
+  if (!confirm('Redo ' + ids.length + ' track' + (ids.length > 1 ? 's' : '') + ' with the current instructions' + est + '? Their current entries will be replaced.')) return;
+  setBusy(true);
+  try { await runEnrich(ids); } catch (e) { plog('Error: ' + e.message); }
+  document.querySelectorAll('.redo-box:checked').forEach(b => { b.checked = false; }); syncRedoChecked();
+  await refreshStats();
+  setBusy(false);
+}
+async function loadCoverage() {
+  const box = document.getElementById('coverage');
+  box.innerHTML = '<p class="lead">Counting every track in the archive…</p>';
+  try {
+    const { kinds } = await api({ mode: 'coverage' });
+    const names = Object.keys(kinds).sort((a, b) => kinds[b].tracks - kinds[a].tracks);
+    const tot = names.reduce((t, k) => { for (const f in kinds[k]) t[f] = (t[f] || 0) + kinds[k][f]; return t; }, {});
+    const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '-';
+    const row = (name, k, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + esc(name) + '</td><td>' + k.tracks.toLocaleString() + '</td><td>' + k.hours.toLocaleString() + '</td><td>'
+      + k.with_source.toLocaleString() + ' (' + pct(k.with_source, k.tracks) + ')</td><td>' + (k.tracks - k.with_source).toLocaleString() + ' · ' + (k.hours - k.with_source_hours).toLocaleString() + ' h</td><td>' + k.catalogued.toLocaleString() + '</td></tr>';
+    box.innerHTML = '<div style="overflow-x:auto"><table class="cov"><tr><th>Kind</th><th>Tracks</th><th>Hours</th><th>Have outline/hanacha</th><th>Gaps (tracks · hours)</th><th>Catalogued</th></tr>'
+      + names.map(n => row(n, kinds[n])).join('') + row('All audio', tot, 'total') + '</table></div>';
+  } catch (e) { box.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 }
 async function reindexAll() {
   if (busy) return; setBusy(true);
@@ -269,7 +339,8 @@ async function loadReview(offset) {
       box.appendChild(div);
       renderCard(id);
       const link = '/index.html?track=' + id + '&f=' + (e.source.parent_id || id);
-      div.querySelector('.card-head').insertAdjacentHTML('beforeend', '<a class="pill" href="' + link + '" target="_blank" style="text-decoration:none">OPEN IN APP ↗</a>' + (e.locked ? '<span class="pill">LOCKED</span>' : ''));
+      div.querySelector('.card-head').insertAdjacentHTML('beforeend', '<a class="pill" href="' + link + '" target="_blank" style="text-decoration:none">OPEN IN APP ↗</a>' + (e.locked ? '<span class="pill">LOCKED</span>' : '')
+        + (e.locked ? '' : '<label class="redo-check"><input type="checkbox" class="redo-box" value="' + id + '" onchange="syncRedoChecked()"> Redo</label>'));
     }
     reviewOffset = offset + j.entries.length;
     document.getElementById('reviewMore').style.display = j.entries.length === 20 ? '' : 'none';

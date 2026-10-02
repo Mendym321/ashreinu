@@ -30,7 +30,7 @@ const MODEL = 'claude-opus-5-5';
 
 // Bump when the prompt or schema changes meaningfully; entries made with an
 // older version can then be re-run ("upgrade") without touching locked ones.
-const PROMPT_VERSION = 3;
+const PROMPT_VERSION = 4;
 
 // Topics come from the `topics` table (editable in Supabase), so the menu
 // can change without a code change. Cached briefly between requests.
@@ -89,11 +89,14 @@ Title (shown in a track list, like a song title in a music app):
 - SHORT: 2-6 words, at most ~40 characters. Shorter is better. The summary does the explaining; the title only has to name the idea and make someone want to tap.
 - It must read like a TITLE (an episode or chapter name), not a sentence: no full claims with a verb chain ("The Rebbe Explains Why Every Jew Must…"), no "How X Leads to Y Through Z". Use a punchy noun phrase or a short question.
 - Title Case.
+- Lead with what is DISTINCTIVE about this talk (its story, question, surprise, image or practical instruction) rather than its general theme. A title that could fit fifty different talks ("The Rebbe Still Leads", "Tests That Lift Us Up", "The Seventh Generation") is too generic; find this talk's own angle.
+- But the subject must stay clear: a listener should know roughly what it's about. A hook with no subject ("A Wave of the Hand", "Holding All Three Keys") is too vague.
 - Someone with a basic Jewish background should understand it at a glance. Widely known words are fine (Moshiach, Shabbos, Pesach, mitzvah, tzedakah, Torah, the Rebbe); avoid unexplained insider terms (e.g. "Dira Betachtonim", "Mesirus Nefesh", "Hiskashrus") in the title.
 - Not clinical or abstract ("Festivals and Ordinary Weekdays" says nothing), not a bare list of terms, no filler ("A Sicha on…", "The Rebbe Explains…").
 - A question is fine when the talk itself asks it ("Why…?").
 - If the outline has its own heading, it tells you the subject; still phrase the English title naturally.
 - If the track covers several unrelated subjects, title the main one.
+- Generic → distinctive: "Our Children Are Our Guarantors" → "Why G-d Took Children as Guarantors"; "Counting from the Day After Shabbos" → "Which 'Shabbos' Starts the Omer?" (only if that's the talk's angle).
 - Good: "The Inner Six-Day War", "Why a Second Pesach?", "Light in the Darkest Hour", "The Power of One Mitzvah", "Bread of Shame".
 - Bad (too long, sentence-like): "How the Six-Day War Teaches Us to Fight Our Inner Battles Every Day" → "The Inner Six-Day War".
 
@@ -361,7 +364,7 @@ async function enrichStored(supabase, id) {
     };
     const { error } = await supabase.from('track_metadata').update(row).eq('ashreinu_event_id', id);
     if (error) throw new Error(error.message);
-    return { id, saved: true, metadata: m, audience, warnings: r.warnings, usage: r.usage };
+    return { id, saved: true, metadata: m, previous_title: tm.status === 'enriched' ? tm.title_en : null, audience, warnings: r.warnings, usage: r.usage };
   } catch (e) {
     await supabase.from('track_metadata').update({ status: 'error', error: 'enrich: ' + e.message, updated_at: new Date().toISOString() }).eq('ashreinu_event_id', id);
     throw e;
@@ -427,6 +430,37 @@ function keyOk(req) {
   return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }
 
+// What the archive holds and how much of it the catalogue can cover: every
+// audio track, grouped by kind, with hours, how many have Ashreinu's own
+// outline or hanacha (so Claude can catalogue them), and how many are done.
+function trackKind(type) {
+  const t = (type || '').toLowerCase();
+  if (t.includes('nigun')) return 'Niggunim';
+  if (/shacharis|minchah|ma.?ariv|maftir|prayer|kidush levanah|hataras nedarim|havdalah|kos shel brachah/.test(t)) return 'Davening, Havdalah & Kos Shel Brachah';
+  if (t.includes('ma\u2019amar') || t.includes("ma'amar") || t.includes('maamar')) return "Ma'amarim";
+  if (t.includes('sicha') || t.includes('farbrengen')) return 'Sichos';
+  return 'Other talks (rallies, audiences, Kinusim...)';
+}
+async function coverage(supabase) {
+  const [rows, done] = await Promise.all([
+    allRows(() => supabase.from('ashreinu_events').select('id, type, duration_ms, has_transcript, has_ld:raw_data->>has_long_description')
+      .not('audio_uri', 'is', null).neq('type', 'Farbrengen').order('id')),
+    allRows(() => supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').order('ashreinu_event_id')),
+  ]);
+  const doneIds = new Set(done.map(r => r.ashreinu_event_id));
+  const kinds = {};
+  for (const r of rows) {
+    const k = kinds[trackKind(r.type)] ||= { tracks: 0, hours: 0, with_source: 0, with_source_hours: 0, catalogued: 0 };
+    const h = (r.duration_ms || 0) / 3.6e6;
+    const hasSource = r.has_transcript === true || r.has_ld === 'true';
+    k.tracks++; k.hours += h;
+    if (hasSource) { k.with_source++; k.with_source_hours += h; }
+    if (doneIds.has(r.id)) k.catalogued++;
+  }
+  for (const k of Object.values(kinds)) { k.hours = Math.round(k.hours); k.with_source_hours = Math.round(k.with_source_hours); }
+  return { kinds };
+}
+
 export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
@@ -439,14 +473,23 @@ export default async function handler(req, res) {
     if (mode === 'collect') return res.status(200).json(await collectNext(supa(), Math.min(limit, 40)));
     if (mode === 'pending') {
       const supabase = supa();
-      let q = supabase.from('track_metadata').select('ashreinu_event_id').order('ashreinu_event_id').limit(limit);
-      if (req.query.upgrade) {
-        // Entries made with an older prompt version, never ones a person has edited.
-        q = q.eq('status', 'enriched').eq('locked', false).or(`prompt_version.is.null,prompt_version.lt.${PROMPT_VERSION}`);
-      } else {
-        q = q.in('status', req.query.retry ? ['collected', 'error'] : ['collected']);
+      // Which come first: oldest (5711 onward), newest, or a mix across all years.
+      const order = String(req.query.order || 'old');
+      const build = () => {
+        const q = supabase.from('track_metadata').select('ashreinu_event_id').order('ashreinu_event_id', { ascending: order !== 'new' });
+        // Upgrade: entries made with an older prompt version, never ones a person has edited.
+        return req.query.upgrade
+          ? q.eq('status', 'enriched').eq('locked', false).or(`prompt_version.is.null,prompt_version.lt.${PROMPT_VERSION}`)
+          : q.in('status', req.query.retry ? ['collected', 'error'] : ['collected']);
+      };
+      if (order === 'mix') {
+        // Every waiting id (paged past the 1000-row cap), shuffled.
+        const all = await allRows(build);
+        const ids = all.map(r => r.ashreinu_event_id);
+        for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+        return res.status(200).json({ ids: ids.slice(0, limit) });
       }
-      const { data, error } = await q;
+      const { data, error } = await build().limit(limit);
       if (error) throw new Error(error.message);
       return res.status(200).json({ ids: data.map(r => r.ashreinu_event_id) });
     }
@@ -455,6 +498,7 @@ export default async function handler(req, res) {
       return res.status(200).json(await enrichStored(supa(), parseInt(id, 10)));
     }
     if (mode === 'stats') return res.status(200).json(await stats(supa()));
+    if (mode === 'coverage') return res.status(200).json(await coverage(supa()));
     if (mode === 'list') {
       const supabase = supa();
       const offset = Math.max(0, parseInt(req.query.offset || '0', 10) || 0);
