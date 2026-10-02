@@ -307,7 +307,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 .np-cover{width:min(100%,320px);aspect-ratio:1;margin:12px auto 28px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
 .np-cover svg{width:34%;height:34%}
 .np-cover-label{position:absolute;left:18px;bottom:16px;right:18px;display:flex;justify-content:space-between;align-items:flex-end}
-.np-cover-label span{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+.np-cover-label span{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
 .np-cover-label strong{font-size:22px;font-weight:700;letter-spacing:-.01em;opacity:.95}
 .np-title{font-size:22px;font-weight:700;color:var(--ink);line-height:1.25;letter-spacing:-.015em}
 .np-sub{font-size:14px;color:var(--ink-light);margin-top:5px}
@@ -913,6 +913,7 @@ async function loadTodayHebrewDate() {
     const gy = now.getFullYear(), gm = now.getMonth()+1, gd = now.getDate();
     const r = await fetch(`https://www.hebcal.com/converter?cfg=json&gy=${gy}&gm=${gm}&gd=${gd}&g2h=1`);
     const j = await r.json();
+    if (!(j.hd && j.hm && j.hy)) return; // unexpected answer: keep "Archive Search"
     const monthNum = HEBCAL_MONTH_MAP[j.hm] || null;
     todayHebrew = { year: j.hy, month: monthNum, day: j.hd, monthName: j.hm };
     document.getElementById('todayStrip').textContent = j.hd + ' ' + j.hm + ' ' + j.hy;
@@ -1042,6 +1043,10 @@ async function showLanding() {
       ? '<div class="home-section"><div class="home-section-head"><h3>Continue listening</h3></div>'
         + '<div class="shelf">' + recent.map(continueCardHtml).join('') + '</div></div>'
       : '')
+    + '<div class="home-section" id="newSection" style="display:none">'
+      + '<div class="home-section-head"><h3>Newly catalogued</h3></div>'
+      + '<div class="shelf" id="newShelf"></div>'
+    + '</div>'
     + '<div class="home-section" id="otdSection" style="display:none">'
       + '<div class="home-section-head"><h3>On this day</h3></div>'
       + '<div class="home-sub" id="otdSub"></div>'
@@ -1071,6 +1076,7 @@ async function showLanding() {
       + '<div class="chip-scroll" id="homeYears"></div></div>';
 
   loadOnThisDay();
+  loadNewlyCatalogued();
   if (next) loadFarbrengenShelf('upShelf', next.dates, 'No recordings for ' + next.name + ' yet.');
   getYears().then(years => {
     const el = document.getElementById('homeYears');
@@ -1094,6 +1100,17 @@ async function loadFarbrengenShelf(elId, dates, emptyText) {
   } catch (e) {
     if (document.getElementById(elId)) el.innerHTML = '<div class="shelf-empty">Could not load.</div>';
   }
+}
+
+// Talks that just got real titles and summaries, newest first.
+async function loadNewlyCatalogued() {
+  try {
+    const rows = (await (await fetch('/api/search?recent=12')).json()).results || [];
+    const section = document.getElementById('newSection');
+    if (!section || !rows.length) return;
+    document.getElementById('newShelf').innerHTML = rows.map(continueCardHtml).join('');
+    section.style.display = 'block';
+  } catch (e) { /* catalogue not set up yet */ }
 }
 
 async function loadOnThisDay() {
@@ -1965,7 +1982,11 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   enableDragToClose('reader', 'readerScroll', () => closeReader());
   loadYearOptions();
   await Promise.all([loadTodayHebrewDate(), loadTopicList()]);
-  showLanding();
+  // Links like index.html?q=teshuvah or index.html?track=5009&f=4999 (used by the pipeline review page).
+  const params = new URLSearchParams(location.search);
+  if (params.get('q')) { document.getElementById('q').value = params.get('q'); search(); }
+  else showLanding();
+  if (params.get('track') && params.get('f')) openReader(params.get('track'), parseInt(params.get('f'), 10));
 })();
 </script>
 </body>

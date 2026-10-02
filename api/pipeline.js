@@ -17,6 +17,7 @@
 // GET /api/pipeline?mode=pending&limit=N      -> ids that are collected and waiting for Claude
 // GET /api/pipeline?mode=enrich&id=EVENT_ID   -> run Claude on one collected track and save the entry
 // GET /api/pipeline?mode=stats                -> progress counts and total cost so far
+// GET /api/pipeline?mode=list&offset=N        -> catalogued entries, newest first (for review)
 // GET /api/pipeline?mode=reindex&offset=N     -> rebuild search text from stored fields (no AI), 200 at a time
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -432,6 +433,38 @@ export default async function handler(req, res) {
       return res.status(200).json(await enrichStored(supa(), parseInt(id, 10)));
     }
     if (mode === 'stats') return res.status(200).json(await stats(supa()));
+    if (mode === 'list') {
+      const supabase = supa();
+      const offset = Math.max(0, parseInt(req.query.offset || '0', 10) || 0);
+      const [{ data, error }, topics] = await Promise.all([
+        supabase.from('track_metadata').select('*').eq('status', 'enriched')
+          .order('enriched_at', { ascending: false }).range(offset, offset + limit - 1),
+        loadTopics(supabase),
+      ]);
+      if (error) throw new Error(error.message);
+      const ids = data.map(r => r.ashreinu_event_id);
+      const { data: evs } = ids.length
+        ? await supabase.from('ashreinu_events').select('id, parent_id, name, type, parent_name, hebrew_day, hebrew_month_name, hebrew_year, duration_ms').in('id', ids)
+        : { data: [] };
+      const ev = Object.fromEntries((evs || []).map(e => [e.id, e]));
+      return res.status(200).json({
+        topicNames: Object.fromEntries(topics.leaves.map(t => [t.slug, t.name_en])),
+        entries: data.map(r => {
+          const e = ev[r.ashreinu_event_id] || {};
+          return {
+            source: { id: r.ashreinu_event_id, parent_id: e.parent_id, name: e.name, type: e.type, parent_name: e.parent_name,
+              hebrew_date: e.hebrew_day ? `${e.hebrew_day} ${e.hebrew_month_name} ${e.hebrew_year}` : null, duration_ms: e.duration_ms,
+              outline: r.outline_he || '', transcript: (r.transcript || '').slice(0, 4000), transcript_kind: r.transcript_kind },
+            metadata: { title_en: r.title_en, title_he: r.title_he, summary_en: r.summary_en, key_points: r.key_points || [],
+              main_topic: r.main_topic, other_topics: r.topics || [], suggested_new_topics: r.suggested_new_topics || [],
+              occasions: r.occasions || [], parsha: r.parsha, people: r.people || [], sources: r.sources || [], phrases: r.phrases || [],
+              confidence: r.confidence, confidence_reason: r.confidence_reason },
+            audience: r.audience || [], locked: r.locked, model: r.model,
+            usage: { input_tokens: r.input_tokens || 0, output_tokens: r.output_tokens || 0 },
+          };
+        }),
+      });
+    }
     if (mode === 'reindex') return res.status(200).json(await reindex(supa(), Math.max(0, parseInt(req.query.offset || '0', 10) || 0)));
     if (mode === 'source') {
       return res.status(200).json({ source: await fetchSource(id) });

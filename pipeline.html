@@ -99,6 +99,13 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
     <div class="log" id="prodLog"></div>
   </section>
 
+  <section style="margin:0 0 34px">
+    <h2 style="font-size:18px;font-weight:800">Review catalogued</h2>
+    <p class="lead" style="margin-bottom:12px">The latest entries saved to the database, each next to its outline. "Open in app" shows it the way listeners will.</p>
+    <div class="row"><button class="btn primary" onclick="loadReview(0)">Show latest 20</button><button class="btn" id="reviewMore" onclick="loadReview(reviewOffset)" style="display:none">Show 20 more</button></div>
+    <div id="reviewCards" style="margin-top:16px"></div>
+  </section>
+
   <h2 style="font-size:18px;font-weight:800">Pilot (preview only)</h2>
   <p class="lead">Try the current prompt on any tracks and compare each result with its outline. Nothing is saved.</p>
 
@@ -221,6 +228,28 @@ async function reindexAll() {
     plog('Search index rebuilt.');
   } catch (e) { plog('Error: ' + e.message); }
   setBusy(false);
+}
+let reviewOffset = 0;
+async function loadReview(offset) {
+  try {
+    const j = await api({ mode: 'list', limit: 20, offset });
+    const box = document.getElementById('reviewCards');
+    if (offset === 0) box.innerHTML = '';
+    if (!j.entries.length && offset === 0) { box.innerHTML = '<p class="lead">Nothing catalogued yet.</p>'; return; }
+    for (const e of j.entries) {
+      e.topicNames = j.topicNames;
+      const id = e.source.id;
+      results[id] = e;
+      const div = document.createElement('div');
+      div.className = 'card'; div.id = 'card-' + id;
+      box.appendChild(div);
+      renderCard(id);
+      const link = '/index.html?track=' + id + '&f=' + (e.source.parent_id || id);
+      div.querySelector('.card-head').insertAdjacentHTML('beforeend', '<a class="pill" href="' + link + '" target="_blank" style="text-decoration:none">OPEN IN APP ↗</a>' + (e.locked ? '<span class="pill">LOCKED</span>' : ''));
+    }
+    reviewOffset = offset + j.entries.length;
+    document.getElementById('reviewMore').style.display = j.entries.length === 20 ? '' : 'none';
+  } catch (e) { plog('Review error: ' + e.message); }
 }
 refreshStats();
 const results = {};   // id -> response json

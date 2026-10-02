@@ -80,6 +80,16 @@ export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
   const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '', parentId = '' } = req.query;
 
+  // Newest catalogued talks (home "Newly catalogued" shelf).
+  if (req.query.recent) {
+    const n = Math.max(1, Math.min(parseInt(req.query.recent, 10) || 12, 40));
+    const { data, error } = await supabase.from('track_metadata').select('ashreinu_event_id')
+      .eq('status', 'enriched').order('enriched_at', { ascending: false }).limit(n);
+    if (error) return res.status(200).json({ results: [] }); // catalogue not set up yet
+    res.setHeader('Cache-Control', 's-maxage=60');
+    return res.status(200).json({ results: await rowsForIds(supabase, data.map(r => r.ashreinu_event_id), {}) });
+  }
+
   // Topic list (the browsing menu), with how many talks each has as main topic.
   if (req.query.topics) {
     const topics = await loadTopics(supabase);
