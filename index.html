@@ -286,6 +286,7 @@ body.audio-paused .eq i{animation-play-state:paused}
    gets a quiet cover so the catalogued talks stand out. */
 .cover-talk{background:var(--tg);align-items:stretch;justify-content:flex-start;flex-direction:column;text-align:left}
 .cover-talk > svg{width:46%;height:46%;opacity:.95;margin:auto}
+.track-cover.cover-talk,.mini-cover.cover-talk,.jump-cover.cover-talk,.ep-cover.cover-talk,.album-cover.cover-talk{flex-direction:row;align-items:center;justify-content:center}
 .cv-title{position:relative;font-weight:800;letter-spacing:-.02em;line-height:1.12;padding:12px 12px 0;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;font-size:16px}
 .np-cover .cv-title{font-size:30px;padding:24px 24px 0;-webkit-line-clamp:5}
 .cover-photo{background:#2a2622 center/cover no-repeat}
@@ -327,6 +328,21 @@ body.audio-paused .eq i{animation-play-state:paused}
   z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer;overflow:hidden;-webkit-tap-highlight-color:transparent;
 }
 .mini-player.open{display:flex}
+.np-head{display:flex;align-items:flex-start;gap:4px}
+.np-head-text{flex:1;min-width:0}
+.save-btn.on{color:var(--gold)}
+.save-btn.on svg{fill:currentColor}
+.save-btn.pop svg{animation:heartPop .35s ease}
+@keyframes heartPop{40%{transform:scale(1.3)}}
+.row-heart{display:none;width:13px;height:13px;color:var(--gold);fill:currentColor;vertical-align:-1px;margin-right:5px}
+.track.saved .row-heart{display:inline}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,12px);background:var(--ink);color:var(--bg);font-size:14px;font-weight:600;padding:10px 16px;border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:80;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.hero-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.hero-foot .play-all{background:#1f1508;color:#f0c66b}
+.saved-tile{background:linear-gradient(135deg,#f0c66b,#9a6a1e);color:#1f1508}
+.saved-tile svg{width:46%;height:46%;fill:currentColor}
+.jump-title small{display:block;font-size:11.5px;font-weight:500;color:var(--ink-light);margin-top:2px}
 .mini-cover{width:44px;height:44px;border-radius:7px}
 .mini-info{flex:1;min-width:0}
 .mini-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -571,6 +587,7 @@ body.audio-paused .eq i{animation-play-state:paused}
     <div class="mini-title" id="playerTitle"></div>
     <div class="mini-sub" id="playerSub"></div>
   </div>
+  <button class="icon-btn sm save-btn" id="miniSave" onclick="event.stopPropagation();toggleSave(currentTrackId)" aria-label="Save" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>
   <button class="icon-btn" id="playerBtn" onclick="event.stopPropagation();togglePlayPause()" aria-label="Play or pause">
     <svg id="playerIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
   </button>
@@ -580,6 +597,7 @@ body.audio-paused .eq i{animation-play-state:paused}
   <div class="mini-progress"><div class="mini-progress-fill" id="playerFill"></div></div>
 </div>
 <audio id="audioEl"></audio>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <div class="np-backdrop" id="npBackdrop" onclick="closeNowPlaying()"></div>
 <div class="np" id="npOverlay" role="dialog" aria-label="Now playing">
@@ -598,8 +616,14 @@ body.audio-paused .eq i{animation-play-state:paused}
   <div class="np-scroll" id="npScroll">
     <div class="np-inner">
       <div class="np-cover cover" id="npCover"></div>
-      <div class="np-title" id="npTitle"></div>
-      <div class="np-sub" id="npSub"></div>
+      <div class="np-head">
+        <div class="np-head-text">
+          <div class="np-title" id="npTitle"></div>
+          <div class="np-sub" id="npSub"></div>
+        </div>
+        <button class="icon-btn save-btn" id="npSave" onclick="toggleSave(currentTrackId)" aria-label="Save" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>
+        <button class="icon-btn" onclick="shareTrack(currentTrackId)" aria-label="Share" title="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+      </div>
 
       <div class="seek" id="npSeek"><div class="seek-fill" id="npFill"><div class="seek-thumb"></div></div></div>
       <div class="np-times"><span id="npCur">0:00</span><span id="npDur">0:00</span></div>
@@ -1069,6 +1093,90 @@ function readJSON(key, fallback) {
 function writeJSON(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
 }
+// ── Saved talks (the ♡): kept on this device, newest first. Same slim row
+// shape as the listening history, so a saved talk shows (and plays) without
+// a server call. If accounts come later, this list can move into one.
+const SAVED_KEY = 'ashreinu-saved';
+const ROW_HEART = '<svg class="row-heart" viewBox="0 0 24 24" aria-label="Saved"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+function slimRow(row) { return Object.fromEntries(RECENT_FIELDS.map(k => [k, row[k] ?? null])); }
+function getSaved() { return readJSON(SAVED_KEY, []); }
+function isSaved(id) { return id != null && getSaved().some(r => String(r.id) === String(id)); }
+function toggleSave(id) {
+  const row = id != null ? rowsById[id] : null;
+  if (!row) return;
+  const was = isSaved(id);
+  const list = getSaved().filter(r => String(r.id) !== String(id));
+  if (!was) list.unshift(slimRow(row));
+  writeJSON(SAVED_KEY, list.slice(0, 1000));
+  syncSaved(id, !was);
+  toast(was ? 'Removed from Saved' : 'Saved');
+}
+// Reflect a track's saved state everywhere it's on screen.
+function syncSaved(id, saved, pop) {
+  if (saved === undefined) saved = isSaved(id);
+  if (String(id) === String(currentTrackId)) {
+    for (const b of [document.getElementById('npSave'), document.getElementById('miniSave')]) {
+      b.classList.toggle('on', saved); b.setAttribute('aria-pressed', saved); b.setAttribute('aria-label', saved ? 'Remove from Saved' : 'Save');
+      if (pop !== false && saved) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
+    }
+  }
+  document.querySelectorAll('.track[data-rid="' + id + '"]').forEach(t => t.classList.toggle('saved', saved));
+}
+let toastTimer = null;
+function toast(text) {
+  const el = document.getElementById('toast');
+  el.textContent = text; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+// Share a talk: the phone's own share sheet where there is one, else copy the link.
+async function shareTrack(id) {
+  const row = id != null ? rowsById[id] : null;
+  if (!row) return;
+  const url = location.origin + '/?play=' + id;
+  const title = trackTitle(row);
+  if (navigator.share) {
+    try { await navigator.share({ title, text: title + ' (Ashreinu)', url }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast('Link copied'); }
+  catch (e) { prompt('Copy this link:', url); }
+}
+// The Saved page: every saved talk, newest first, ready to play in order.
+function openSaved() {
+  closeReader(); closeNowPlaying(); closeBrowseSheet();
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML =
+    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+  const list = getSaved();
+  document.getElementById('res').innerHTML =
+    '<section class="topic-hero saved-hero tg-0"><div class="kicker">Your library</div><h2>Saved</h2>'
+      + '<p>Talks you\'ve saved with the ♡. They\'re kept on this device.</p>'
+      + '<div class="hero-foot"><div class="count">' + list.length + ' talk' + (list.length !== 1 ? 's' : '') + '</div>'
+      + (list.length ? '<button class="play-all" onclick="playSavedAll()" aria-label="Play all saved">' + ICON_PLAY + '</button>' : '') + '</div></section>'
+    + (list.length
+      ? list.map(r => trackRowHtml(r, true, !!r.summary_en)).join('')
+      : '<div class="empty">Nothing saved yet. Tap the ♡ in the player to save a talk.</div>');
+  window.scrollTo(0, 0);
+  rebuildOrder();
+}
+// A shared link (?play=ID): show that talk at the top of home, one tap to play.
+// (Browsers don't allow audio to start by itself, so it waits for the tap.)
+async function showShared(id) {
+  try {
+    const row = (await (await fetch('/api/search?event=' + id)).json()).result;
+    if (!row) return;
+    rowsById[String(row.id)] = row;
+    document.getElementById('res').insertAdjacentHTML('afterbegin',
+      '<div class="home-section"><div class="home-section-head"><h3>Shared with you</h3></div>' + trackRowHtml(row, true, !!row.summary_en) + '</div>');
+    rebuildOrder();
+    history.replaceState(history.state, '', location.pathname); // so a refresh doesn't repeat it
+  } catch (e) { /* ignore a bad link */ }
+}
+function playSavedAll() {
+  const first = document.querySelector('#res .track[data-playable]');
+  if (first) playFromOrder(first.dataset.rid);
+}
+
 function rememberPlay(row) {
   const slim = Object.fromEntries(RECENT_FIELDS.map(k => [k, row[k] ?? null]));
   const list = readJSON(RECENT_KEY, []).filter(r => String(r.id) !== String(row.id));
@@ -1136,11 +1244,17 @@ function episodeCardHtml(row) {
 // then topics. Browsing by type, year or occasion lives in the Browse sheet.
 async function showLanding() {
   document.getElementById('rmeta').textContent = '';
-  const recent = getRecent().slice(0, 6);
+  const saved = getSaved();
+  const recent = getRecent().slice(0, saved.length ? 5 : 6);
+  // Like Spotify's "Liked Songs" shortcut: the Saved tile leads the grid.
+  const savedTile = saved.length
+    ? '<div class="jump-card" onclick="openSaved()"><div class="jump-cover cover saved-tile">' + ROW_HEART.replace('row-heart', 'saved-heart') + '</div>'
+      + '<div class="jump-title">Saved talks<small>' + saved.length + ' talk' + (saved.length !== 1 ? 's' : '') + '</small></div></div>'
+    : '';
   document.getElementById('res').innerHTML =
-    (recent.length
+    (recent.length || saved.length
       ? '<div class="home-section"><div class="home-section-head"><h3>Jump back in</h3></div>'
-        + '<div class="jump-grid">' + recent.map(jumpCardHtml).join('') + '</div></div>'
+        + '<div class="jump-grid">' + savedTile + recent.map(jumpCardHtml).join('') + '</div></div>'
       : '')
     + '<div class="home-section" id="todaySection" style="display:none"></div>'
     + '<div class="home-section" id="exploreSection" style="display:none">'
@@ -1352,11 +1466,11 @@ function trackRowHtml(row, loose, withSummary) {
       ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
       : [label, dur(row.duration_ms)];
   const isNigun = typeKey(row.type) === 'niggun';
-  return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + '" id="card-' + rid + '" data-rid="' + rid + '"'
+  return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + (isSaved(rid) ? ' saved' : '') + '" id="card-' + rid + '" data-rid="' + rid + '"'
       + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
       + coverHtml('track-cover', row, false, '<span class="eq"><i></i><i></i><i></i></span>')
       + '<div class="track-info">'
-        + '<div class="track-title">' + esc(trackTitle(row)) + '</div>'
+        + '<div class="track-title">' + ROW_HEART + esc(trackTitle(row)) + '</div>'
         + '<div class="track-sub">' + sub.filter(Boolean).map(part => part === row.parent_name && row.parent_id
             ? farbrengenLinkHtml(row) : esc(part)).join(' · ') + '</div>'
         + (withSummary && row.summary_en ? '<div class="track-summary">' + esc(row.summary_en) + '</div>' : '')
@@ -1534,6 +1648,7 @@ function playTrack(id, url, title) {
   document.getElementById('playerTitle').textContent = title;
   document.getElementById('playerSub').textContent = row ? trackSubtitle(row) : '';
   if (row) setCover(document.getElementById('miniCover'), row, false);
+  syncSaved(id, undefined, false);
   document.getElementById('playerBar').classList.add('open');
   document.getElementById('playerFill').style.width = '0%';
   document.getElementById('npFill').style.width = '0%';
@@ -2124,6 +2239,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   if (params.get('q')) { document.getElementById('q').value = params.get('q'); search(); }
   else showLanding();
   if (params.get('track') && params.get('f')) openReader(params.get('track'), parseInt(params.get('f'), 10));
+  if (/^\d+$/.test(params.get('play') || '')) showShared(params.get('play'));
 })();
 </script>
 </body>
