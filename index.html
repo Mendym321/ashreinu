@@ -80,6 +80,23 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .shelf-cover .np-cover-label{left:11px;right:11px;bottom:9px}
 .shelf-cover .np-cover-label span{font-size:9.5px}
 .shelf-cover .np-cover-label strong{font-size:17px}
+.jump-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:720px){.jump-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.jump-card{position:relative;display:flex;align-items:center;gap:10px;height:56px;background:var(--elevated);border-radius:8px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s}
+.jump-card:hover{background:var(--hover)}
+.jump-cover{width:56px;height:56px;flex-shrink:0}
+.jump-title{font-size:13px;font-weight:700;color:var(--ink);line-height:1.25;padding-right:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.jump-progress{position:absolute;left:56px;right:0;bottom:0;height:2px;background:var(--track)}
+.jump-progress i{display:block;height:100%;background:var(--gold)}
+.ep-card{flex:0 0 272px;width:272px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;scroll-snap-align:start;-webkit-tap-highlight-color:transparent;transition:transform .15s}
+.ep-card:hover{transform:translateY(-2px)}
+.ep-head{display:flex;gap:10px;align-items:center}
+.ep-cover{width:44px;height:44px;border-radius:8px}
+.ep-meta{display:flex;flex-direction:column;min-width:0;font-size:12px;color:var(--ink-light);line-height:1.35}
+.ep-meta b{font-weight:700;color:var(--ink-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ep-title{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--ink);line-height:1.25;margin-top:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ep-summary{font-size:13.5px;color:var(--ink-mid);line-height:1.45;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.topic-shelf .topic-tile{flex:0 0 160px;scroll-snap-align:start}
 .shelf-title{font-size:14px;font-weight:600;color:var(--ink);line-height:1.3;margin-top:9px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .shelf-sub{font-size:12.5px;color:var(--ink-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .shelf-progress{height:3px;border-radius:2px;background:var(--track);margin-top:8px;overflow:hidden}
@@ -237,7 +254,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .eq i:nth-child(2){animation-delay:-.45s}
 .eq i:nth-child(3){animation-delay:-.75s}
 @keyframes eq{0%,100%{height:5px}50%{height:18px}}
-.track.playing .cover svg{display:none}
+.track.playing .cover > :not(.eq){display:none}
 .track.playing .eq{display:flex}
 body.audio-paused .eq i{animation-play-state:paused}
 
@@ -260,6 +277,37 @@ body.audio-paused .eq i{animation-play-state:paused}
 .cover-farb{background:linear-gradient(140deg,#46a872,#1a4c31)}
 .cover-niggun{background:linear-gradient(140deg,#e0a04a,#7a4714)}
 .cover-other{background:linear-gradient(140deg,#8f8775,#3a352c)}
+/* Covers say what's INSIDE, not the format (see coverSpec): a catalogued
+   talk shows its title on its topic's color; an event with a JEM photo shows
+   the photo; other events get a date page colored by decade; anything else
+   gets a quiet cover so the catalogued talks stand out. */
+.cover-talk{background:var(--tg);align-items:stretch;justify-content:flex-start;flex-direction:column;text-align:left}
+.cover-talk > svg{position:absolute;right:-8%;bottom:-8%;width:62%;height:62%;opacity:.16}
+.track-cover.cover-talk > svg,.mini-cover.cover-talk > svg,.jump-cover.cover-talk > svg,.ep-cover.cover-talk > svg,.album-cover.cover-talk > svg{position:static;width:50%;height:50%;opacity:.95;margin:auto}
+.cv-title{position:relative;font-weight:800;letter-spacing:-.02em;line-height:1.12;padding:12px 12px 0;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;font-size:16px}
+.cv-kicker{position:absolute;left:12px;right:12px;bottom:10px;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np-cover .cv-title{font-size:30px;padding:24px 24px 0;-webkit-line-clamp:5}
+.np-cover .cv-kicker{left:24px;bottom:20px;font-size:12px}
+.cover-photo{background:#2a2622 center/cover no-repeat}
+.cover-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6),transparent 55%);pointer-events:none}
+.cover-photo .np-cover-label{z-index:1}
+.track-cover.cover-photo::after,.mini-cover.cover-photo::after,.jump-cover.cover-photo::after,.ep-cover.cover-photo::after,.album-cover.cover-photo::after{display:none}
+.era-0{background:linear-gradient(140deg,#4d7a8c,#1d3540)}
+.era-1{background:linear-gradient(140deg,#6b6fb5,#262a5c)}
+.era-2{background:linear-gradient(140deg,#a0688f,#4a2341)}
+.era-3{background:linear-gradient(140deg,#b8794a,#55301a)}
+.era-4{background:linear-gradient(140deg,#7f9a5a,#334320)}
+.cover-date{flex-direction:column}
+.cv-date{display:flex;flex-direction:column;align-items:center;line-height:1;margin-top:-14%}
+.cv-date b{font-size:44px;font-weight:800;letter-spacing:-.03em}
+.cv-date span{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85;margin-top:4px}
+.np-cover .cv-date b{font-size:96px}
+.np-cover .cv-date span{font-size:22px}
+.cv-year{font-size:13px;font-weight:800;letter-spacing:-.01em}
+.mini-cover .cv-year{font-size:12px}
+.album-cover .cv-date b{font-size:26px}.album-cover .cv-date span{font-size:9px}.album-cover .cv-date{margin-top:0}
+.cover-quiet{background:var(--hover);color:var(--ink-light)}
+.cover-quiet svg{opacity:.7}
 
 /* ═══ Shared round icon button — 44px is the minimum comfortable tap target ═══ */
 .icon-btn{
@@ -1014,7 +1062,7 @@ function occasionHeading(c) {
 // because storage can be blocked (private browsing) — the app must still work.
 const RECENT_KEY = 'ashreinu-recent', POS_KEY = 'ashreinu-pos';
 const RECENT_FIELDS = ['id','name','type','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
-  'secular_year','secular_month','secular_day','duration_ms','audio_uri','confirmed_title'];
+  'secular_year','secular_month','secular_day','duration_ms','audio_uri','confirmed_title','main_topic','summary_en','photo','photo_lg'];
 function readJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
 }
@@ -1042,69 +1090,70 @@ function shelfSkeleton(n) {
   for (let i = 0; i < (n || 4); i++) html += '<div class="skel-shelf"><div class="skel-cover"></div><div class="skel-line title"></div><div class="skel-line meta"></div></div>';
   return html;
 }
-// A farbrengen card — opens the farbrengen as an album.
-function farbrengenCardHtml(row) {
-  rowsById[String(row.id)] = row;
-  const sub = row.secular_year || hebDate(row);
-  return '<div class="shelf-card" onclick="openFarbrengen(' + row.id + ')">'
-    + '<div class="shelf-cover cover cover-farb">' + coverInner(row, true) + '</div>'
-    + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
-    + '<div class="shelf-sub">' + esc(sub) + '</div>'
-  + '</div>';
-}
-// A recently played track — plays (and resumes) on tap.
-function continueCardHtml(row) {
-  rowsById[String(row.id)] = row;
+function progressPct(row) {
   const total = row.duration_ms ? row.duration_ms / 1000 : 0;
-  const pct = total ? Math.min(100, savedPosition(row.id) / total * 100) : 0;
-  return '<div class="shelf-card" onclick="playFromOrder(\'' + row.id + '\')">'
-    + '<div class="shelf-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, true) + '</div>'
+  return total ? Math.min(100, savedPosition(row.id) / total * 100) : 0;
+}
+// True for a farbrengen, or any event whose audio is in tracks inside it.
+function opensAsAlbum(row) { return row.type === 'Farbrengen' || !row.audio_uri; }
+function cardAction(row) { return opensAsAlbum(row) ? 'openFarbrengen(' + row.id + ')' : 'playFromOrder(\'' + row.id + '\')'; }
+// One square card for any row (shelves): a farbrengen opens as an album, a
+// single recording plays (and resumes) on tap.
+function cardHtml(row) {
+  rowsById[String(row.id)] = row;
+  const pct = opensAsAlbum(row) ? 0 : progressPct(row);
+  return '<div class="shelf-card" onclick="' + cardAction(row) + '">'
+    + coverHtml('shelf-cover', row, true)
     + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
-    + '<div class="shelf-sub">' + esc(row.parent_name || trackSubtitle(row)) + '</div>'
+    + '<div class="shelf-sub">' + esc(hebDate(row) || row.secular_year || '') + '</div>'
     + (pct > 0 ? '<div class="shelf-progress"><i style="width:' + pct.toFixed(1) + '%"></i></div>' : '')
   + '</div>';
 }
+// "Jump back in": a compact tile (small cover + title), like Spotify's shortcuts.
+function jumpCardHtml(row) {
+  rowsById[String(row.id)] = row;
+  const pct = progressPct(row);
+  return '<div class="jump-card" onclick="' + cardAction(row) + '">'
+    + coverHtml('jump-cover', row, false)
+    + '<div class="jump-title">' + esc(trackTitle(row)) + '</div>'
+    + (pct > 0 ? '<div class="jump-progress"><i style="width:' + pct.toFixed(1) + '%"></i></div>' : '')
+  + '</div>';
+}
+// "Talks to explore": a wide episode card (title, one-line topic and date,
+// summary), like a podcast episode, for catalogued talks.
+function episodeCardHtml(row) {
+  rowsById[String(row.id)] = row;
+  return '<div class="ep-card" onclick="playFromOrder(\'' + row.id + '\')">'
+    + '<div class="ep-head">' + coverHtml('ep-cover', row, false)
+      + '<div class="ep-meta"><b>' + esc(row.main_topic ? topicName(row.main_topic) : typeLabel(row.type)) + '</b><span>' + esc([hebDate(row), dur(row.duration_ms)].filter(Boolean).join(' · ')) + '</span></div></div>'
+    + '<div class="ep-title">' + esc(trackTitle(row)) + '</div>'
+    + (row.summary_en ? '<div class="ep-summary">' + esc(row.summary_en) + '</div>' : '')
+  + '</div>';
+}
 
+// Home answers one question: what to listen to now. At most four calm
+// sections, most personal first: your own listening, today, something new,
+// then topics. Browsing by type, year or occasion lives in the Browse sheet.
 async function showLanding() {
   document.getElementById('rmeta').textContent = '';
-  const recent = getRecent();
-
-  // Search is the primary action (in the header). Below it: what you were
-  // listening to, today's date across the years, the next occasion, then
-  // ways to browse.
+  const recent = getRecent().slice(0, 6);
   document.getElementById('res').innerHTML =
     (recent.length
-      ? '<div class="home-section"><div class="home-section-head"><h3>Continue listening</h3></div>'
-        + '<div class="shelf">' + recent.map(continueCardHtml).join('') + '</div></div>'
+      ? '<div class="home-section"><div class="home-section-head"><h3>Jump back in</h3></div>'
+        + '<div class="jump-grid">' + recent.map(jumpCardHtml).join('') + '</div></div>'
       : '')
-    + '<div class="home-section" id="upSection" style="display:none"></div>'
-    + '<div class="home-section" id="newSection" style="display:none">'
-      + '<div class="home-section-head"><h3>Newly catalogued</h3></div>'
-      + '<div class="shelf" id="newShelf"></div>'
-    + '</div>'
-    + '<div class="home-section" id="otdSection" style="display:none">'
-      + '<div class="home-section-head"><h3>On this day</h3></div>'
-      + '<div class="home-sub" id="otdSub"></div>'
-      + '<div class="shelf" id="otdShelf"></div>'
+    + '<div class="home-section" id="todaySection" style="display:none"></div>'
+    + '<div class="home-section" id="exploreSection" style="display:none">'
+      + '<div class="home-section-head"><h3>Talks to explore</h3></div>'
+      + '<div class="shelf" id="exploreShelf"></div>'
     + '</div>'
     + (topicGroups().some(g => topicCount(g) > 0)
       ? '<div class="home-section"><div class="home-section-head"><h3>Explore topics</h3>'
         + '<button class="see-all" onclick="openBrowseSheet(\'topics\')">All topics</button></div>'
-        + '<div class="tile-grid">' + topicTilesHtml(true) + '</div></div>'
-      : '')
-    + '<div class="home-section"><div class="home-section-head"><h3>Browse all</h3>'
-      + '<button class="see-all" onclick="openBrowseSheet(\'collections\')">Occasions</button></div>'
-      + '<div class="tile-grid">' + typeTilesHtml(false) + '</div></div>'
-    + '<div class="home-section"><div class="home-section-head"><h3>By year</h3></div>'
-      + '<div class="chip-scroll" id="homeYears"></div></div>';
-
-  loadOnThisDay();
-  loadNewlyCatalogued();
-  loadComingUp();
-  getYears().then(years => {
-    const el = document.getElementById('homeYears');
-    if (el) el.innerHTML = years.map(y => '<button class="chip" onclick="browseByYear(' + y + ')">' + y + '</button>').join('');
-  });
+        + '<div class="shelf topic-shelf">' + topicTilesHtml(true) + '</div></div>'
+      : '');
+  loadToday();
+  loadExplore();
 }
 
 // Every recorded event (farbrengen, Kos Shel Brachah, rally, sicha...) held on
@@ -1125,65 +1174,47 @@ async function fetchEventsOn(dates, occasionTag) {
   const rows = (j.results || []).sort((a, b) => eventRank(a) - eventRank(b) || (b.hebrew_year || 0) - (a.hebrew_year || 0));
   return { rows, talks: j.talks || [] };
 }
-// A home card for one event: a farbrengen (or anything with tracks inside)
-// opens as an album; a single recording plays on tap.
-function eventCardHtml(row) {
-  if (row.type === 'Farbrengen' || !row.audio_uri) return farbrengenCardHtml(row);
-  rowsById[String(row.id)] = row;
-  return '<div class="shelf-card" onclick="playFromOrder(\'' + row.id + '\')">'
-    + '<div class="shelf-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, true) + '</div>'
-    + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
-    + '<div class="shelf-sub">' + esc(row.secular_year || hebDate(row)) + '</div>'
-  + '</div>';
-}
-// "Coming up": the nearest occasion that actually has recordings (or tagged
-// talks). One with nothing is skipped rather than shown as an empty shelf.
-async function loadComingUp() {
-  const upcoming = getUpcomingCollections(6);
+// "Today": one section, one shelf. An occasion happening now; otherwise
+// what was recorded on this date; otherwise the next occasion that has
+// recordings. Catalogued talks about it come first, then the recordings.
+async function loadToday() {
+  if (!todayHebrew || !todayHebrew.month) return;
+  const upcoming = getUpcomingCollections(8);
   const idxOf = c => COLLECTIONS.findIndex(x => x.name === c.name);
-  for (const c of upcoming) {
-    let found;
-    try { found = await fetchEventsOn(c.dates, c.tag); } catch (e) { return; }
-    const section = document.getElementById('upSection');
-    if (!section) return; // user navigated away
-    if (!found.rows.length && !found.talks.length) continue;
-    const others = upcoming.filter(o => o !== c && !o.now).slice(0, 3);
-    section.innerHTML =
-      '<div class="home-section-head"><h3>' + esc(occasionHeading(c)) + '</h3>'
-        + '<button class="see-all" onclick="browseByCollection(' + idxOf(c) + ')">See all</button></div>'
-      + '<div class="home-sub">' + esc(c.sub) + ', across the years</div>'
-      + (found.talks.length ? '<div class="shelf">' + found.talks.slice(0, 12).map(continueCardHtml).join('') + '</div>' : '')
-      + (found.rows.length ? '<div class="shelf"' + (found.talks.length ? ' style="margin-top:14px"' : '') + '>' + found.rows.slice(0, 20).map(eventCardHtml).join('') + '</div>' : '')
-      + (others.length
-        ? '<div class="chip-scroll" style="margin-top:14px">' + others.map(o =>
-            '<button class="chip" onclick="browseByCollection(' + idxOf(o) + ')">' + esc(o.name) + '</button>').join('') + '</div>'
-        : '');
+  const show = (heading, sub, seeAll, found) => {
+    const section = document.getElementById('todaySection');
+    if (!section) return true; // user navigated away
+    const seen = new Set();
+    const items = [...found.talks, ...found.rows].filter(r => !seen.has(r.id) && seen.add(r.id)).slice(0, 20);
+    if (!items.length) return false;
+    section.innerHTML = '<div class="home-section-head"><h3>' + esc(heading) + '</h3>'
+        + (seeAll ? '<button class="see-all" onclick="' + seeAll + '">See all</button>' : '') + '</div>'
+      + '<div class="home-sub">' + esc(sub) + '</div>'
+      + '<div class="shelf">' + items.map(cardHtml).join('') + '</div>';
     section.style.display = 'block';
-    return;
-  }
+    return true;
+  };
+  try {
+    for (const c of upcoming.filter(c => c.now)) {
+      if (show(occasionHeading(c), c.sub + ', across the years', 'browseByCollection(' + idxOf(c) + ')', await fetchEventsOn(c.dates, c.tag))) return;
+    }
+    const day = await fetchEventsOn([[todayHebrew.month, todayHebrew.day]]);
+    if (show('On this day', todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years', null, day)) return;
+    for (const c of upcoming.filter(c => !c.now)) {
+      if (show(occasionHeading(c), c.sub + ', across the years', 'browseByCollection(' + idxOf(c) + ')', await fetchEventsOn(c.dates, c.tag))) return;
+    }
+  } catch (e) { /* leave hidden */ }
 }
 
-// Talks that just got real titles and summaries, newest first.
-async function loadNewlyCatalogued() {
+// A shuffled handful of catalogued talks (real titles and summaries).
+async function loadExplore() {
   try {
-    const rows = (await (await fetch('/api/search?recent=12')).json()).results || [];
-    const section = document.getElementById('newSection');
+    const rows = (await (await fetch('/api/search?explore=12')).json()).results || [];
+    const section = document.getElementById('exploreSection');
     if (!section || !rows.length) return;
-    document.getElementById('newShelf').innerHTML = rows.map(continueCardHtml).join('');
+    document.getElementById('exploreShelf').innerHTML = rows.map(episodeCardHtml).join('');
     section.style.display = 'block';
   } catch (e) { /* catalogue not set up yet */ }
-}
-
-async function loadOnThisDay() {
-  if (!todayHebrew || !todayHebrew.month) return;
-  try {
-    const { rows } = await fetchEventsOn([[todayHebrew.month, todayHebrew.day]]);
-    const section = document.getElementById('otdSection');
-    if (!section || !rows.length) return; // nothing recorded today — keep the section hidden
-    document.getElementById('otdSub').textContent = todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years';
-    document.getElementById('otdShelf').innerHTML = rows.slice(0, 20).map(eventCardHtml).join('');
-    section.style.display = 'block';
-  } catch (e) { /* leave hidden */ }
 }
 
 // Open one farbrengen as an album page with all its tracks.
@@ -1309,7 +1340,7 @@ function trackRowHtml(row, loose, withSummary) {
   const isNigun = typeKey(row.type) === 'niggun';
   return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + '" id="card-' + rid + '" data-rid="' + rid + '"'
       + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
-      + '<div class="track-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, false) + '<span class="eq"><i></i><i></i><i></i></span></div>'
+      + coverHtml('track-cover', row, false, '<span class="eq"><i></i><i></i><i></i></span>')
       + '<div class="track-info">'
         + '<div class="track-title">' + esc(trackTitle(row)) + '</div>'
         + '<div class="track-sub">' + esc(sub.filter(Boolean).join(' · ')) + '</div>'
@@ -1329,7 +1360,7 @@ function albumHtml(fid, head, tracks) {
   const sub = [hebDate(any), any.secular_year ? dstr(any).split(' · ').pop() : ''].filter(Boolean).join(' · ');
   return '<section class="album" id="album-' + fid + '">'
     + '<div class="album-head">'
-      + '<div class="album-cover cover cover-farb">' + farbIcon + '</div>'
+      + (head ? coverHtml('album-cover', head, false) : '<div class="album-cover cover cover-farb">' + farbIcon + '</div>')
       + '<div class="album-info">'
         + '<div class="album-kicker">Farbrengen</div>'
         + '<div class="album-title">' + esc(title) + '</div>'
@@ -1419,13 +1450,51 @@ const TYPE_ICONS = {
   other: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/>'
 };
 function typeKey(t) { return typeDot(t).replace('dot-', ''); }
-function coverInner(row, withLabel) {
-  const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + TYPE_ICONS[typeKey(row.type)] + '</svg>';
-  if (!withLabel) return icon;
-  return icon + '<div class="np-cover-label"><span>' + esc(typeLabel(row.type) || '') + '</span><strong>' + esc(row.hebrew_year || '') + '</strong></div>';
+const GROUP_ICONS = {
+  'g-moshiach': '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+  'g-avodah': '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  'g-community': TYPE_ICONS.farb,
+  'g-outreach': '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  'g-family': '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  'g-torah': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  'g-time': '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  'g-chabad': '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
+  'g-world': '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+};
+function svgIcon(paths) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>'; }
+function topicGroupSlug(slug) { const t = TOPIC_BY_SLUG[slug]; return t ? (t.parent_slug || t.slug) : null; }
+// Decade of the recording (5710s, 5720s...), for date covers.
+function eraIndex(year) { return Math.max(0, Math.min(4, Math.floor(((year || 5710) - 5710) / 10))); }
+// What a cover shows, in order of how much it tells you about what's inside.
+function coverSpec(row) {
+  const group = row.confirmed_title && row.main_topic ? topicGroupSlug(row.main_topic) : null;
+  if (group) return { kind: 'talk', cls: 'cover-talk tg-' + groupIndex(row.main_topic), icon: GROUP_ICONS[group] || TYPE_ICONS.sicha };
+  if (row.photo) return { kind: 'photo', cls: 'cover-photo' };
+  if (!row.parent_id && row.hebrew_day) return { kind: 'date', cls: 'cover-date era-' + eraIndex(row.hebrew_year) };
+  return { kind: 'quiet', cls: 'cover-quiet' };
+}
+function coverInner(row, withLabel, big) {
+  const spec = coverSpec(row);
+  const typeIcon = svgIcon(TYPE_ICONS[typeKey(row.type)]);
+  const label = '<div class="np-cover-label"><span>' + esc(typeLabel(row.type) || '') + '</span><strong>' + esc(row.hebrew_year || '') + '</strong></div>';
+  if (spec.kind === 'talk') return svgIcon(spec.icon) + (withLabel
+    ? '<div class="cv-title">' + esc(trackTitle(row)) + '</div><div class="cv-kicker">' + esc(topicName(row.main_topic)) + '</div>' : '');
+  if (spec.kind === 'photo') return withLabel ? label : '';
+  const datePage = '<div class="cv-date"><b>' + esc(row.hebrew_day) + '</b><span>' + esc(row.hebrew_month_name || '') + '</span></div>';
+  if (spec.kind === 'date') return withLabel ? datePage + label : big ? datePage : '<span class="cv-year">' + esc(row.hebrew_year || '') + '</span>';
+  return typeIcon + (withLabel ? label : '');
+}
+// The cover element itself: `base` is its size class (shelf-cover, track-cover...).
+function coverHtml(base, row, withLabel, extra) {
+  const spec = coverSpec(row);
+  const img = spec.kind === 'photo' ? ' style="background-image:url(\'' + esc(base === 'np-cover' ? row.photo_lg || row.photo : row.photo) + '\')"' : '';
+  return '<div class="' + base + ' cover ' + spec.cls + '"' + img + '>' + coverInner(row, withLabel, base === 'album-cover') + (extra || '') + '</div>';
 }
 function setCover(el, row, withLabel) {
-  el.className = el.className.replace(/\bcover-\w+/g, '').trim() + ' cover-' + typeKey(row.type);
+  const spec = coverSpec(row);
+  const base = el.classList.contains('np-cover') ? 'np-cover' : el.classList.contains('mini-cover') ? 'mini-cover' : '';
+  el.className = base + ' cover ' + spec.cls;
+  el.style.backgroundImage = spec.kind === 'photo' ? "url('" + (base === 'np-cover' ? row.photo_lg || row.photo : row.photo) + "')" : '';
   el.innerHTML = coverInner(row, withLabel);
 }
 // Secondary line under a title: the original label when a confirmed title
