@@ -2,7 +2,19 @@ import { createClient } from '@supabase/supabase-js';
 import { understandQuery } from '../lib/searchQuery.js';
 
 // Fields the app needs for a track row (not raw_data, which is large).
-const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri';
+const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri, pics:raw_data->pictures';
+
+// JEM photos from the event itself (Ashreinu has them for about a quarter of
+// farbrengens), as covers: 300px for cards, 900px for the big player. The
+// large raw_data is dropped from what's sent to the app.
+function attachPhotos(rows) {
+  for (const row of rows) {
+    const pics = row.pics || row.raw_data?.pictures || [];
+    const pic = pics.find(p => p?.urls?.['300px'] && !p.video_still) || pics.find(p => p?.urls?.['300px']);
+    if (pic) { row.photo = pic.urls['300px']; row.photo_lg = pic.urls['900px'] || pic.urls['300px']; }
+    delete row.pics; delete row.raw_data;
+  }
+}
 
 async function loadTopics(supabase) {
   const { data, error } = await supabase.from('topics').select('slug, name_en, name_he, parent_slug, aliases, description, sort').eq('active', true).order('sort');
@@ -62,6 +74,7 @@ async function searchTalks(supabase, q, topics, filters) {
 // from Ashreinu's outline (track_metadata).
 async function attachConfirmedTitles(supabase, rows) {
   if (!rows.length) return;
+  attachPhotos(rows);
   const ids = rows.map(r => r.id);
   const [{ data: links }, { data: catalogue }] = await Promise.all([
     supabase.from('audio_text_links').select('ashreinu_event_id, title_en').in('ashreinu_event_id', ids),
@@ -88,6 +101,31 @@ export default async function handler(req, res) {
     if (error) return res.status(200).json({ results: [] }); // catalogue not set up yet
     res.setHeader('Cache-Control', 's-maxage=60');
     return res.status(200).json({ results: await rowsForIds(supabase, data.map(r => r.ashreinu_event_id), {}) });
+  }
+
+  // A random handful of catalogued talks (home "Talks to explore"), so the
+  // home page feels fresh on each visit.
+  if (req.query.explore) {
+    const n = Math.max(1, Math.min(parseInt(req.query.explore, 10) || 12, 40));
+    const ids = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').order('ashreinu_event_id').range(from, from + 999);
+      if (error) return res.status(200).json({ results: [] }); // catalogue not set up yet
+      ids.push(...data.map(r => r.ashreinu_event_id));
+      if (data.length < 1000) break;
+    }
+    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    res.setHeader('Cache-Control', 's-maxage=60');
+    return res.status(200).json({ results: await rowsForIds(supabase, ids.slice(0, n), {}) });
+  }
+
+  // One event's row by id (e.g. a farbrengen opened from one of its tracks).
+  if (req.query.event) {
+    const { data, error } = await supabase.from('ashreinu_events').select(ROW_FIELDS).eq('id', parseInt(req.query.event, 10)).maybeSingle();
+    if (error) return res.status(500).json({ error: error.message });
+    if (data) await attachConfirmedTitles(supabase, [data]);
+    res.setHeader('Cache-Control', 's-maxage=300');
+    return res.status(200).json({ result: data || null });
   }
 
   // Topic list (the browsing menu), with how many talks each has as main topic.
@@ -138,7 +176,7 @@ export default async function handler(req, res) {
   if (parentId) {
     const { data, error } = await supabase
       .from('ashreinu_events')
-      .select('id, name, type, duration_ms, audio_uri, parent_id, parent_name, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day')
+      .select(ROW_FIELDS)
       .eq('parent_id', parseInt(parentId, 10))
       .order('id', { ascending: true });
     if (error) return res.status(500).json({ error: error.message });
@@ -184,7 +222,10 @@ export default async function handler(req, res) {
       const { data, error } = await supabase
         .from('ashreinu_events')
         .select('hebrew_year')
-        .eq('type', 'Farbrengen')
+        // Every whole event, not only ones labelled "Farbrengen": from 5749
+        // Ashreinu files the Rebbe's talks as "Sicha" etc., so a
+        // Farbrengen-only list stopped at 5748.
+        .is('parent_id', null)
         .not('hebrew_year', 'is', null)
         .order('hebrew_year', { ascending: true })
         .range(offset, offset + pageSize - 1);
