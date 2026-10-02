@@ -144,18 +144,43 @@ async function refreshStats() {
     document.getElementById('prodTiles').innerHTML = '<div class="err">Could not load stats: ' + esc(e.message) + (/track_metadata/.test(e.message) ? ' (has the SQL in supabase/track_metadata.sql been run?)' : '') + '</div>';
   }
 }
+// Ask the device not to sleep while a long job runs (where supported).
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && 'wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch (e) { /* not supported or not allowed: fine */ }
+}
 function setBusy(b) {
   busy = b; stopRequested = false;
+  keepAwake(b);
   document.querySelectorAll('.prod .btn').forEach(x => x.disabled = b && x.id !== 'stopBtn');
   document.getElementById('stopBtn').disabled = !b;
 }
+// A dropped connection (phone asleep, network blip) shows up as "Failed to
+// fetch". For steps that are safe to repeat, wait and try again before
+// giving up. (Not used for Enrich: a dropped answer may still have been
+// processed and paid for on the server.)
+async function apiRetry(params) {
+  const waits = [3, 10, 30];
+  for (let attempt = 0; ; attempt++) {
+    try { return await api(params); }
+    catch (e) {
+      if (attempt >= waits.length || stopRequested) throw e;
+      plog('Connection problem (' + e.message + '), retrying in ' + waits[attempt] + 's…');
+      await new Promise(r => setTimeout(r, waits[attempt] * 1000));
+    }
+  }
+}
+
 async function collectAll() {
   if (busy) return; setBusy(true);
   try {
     while (!stopRequested) {
-      const r = await api({ mode: 'collect', limit: 40 });
+      const r = await apiRetry({ mode: 'collect', limit: 40 });
       plog('Collected ' + r.collected + ', no source ' + r.no_source + ', errors ' + r.errors + ' · ' + r.remaining + ' left');
-      await refreshStats();
+      refreshStats(); // not awaited: a stats hiccup shouldn't stop the run
       if (r.remaining <= 0 || r.collected + r.no_source + r.errors === 0) break;
     }
     plog(stopRequested ? 'Stopped.' : 'Collect finished.');
