@@ -144,6 +144,32 @@ export default async function handler(req, res) {
         });
       }
 
+      // No human-confirmed link, but the catalogue has an entry Claude wrote
+      // from Ashreinu's own outline for this exact track. Its text is the
+      // track's own hanacha when there is one (else the outline is shown).
+      if (String(eventId) !== String(farbrengenId)) {
+        const { data: cat } = await supabase
+          .from('track_metadata')
+          .select('title_en, summary_en, key_points, main_topic, topics, occasions, people, outline_he, transcript, transcript_kind')
+          .eq('ashreinu_event_id', eventId)
+          .eq('status', 'enriched')
+          .maybeSingle();
+        if (cat) {
+          res.setHeader('Cache-Control', 's-maxage=300');
+          return res.status(200).json({
+            hasText: true,
+            precise: false,
+            catalogued: true,
+            segments: [{
+              title_en: cat.title_en, summary_en: cat.summary_en, key_points: cat.key_points || [],
+              main_topic: cat.main_topic, topic_slugs: [cat.main_topic, ...(cat.topics || [])].filter(Boolean),
+              occasions: cat.occasions || [], people: cat.people || [],
+              outline_he: cat.outline_he, source_text: cat.transcript || null, transcript_kind: cat.transcript_kind,
+            }]
+          });
+        }
+      }
+
       // An individual track (Sicha 1, Nigun 2...) with no confirmed link
       // must NOT fall back to every sicha in the farbrengen — that showed
       // all the text on every track, even niggunim. Only the farbrengen

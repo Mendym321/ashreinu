@@ -4,6 +4,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "unpdf": "^1.0.1",
-    "@napi-rs/canvas": "^0.1.53"
+    "@napi-rs/canvas": "^0.1.53",
+    "@anthropic-ai/sdk": "^0.131.0"
   }
 }

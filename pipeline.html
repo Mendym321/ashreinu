@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metadata Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=David+Libre:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#ede7da;--ink-mid:#b3aa98;--ink-light:#8a8270;--bg:#161310;--surface:#211d17;--elevated:#2b261f;
+  --border:#332e25;--hover:rgba(255,255,255,0.08);--gold:#d9a63f;--good:#4fbf82;--warn:#e0a24f;--bad:#e07a6f;
+}
+@media (prefers-color-scheme: light){
+  :root{--ink:#1b1712;--ink-mid:#5c5648;--ink-light:#93897a;--bg:#f7f4ee;--surface:#fffdf9;--elevated:#ffffff;
+    --border:#e6ded0;--hover:rgba(27,23,18,0.06);--gold:#a3762f;--good:#2e7d4f;--warn:#b8721a;--bad:#b0443a}
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;padding:20px 16px 60px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.lead{color:var(--ink-mid);font-size:14.5px;line-height:1.6;margin:6px 0 18px;max-width:720px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
+.controls input{flex:1;min-width:220px;height:42px;border-radius:21px;border:1px solid var(--border);background:var(--elevated);color:var(--ink);font:inherit;font-size:13.5px;padding:0 16px}
+.btn{height:42px;border-radius:21px;border:none;padding:0 18px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;background:var(--hover);color:var(--ink)}
+.btn.primary{background:var(--gold);color:#1a1408}
+.btn:disabled{opacity:.5;cursor:default}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:14px 2px 22px;font-size:13px;color:var(--ink-light)}
+.stats b{color:var(--ink);font-weight:700}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:16px;overflow:hidden}
+.card-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:14px 18px;border-bottom:1px solid var(--border)}
+.card-head strong{font-size:15px}
+.card-head span{font-size:12.5px;color:var(--ink-light)}
+.pill{font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:10px;background:var(--hover);color:var(--ink-mid)}
+.cols{display:grid;grid-template-columns:1fr 1fr}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.col{padding:16px 18px;min-width:0}
+.col + .col{border-left:1px solid var(--border)}
+@media (max-width:760px){.col + .col{border-left:none;border-top:1px solid var(--border)}}
+.label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin-bottom:8px}
+.hebrew{font-family:'David Libre',serif;direction:rtl;font-size:16.5px;line-height:1.8;white-space:pre-wrap;max-height:340px;overflow:auto;text-align:right}
+details{margin-top:12px}
+summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-mid)}
+.t-en{font-size:20px;font-weight:800;letter-spacing:-.015em;line-height:1.25}
+.t-he{font-size:12px;color:var(--ink-light);margin-top:6px}
+.t-he span{font-family:'David Libre',serif;font-size:14.5px;color:var(--ink-mid)}
+.chip.main{background:var(--gold);color:#1a1408}
+.chip.kw{background:none;border:1px solid var(--border);color:var(--ink-mid);font-weight:500}
+.sum{font-size:14.5px;line-height:1.6;color:var(--ink-mid);margin-top:10px}
+ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:12px;background:var(--hover)}
+.chip.new{background:none;border:1px dashed var(--ink-light);color:var(--ink-mid)}
+.chip.occ{color:var(--gold)}
+.meta-line{font-size:12.5px;color:var(--ink-light);margin-top:10px;line-height:1.5}
+.conf-high{color:var(--good)}.conf-medium{color:var(--warn)}.conf-low{color:var(--bad)}
+.verdict{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--border);background:var(--elevated)}
+.verdict button{height:34px;border-radius:17px;border:1px solid var(--border);background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:600;padding:0 14px;cursor:pointer}
+.verdict button.on.good{background:var(--good);border-color:var(--good);color:#fff}
+.verdict button.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.verdict input{flex:1;min-width:180px;height:34px;border-radius:17px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font:inherit;font-size:13px;padding:0 14px}
+.warn{font-size:12.5px;font-weight:600;color:var(--warn);margin-top:8px}
+.prev{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--hover);font-size:12.5px;line-height:1.5;color:var(--ink-mid)}
+.prev b{color:var(--ink)}
+.from-heading{font-size:12px;color:var(--ink-light);margin-top:4px}
+.prod{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin:6px 0 34px}
+.prod h2{font-size:18px;font-weight:800;letter-spacing:-.01em}
+.prod p{font-size:13.5px;color:var(--ink-mid);line-height:1.55;margin:4px 0 14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--elevated);border-radius:12px;padding:12px 14px}
+.tile b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.tile span{font-size:12px;color:var(--ink-light)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.log{margin-top:12px;font:12.5px/1.6 ui-monospace,Menlo,monospace;color:var(--ink-mid);background:var(--elevated);border-radius:10px;padding:10px 12px;max-height:220px;overflow:auto;white-space:pre-wrap;display:none}
+.err{color:var(--bad);font-size:13.5px;padding:16px 18px}
+.loading{color:var(--ink-light);font-size:13.5px;padding:16px 18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Metadata pipeline</h1>
+  <p class="lead">Builds the catalogue: for each track, Claude reads Ashreinu's own Hebrew outline (and hanacha) and writes an English title, summary, topics and keywords, which are saved to the database and shown in the app.</p>
+
+  <section class="prod">
+    <h2>Production</h2>
+    <p><b>1. Collect</b> copies Ashreinu's outlines and hanachos into the database (free, no AI). <b>2. Enrich</b> runs Claude on collected tracks and saves the result (costs money, and the estimate is shown before you start). You can stop and continue anytime; nothing is processed twice.</p>
+    <div class="tiles" id="prodTiles"><div class="tile"><b>…</b><span>loading</span></div></div>
+    <div class="row">
+      <button class="btn" id="collectBtn" onclick="collectAll()">Collect all (free)</button>
+      <button class="btn primary" onclick="enrichBatch(20)">Enrich next 20</button>
+      <button class="btn primary" onclick="enrichBatch(100)">Enrich next 100</button>
+      <button class="btn" onclick="enrichBatch(20, true)">Retry errors</button>
+      <button class="btn" onclick="enrichBatch(50, false, true)" title="Re-run entries made with older instructions (locked entries are skipped)">Upgrade older entries</button>
+      <button class="btn" onclick="reindexAll()" title="After editing entries or topic aliases in Supabase: rebuild what search looks at (free)">Rebuild search index</button>
+      <button class="btn" id="stopBtn" onclick="stopRequested = true" disabled>Stop</button>
+    </div>
+    <div class="log" id="prodLog"></div>
+  </section>
+
+  <section style="margin:0 0 34px">
+    <h2 style="font-size:18px;font-weight:800">Review catalogued</h2>
+    <p class="lead" style="margin-bottom:12px">The latest entries saved to the database, each next to its outline. "Open in app" shows it the way listeners will.</p>
+    <div class="row"><button class="btn primary" onclick="loadReview(0)">Show latest 20</button><button class="btn" id="reviewMore" onclick="loadReview(reviewOffset)" style="display:none">Show 20 more</button></div>
+    <div id="reviewCards" style="margin-top:16px"></div>
+  </section>
+
+  <h2 style="font-size:18px;font-weight:800">Pilot (preview only)</h2>
+  <p class="lead">Try the current prompt on any tracks and compare each result with its outline. Nothing is saved.</p>
+
+  <div class="controls">
+    <input id="ids" value="8859,370,8792,8074,8012,8446,1153,7928,7360,1675,3715,3944,4133,4663,5055,5306,4,5402,5692,5009" aria-label="Track ids, comma separated">
+    <button class="btn primary" id="runBtn" onclick="runPilot()">Run pilot</button>
+    <button class="btn" onclick="copyFeedback()">Copy my feedback</button>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div id="cards"></div>
+</div>
+
+<script>
+// Opus 5.5 pricing ($ per million tokens), for a rough cost estimate.
+const PRICE_IN = 4, PRICE_OUT = 20;
+
+// ── Production controls ──
+let stopRequested = false, busy = false;
+function plog(msg) { const el = document.getElementById('prodLog'); el.style.display = 'block'; el.textContent += msg + '\n'; el.scrollTop = el.scrollHeight; }
+// The pipeline is password-protected (PIPELINE_KEY in Vercel). The password
+// is asked once and remembered on this device only.
+function pipelineKey(forceAsk) {
+  let k = ''; try { k = localStorage.getItem('pipeline-key') || ''; } catch (e) {}
+  if (!k || forceAsk) {
+    k = (prompt(forceAsk ? 'That password didn\'t work. Pipeline password:' : 'Pipeline password:') || '').trim();
+    try { localStorage.setItem('pipeline-key', k); } catch (e) {}
+  }
+  return k;
+}
+async function pipelineFetch(query) {
+  let r = await fetch('/api/pipeline?' + query, { headers: { 'x-pipeline-key': pipelineKey() } });
+  if (r.status === 401) r = await fetch('/api/pipeline?' + query, { headers: { 'x-pipeline-key': pipelineKey(true) } });
+  return r;
+}
+async function api(params) {
+  const r = await pipelineFetch(new URLSearchParams(params));
+  const text = await r.text();
+  let j; try { j = JSON.parse(text); } catch (e) { throw new Error('Server error: ' + text.slice(0, 120)); }
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+let lastStats = null;
+async function refreshStats() {
+  try {
+    const st = lastStats = await api({ mode: 'stats' });
+    const tile = (n, label) => '<div class="tile"><b>' + n + '</b><span>' + label + '</span></div>';
+    document.getElementById('prodTiles').innerHTML =
+      tile(st.candidates.toLocaleString(), 'tracks with an outline or hanacha')
+      + tile(st.not_collected.toLocaleString(), 'not collected yet')
+      + tile(st.collected.toLocaleString(), 'waiting for Claude')
+      + tile(st.enriched.toLocaleString(), 'catalogued ✓')
+      + tile(st.error, 'errors')
+      + (st.outdated ? tile(st.outdated, 'made with older instructions') : '')
+      + tile('$' + st.cost_so_far.toFixed(2), 'spent so far')
+      + tile(st.avg_cost_per_track ? '$' + st.avg_cost_per_track.toFixed(3) : '-', 'average per track')
+      + tile(st.avg_cost_per_track ? '$' + (st.avg_cost_per_track * (st.collected + st.not_collected)).toFixed(2) : '-', 'est. to finish (all tracks)')
+      + tile(st.search_ready ? '✓' : '✗', st.search_ready ? 'keyword search ready' : 'keyword search NOT set up: run supabase/002_topics_and_search.sql')
+      + (st.unindexed ? tile(st.unindexed, 'catalogued but not searchable yet: press Rebuild search index') : '');
+    if (st.search_error) console.warn('search_catalogue:', st.search_error);
+  } catch (e) {
+    document.getElementById('prodTiles').innerHTML = '<div class="err">Could not load stats: ' + esc(e.message) + (/track_metadata/.test(e.message) ? ' (has the SQL in supabase/track_metadata.sql been run?)' : '') + '</div>';
+  }
+}
+// Ask the device not to sleep while a long job runs (where supported).
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && 'wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch (e) { /* not supported or not allowed: fine */ }
+}
+function setBusy(b) {
+  busy = b; stopRequested = false;
+  keepAwake(b);
+  document.querySelectorAll('.prod .btn').forEach(x => x.disabled = b && x.id !== 'stopBtn');
+  document.getElementById('stopBtn').disabled = !b;
+}
+// A dropped connection (phone asleep, network blip) shows up as "Failed to
+// fetch". For steps that are safe to repeat, wait and try again before
+// giving up. (Not used for Enrich: a dropped answer may still have been
+// processed and paid for on the server.)
+async function apiRetry(params) {
+  const waits = [3, 10, 30];
+  for (let attempt = 0; ; attempt++) {
+    try { return await api(params); }
+    catch (e) {
+      if (attempt >= waits.length || stopRequested) throw e;
+      plog('Connection problem (' + e.message + '), retrying in ' + waits[attempt] + 's…');
+      await new Promise(r => setTimeout(r, waits[attempt] * 1000));
+    }
+  }
+}
+
+async function collectAll() {
+  if (busy) return; setBusy(true);
+  try {
+    while (!stopRequested) {
+      const r = await apiRetry({ mode: 'collect', limit: 40 });
+      plog('Collected ' + r.collected + ', no source ' + r.no_source + ', errors ' + r.errors + ' · ' + r.remaining + ' left');
+      refreshStats(); // not awaited: a stats hiccup shouldn't stop the run
+      if (r.remaining <= 0 || r.collected + r.no_source + r.errors === 0) break;
+    }
+    plog(stopRequested ? 'Stopped.' : 'Collect finished.');
+  } catch (e) { plog('Error: ' + e.message); }
+  setBusy(false);
+}
+async function enrichBatch(n, retry, upgrade) {
+  if (busy) return;
+  // Upgrade only re-does entries made with older instructions, so the real
+  // count is however many of those there are (up to n), not n itself.
+  if (upgrade && lastStats && typeof lastStats.outdated === 'number') {
+    if (!lastStats.outdated) { plog('Every entry is already on the latest instructions.'); return; }
+    n = Math.min(n, lastStats.outdated);
+  }
+  const est = lastStats?.avg_cost_per_track ? ' (about $' + (lastStats.avg_cost_per_track * n).toFixed(2) + ' at the current average)' : ' (about $' + (0.05 * n).toFixed(2) + ' or less, rough estimate)';
+  if (!confirm((upgrade ? 'Re-do ' + n + ' entries made with older instructions' : 'Run Claude on the next ' + n + ' tracks') + est + '?')) return;
+  setBusy(true);
+  try {
+    const { ids } = await api({ mode: 'pending', limit: n, ...(retry ? { retry: 1 } : {}), ...(upgrade ? { upgrade: 1 } : {}) });
+    if (!ids.length) { plog(upgrade ? 'Every entry is already on the latest instructions.' : 'Nothing waiting. Run Collect first.'); setBusy(false); return; }
+    plog('Enriching ' + ids.length + ' tracks…');
+    const queue = [...ids]; let ok = 0, fail = 0;
+    await Promise.all([0, 1, 2].map(async () => {
+      while (queue.length && !stopRequested) {
+        const id = queue.shift();
+        try { const r = await api({ mode: 'enrich', id }); ok++; plog('✓ #' + id + ' ' + r.metadata.title_en); }
+        catch (e) { fail++; plog('✗ #' + id + ' ' + e.message); }
+      }
+    }));
+    plog((stopRequested ? 'Stopped' : 'Done') + ': ' + ok + ' saved, ' + fail + ' failed.');
+  } catch (e) { plog('Error: ' + e.message); }
+  await refreshStats();
+  setBusy(false);
+}
+async function reindexAll() {
+  if (busy) return; setBusy(true);
+  try {
+    let offset = 0, total = 0;
+    while (offset !== null && !stopRequested) {
+      const r = await api({ mode: 'reindex', offset });
+      total += r.reindexed; offset = r.next_offset;
+      plog('Search index rebuilt for ' + total + ' entries…');
+    }
+    plog('Search index rebuilt.');
+  } catch (e) { plog('Error: ' + e.message); }
+  setBusy(false);
+}
+let reviewOffset = 0;
+async function loadReview(offset) {
+  try {
+    const j = await api({ mode: 'list', limit: 20, offset });
+    const box = document.getElementById('reviewCards');
+    if (offset === 0) box.innerHTML = '';
+    if (!j.entries.length && offset === 0) { box.innerHTML = '<p class="lead">Nothing catalogued yet.</p>'; return; }
+    for (const e of j.entries) {
+      e.topicNames = j.topicNames;
+      const id = e.source.id;
+      results[id] = e;
+      const div = document.createElement('div');
+      div.className = 'card'; div.id = 'card-' + id;
+      box.appendChild(div);
+      renderCard(id);
+      const link = '/index.html?track=' + id + '&f=' + (e.source.parent_id || id);
+      div.querySelector('.card-head').insertAdjacentHTML('beforeend', '<a class="pill" href="' + link + '" target="_blank" style="text-decoration:none">OPEN IN APP ↗</a>' + (e.locked ? '<span class="pill">LOCKED</span>' : ''));
+    }
+    reviewOffset = offset + j.entries.length;
+    document.getElementById('reviewMore').style.display = j.entries.length === 20 ? '' : 'none';
+  } catch (e) { plog('Review error: ' + e.message); }
+}
+refreshStats();
+const results = {};   // id -> response json
+let tokensIn = 0, tokensOut = 0, done = 0, total = 0;
+
+function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+// The previous run's entry for each track, so a re-run can be compared.
+function readLast() { try { return JSON.parse(localStorage.getItem('pilot-last')) || {}; } catch (e) { return {}; } }
+function saveLast(v) { try { localStorage.setItem('pilot-last', JSON.stringify(v)); } catch (e) {} }
+const previous = {}; // id -> entry from the run before this one
+
+function readVerdicts() { try { return JSON.parse(localStorage.getItem('pilot-verdicts')) || {}; } catch (e) { return {}; } }
+function saveVerdicts(v) { try { localStorage.setItem('pilot-verdicts', JSON.stringify(v)); } catch (e) {} }
+
+function renderStats() {
+  const cost = tokensIn / 1e6 * PRICE_IN + tokensOut / 1e6 * PRICE_OUT;
+  const v = readVerdicts();
+  const good = Object.values(v).filter(x => x.verdict === 'good').length;
+  const bad = Object.values(v).filter(x => x.verdict === 'bad').length;
+  document.getElementById('stats').innerHTML =
+    '<span>Done <b>' + done + ' / ' + total + '</b></span>'
+    + '<span>Tokens <b>' + tokensIn.toLocaleString() + '</b> in · <b>' + tokensOut.toLocaleString() + '</b> out</span>'
+    + '<span>Est. cost <b>$' + cost.toFixed(2) + '</b></span>'
+    + '<span>Your marks <b>' + good + '</b> good · <b>' + bad + '</b> needs work</span>';
+}
+
+function topicLabel(j, slug) { return (j.topicNames && j.topicNames[slug]) || slug; }
+function facetLine(label, list) { return (list || []).length ? '<div class="meta-line"><b>' + label + ':</b> ' + esc(list.join(' · ')) + '</div>' : ''; }
+
+function cardHtml(id, j) {
+  if (!j) return '<div class="loading">Working on track ' + id + '…</div>';
+  if (j.error) return '<div class="err">Track ' + id + ': ' + esc(j.error) + ' <button class="btn" onclick="runOne(' + id + ')">Retry</button></div>';
+  const s = j.source, m = j.metadata;
+  const head = '<div class="card-head"><strong>' + esc(s.name) + '</strong>'
+    + '<span>' + esc([s.hebrew_date, s.parent_name, s.duration_ms ? Math.round(s.duration_ms / 60000) + ' min' : ''].filter(Boolean).join(' · ')) + '</span>'
+    + (s.outline ? '<span class="pill">OUTLINE</span>' : '')
+    + (s.transcript ? '<span class="pill">' + esc((s.transcript_kind || 'TRANSCRIPT').toUpperCase()) + '</span>' : '')
+    + '<span>#' + s.id + '</span></div>';
+  const left = '<div class="col">'
+    + (s.outline ? '<div class="label">Ashreinu outline</div><div class="hebrew">' + esc(s.outline) + '</div>' : '<div class="label">No outline (hanacha only)</div>')
+    + (s.transcript ? '<details' + (s.outline ? '' : ' open') + '><summary>Hanacha (' + s.transcript.length.toLocaleString() + ' characters)</summary><div class="hebrew" style="margin-top:8px">' + esc(s.transcript.slice(0, 4000)) + (s.transcript.length > 4000 ? '\n…' : '') + '</div></details>' : '')
+    + '</div>';
+  const right = j.skipped ? '<div class="col"><div class="label">Skipped</div><p class="sum">' + esc(j.skipped) + '</p></div>'
+    : '<div class="col"><div class="label">Claude\'s catalogue entry</div>'
+      + '<div class="t-en">' + esc(m.title_en) + '</div><div class="t-he">Hebrew heading: <span dir="rtl">' + esc(m.title_he) + '</span></div>'
+      + (j.heading ? '<div class="from-heading">From the outline\'s heading: <span dir="rtl">' + esc(j.heading) + '</span></div>' : '')
+      + (j.warnings || []).map(w => '<div class="warn">⚠ ' + esc(w) + '</div>').join('')
+      + '<p class="sum">' + esc(m.summary_en) + '</p>'
+      + (m.key_points.length ? '<ul class="kp">' + m.key_points.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul>' : '')
+      + '<div class="chips">'
+        + (m.main_topic ? '<span class="chip main" title="Main topic">★ ' + esc(topicLabel(j, m.main_topic)) + '</span>' : '')
+        + (m.other_topics || []).map(t => '<span class="chip">' + esc(topicLabel(j, t)) + '</span>').join('')
+        + (m.suggested_new_topics || []).map(t => '<span class="chip new" title="Suggested new topic">+ ' + esc(t) + '</span>').join('')
+        + (m.occasions || []).map(t => '<span class="chip occ">' + esc(t) + '</span>').join('')
+        + (m.parsha ? '<span class="chip occ">Parshas ' + esc(m.parsha) + '</span>' : '') + '</div>'
+      + facetLine('People', m.people) + facetLine('Sources', m.sources) + facetLine('Famous phrases', m.phrases)
+      + facetLine('Audience (from Ashreinu)', j.audience)
+      + '<div class="meta-line">Confidence: <b class="conf-' + m.confidence + '">' + m.confidence + '</b>, ' + esc(m.confidence_reason) + '</div>'
+      + (previous[id] && previous[id].title_en !== m.title_en
+          ? '<div class="prev"><b>Previous run:</b> ' + esc(previous[id].title_en) + '<br>' + esc(previous[id].summary_en) + '</div>' : '')
+      + '<div class="meta-line">' + (j.usage ? j.usage.input_tokens.toLocaleString() + ' in / ' + j.usage.output_tokens.toLocaleString() + ' out tokens · ' + esc(j.model) : '') + '</div>'
+    + '</div>';
+  const v = readVerdicts()[id] || {};
+  const verdict = j.skipped ? '' : '<div class="verdict">'
+    + '<button class="good' + (v.verdict === 'good' ? ' on' : '') + '" onclick="mark(' + id + ',\'good\')">✓ Good</button>'
+    + '<button class="bad' + (v.verdict === 'bad' ? ' on' : '') + '" onclick="mark(' + id + ',\'bad\')">✎ Needs work</button>'
+    + '<input placeholder="What\'s off? (optional)" value="' + esc(v.note || '') + '" onchange="note(' + id + ', this.value)">'
+    + '</div>';
+  return head + '<div class="cols">' + left + right + '</div>' + verdict;
+}
+function renderCard(id) { document.getElementById('card-' + id).innerHTML = cardHtml(id, results[id]); }
+
+function mark(id, verdict) {
+  const v = readVerdicts(); v[id] = { ...(v[id] || {}), verdict }; saveVerdicts(v);
+  renderCard(id); renderStats();
+}
+function note(id, text) { const v = readVerdicts(); v[id] = { ...(v[id] || {}), note: text }; saveVerdicts(v); }
+
+async function runOne(id) {
+  results[id] = null; renderCard(id);
+  try {
+    const r = await pipelineFetch('mode=preview&id=' + id);
+    const text = await r.text();
+    let j; try { j = JSON.parse(text); } catch (e) { j = { error: 'Server error: ' + text.slice(0, 120) }; }
+    results[id] = j;
+    if (j.metadata) {
+      const last = readLast();
+      if (last[id]) previous[id] = last[id];
+      last[id] = { title_en: j.metadata.title_en, summary_en: j.metadata.summary_en };
+      saveLast(last);
+    }
+    if (j.usage) { tokensIn += j.usage.input_tokens || 0; tokensOut += j.usage.output_tokens || 0; }
+  } catch (e) { results[id] = { error: e.message }; }
+  done++; renderCard(id); renderStats();
+}
+
+async function runPilot() {
+  const ids = document.getElementById('ids').value.split(/[^\d]+/).filter(Boolean);
+  if (!ids.length) return;
+  document.getElementById('runBtn').disabled = true;
+  done = 0; total = ids.length; tokensIn = 0; tokensOut = 0;
+  document.getElementById('cards').innerHTML = ids.map(id => '<div class="card" id="card-' + id + '"></div>').join('');
+  ids.forEach(id => { results[id] = null; renderCard(id); });
+  renderStats();
+  // Three at a time: fast, but gentle on Ashreinu's API and our rate limits.
+  const queue = [...ids];
+  await Promise.all([0, 1, 2].map(async () => { while (queue.length) await runOne(queue.shift()); }));
+  document.getElementById('runBtn').disabled = false;
+}
+
+// A compact text summary of your marks, to paste back into the chat.
+function copyFeedback() {
+  const v = readVerdicts();
+  const lines = Object.keys(results).filter(id => results[id]?.metadata).map(id => {
+    const m = results[id].metadata, x = v[id] || {};
+    return '#' + id + ' ' + (x.verdict === 'good' ? '✓' : x.verdict === 'bad' ? '✎' : '·') + ' "' + m.title_en + '"' + (x.note ? ' (' + x.note + ')' : '');
+  });
+  const text = lines.join('\n') || 'No results yet';
+  navigator.clipboard?.writeText(text).then(() => alert('Copied ' + lines.length + ' lines, so you can paste them into the chat.'), () => prompt('Copy this:', text));
+}
+</script>
+</body>
+</html>

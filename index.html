@@ -307,7 +307,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 .np-cover{width:min(100%,320px);aspect-ratio:1;margin:12px auto 28px;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
 .np-cover svg{width:34%;height:34%}
 .np-cover-label{position:absolute;left:18px;bottom:16px;right:18px;display:flex;justify-content:space-between;align-items:flex-end}
-.np-cover-label span{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+.np-cover-label span{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
 .np-cover-label strong{font-size:22px;font-weight:700;letter-spacing:-.01em;opacity:.95}
 .np-title{font-size:22px;font-weight:700;color:var(--ink);line-height:1.25;letter-spacing:-.015em}
 .np-sub{font-size:14px;color:var(--ink-light);margin-top:5px}
@@ -336,6 +336,36 @@ body.audio-paused .eq i{animation-play-state:paused}
 .np-text-card{background:var(--surface);border-radius:16px;padding:18px 18px 8px;margin-top:32px}
 .np-text-label{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px}
 
+/* ═══ Topics — one colour per topic group, used on tiles, chips and topic pages ═══ */
+.tg-0{--tg:linear-gradient(140deg,#e2b456,#8a5a14)}
+.tg-1{--tg:linear-gradient(140deg,#5b86e0,#1f3470)}
+.tg-2{--tg:linear-gradient(140deg,#e07a8a,#7a2236)}
+.tg-3{--tg:linear-gradient(140deg,#46a872,#1a4c31)}
+.tg-4{--tg:linear-gradient(140deg,#e0964a,#7a3f14)}
+.tg-5{--tg:linear-gradient(140deg,#a66ae0,#43226b)}
+.tg-6{--tg:linear-gradient(140deg,#3fb3b0,#14524f)}
+.tg-7{--tg:linear-gradient(140deg,#6f7ee8,#262f80)}
+.tg-8{--tg:linear-gradient(140deg,#8f9aa8,#363c45)}
+.topic-tile{position:relative;overflow:hidden;border-radius:12px;min-height:84px;padding:13px 14px;color:#fff;cursor:pointer;background:var(--tg);transition:transform .15s;-webkit-tap-highlight-color:transparent}
+.topic-tile:hover{transform:translateY(-2px)}
+.topic-tile:active{transform:scale(.97)}
+.topic-tile strong{display:block;font-size:15.5px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+.topic-tile span{display:block;font-size:12px;opacity:.85;margin-top:4px}
+.chip.topic-chip{position:relative;padding-left:24px}
+.chip.topic-chip::before{content:'';position:absolute;left:11px;top:50%;width:8px;height:8px;border-radius:50%;background:var(--tg);transform:translateY(-50%)}
+.res-heading{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin:22px 0 10px}
+.res-heading:first-child{margin-top:4px}
+.res-sub{font-size:13px;color:var(--ink-light);margin:-6px 0 10px}
+.track-summary{font-size:13px;color:var(--ink-mid);line-height:1.45;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.topic-hero{border-radius:18px;padding:22px 20px 20px;color:#fff;background:var(--tg);margin-bottom:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.topic-hero .kicker{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+.topic-hero h2{font-size:28px;font-weight:800;letter-spacing:-.025em;line-height:1.15;margin-top:6px}
+.topic-hero .he{font-family:'David Libre',serif;font-size:18px;opacity:.9;margin-top:4px}
+.topic-hero p{font-size:14.5px;line-height:1.55;opacity:.92;margin-top:10px}
+.topic-hero .count{font-size:13px;font-weight:600;opacity:.85;margin-top:12px}
+.browse-group{margin-bottom:22px}
+.browse-group h4{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:10px}
+
 /* ═══ Reader — full-screen reading view, above the player ═══ */
 .reader-backdrop{z-index:44}
 .reader{z-index:45}
@@ -349,6 +379,11 @@ body.audio-paused .eq i{animation-play-state:paused}
 .rd-title{font-size:27px;font-weight:800;letter-spacing:-.025em;line-height:1.18;color:var(--ink);margin-top:6px}
 .rd-badge{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:5px 11px 5px 9px;border-radius:14px;font-size:12.5px;font-weight:700;color:var(--farb);background:var(--hover)}
 .rd-badge svg{width:13px;height:13px}
+.rd-badge.neutral{color:var(--ink-mid)}
+.rd-kp{margin:14px 0 0 20px;font-size:15px;line-height:1.6;color:var(--ink-mid)}
+.rd-kp li{margin-bottom:4px}
+.rd-sublabel{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin:0 0 10px}
+.rd-outline{font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:calc(var(--rd-size,19px) * .9);line-height:1.9;color:var(--ink-mid);white-space:pre-line;margin-bottom:30px;padding-bottom:22px;border-bottom:1px solid var(--border)}
 .rd-summary{font-size:16.5px;line-height:1.65;color:var(--ink-mid);margin-top:14px}
 .rd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .rd-tags .chip{height:30px;padding:0 12px;font-size:13px}
@@ -593,13 +628,15 @@ body.audio-paused .eq i{animation-play-state:paused}
   </div>
   <div class="sheet-scroll" id="browseScroll">
     <div class="browse-tabs">
+      <button class="chip" data-pane="topics" onclick="switchBrowseTab('topics')">Topics</button>
       <button class="chip active" data-pane="type" onclick="switchBrowseTab('type')">Type</button>
       <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
       <button class="chip" data-pane="months" onclick="switchBrowseTab('months')">Months</button>
       <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
     </div>
+    <div class="browse-pane" id="pane-topics"><div id="browseTopics"></div></div>
     <div class="browse-pane active" id="pane-type"><div class="tile-grid" id="browseTypeGrid"></div></div>
-    <div class="browse-pane" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
+    <div class="browse-pane" id="pane-collections"><div id="browseCollectionsGrid"></div></div>
     <div class="browse-pane" id="pane-months"><div class="card-grid" id="browseMonthsGrid"></div></div>
     <div class="browse-pane" id="pane-years"><div class="chip-wrap" id="browseYearsScroll"><div class="shelf-empty">Loading…</div></div></div>
   </div>
@@ -610,27 +647,51 @@ let currentType = '';
 let currentDates = null; // active collection filter: [[month,day], ...] or null
 let debounceTimer = null;
 
-// ── Curated collections: named occasions mapped to their real Hebrew date(s).
-// Multi-day chagim list every day; some (like Chanukah) cross a month boundary.
+// ── Occasions: named days mapped to their Hebrew date(s), any year.
 // Month numbers follow Ashreinu's 13-month scheme (see HEBCAL_MONTH_MAP).
+// Each window also covers the recorded days around it: the Rebbe didn't
+// record on Shabbos or Yom Tov, so e.g. Simchas Torah's audio is from Motzaei
+// Simchas Torah and Isru Chag. `tag` is the catalogue's name for the occasion
+// (talks ABOUT it, said on any date); `kind` groups the Occasions menu.
+// Seasons are browse-only: "Now: Elul" for a whole month isn't news.
+function dayRange(m, from, to) { const out = []; for (let d = from; d <= to; d++) out.push([m, d]); return out; }
 const COLLECTIONS = [
-  { name: "Yud-Tes Kislev", sub: "19 Kislev", dates: [[3,19]] },
-  { name: "Chanukah", sub: "25 Kislev – 3 Tevet", dates: [[3,25],[3,26],[3,27],[3,28],[3,29],[3,30],[4,1],[4,2],[4,3]] },
-  { name: "Yud Shevat", sub: "10 Shevat", dates: [[5,10]] },
-  { name: "Purim", sub: "14 Adar", dates: [[7,14]] },
-  { name: "Erev Pesach", sub: "14 Nissan", dates: [[8,14]] },
-  { name: "Pesach", sub: "15–22 Nissan", dates: [[8,15],[8,16],[8,17],[8,18],[8,19],[8,20],[8,21],[8,22]] },
-  { name: "Lag BaOmer", sub: "18 Iyar", dates: [[9,18]] },
-  { name: "Erev Shavuos", sub: "5 Sivan", dates: [[10,5]] },
-  { name: "Shavuos", sub: "6–7 Sivan", dates: [[10,6],[10,7]] },
-  { name: "Yud-Beis Tammuz", sub: "12 Tammuz", dates: [[11,12]] },
-  { name: "Erev Rosh Hashanah", sub: "29 Elul", dates: [[13,29]] },
-  { name: "Rosh Hashanah", sub: "1–2 Tishrei", dates: [[1,1],[1,2]] },
-  { name: "Yom Kippur", sub: "10 Tishrei", dates: [[1,10]] },
-  { name: "Erev Sukkos", sub: "14 Tishrei", dates: [[1,14]] },
-  { name: "Sukkos", sub: "15–21 Tishrei", dates: [[1,15],[1,16],[1,17],[1,18],[1,19],[1,20],[1,21]] },
-  { name: "Shmini Atzeres & Simchas Torah", sub: "22–23 Tishrei", dates: [[1,22],[1,23]] },
+  { name: "Rosh Hashanah", sub: "29 Elul – 2 Tishrei", kind: 'yomtov', tag: 'Rosh Hashanah', dates: [[13,29],[1,1],[1,2]] },
+  { name: "Tzom Gedalyah", sub: "3–4 Tishrei", kind: 'fast', dates: [[1,3],[1,4]] },
+  { name: "Yom Kippur", sub: "9–10 Tishrei", kind: 'yomtov', tag: 'Yom Kippur', dates: [[1,9],[1,10]] },
+  { name: "Yud-Gimmel Tishrei", sub: "13 Tishrei", kind: 'chassidic', dates: [[1,13]] },
+  { name: "Sukkos", sub: "14–21 Tishrei", kind: 'yomtov', tag: 'Sukkos', dates: dayRange(1, 14, 21) },
+  { name: "Shmini Atzeres & Simchas Torah", sub: "22–24 Tishrei", kind: 'yomtov', tag: 'Shmini Atzeres & Simchas Torah', dates: dayRange(1, 22, 24) },
+  { name: "Chof Cheshvan", sub: "20 Cheshvan", kind: 'chassidic', dates: [[2,20]] },
+  { name: "Yud Kislev", sub: "10 Kislev", kind: 'chassidic', tag: 'Yud Kislev', dates: [[3,10]] },
+  { name: "Yud-Daled Kislev", sub: "14 Kislev", kind: 'chassidic', tag: 'Yud-Daled Kislev', dates: [[3,14]] },
+  { name: "Yud-Tes Kislev", sub: "19–20 Kislev", kind: 'chassidic', tag: 'Yud-Tes Kislev', dates: [[3,19],[3,20]] },
+  { name: "Chanukah", sub: "25 Kislev – 3 Teves", kind: 'yomtov', tag: 'Chanukah', dates: [...dayRange(3, 25, 30), ...dayRange(4, 1, 3)] },
+  { name: "Hei Teves", sub: "5 Teves", kind: 'chassidic', tag: 'Hei Teves', dates: [[4,5]] },
+  { name: "Asara B'Teves", sub: "10 Teves", kind: 'fast', dates: [[4,10]] },
+  { name: "Yud Shevat", sub: "10 Shevat", kind: 'chassidic', tag: 'Yud Shevat', dates: [[5,10]] },
+  { name: "Tu BiShvat", sub: "15 Shevat", kind: 'yomtov', tag: 'Tu BiShvat', dates: [[5,15]] },
+  { name: "Chof-Beis Shevat", sub: "22 Shevat", kind: 'chassidic', tag: 'Chof-Beis Shevat', dates: [[5,22]] },
+  { name: "Purim", sub: "13–15 Adar", kind: 'yomtov', tag: 'Purim', dates: [[7,13],[7,14],[7,15]] },
+  { name: "Yud-Alef Nissan", sub: "11 Nissan", kind: 'chassidic', tag: 'Yud-Alef Nissan', dates: [[8,11]] },
+  { name: "Yud-Gimmel Nissan", sub: "13 Nissan", kind: 'chassidic', tag: 'Yud-Gimmel Nissan', dates: [[8,13]] },
+  { name: "Pesach", sub: "14–22 Nissan", kind: 'yomtov', tag: 'Pesach', dates: dayRange(8, 14, 22) },
+  { name: "Pesach Sheini", sub: "14 Iyar", kind: 'yomtov', tag: 'Pesach Sheini', dates: [[9,14]] },
+  { name: "Lag BaOmer", sub: "18 Iyar", kind: 'yomtov', tag: 'Lag BaOmer', dates: [[9,18]] },
+  { name: "Shavuos", sub: "5–7 Sivan", kind: 'yomtov', tag: 'Shavuos', dates: dayRange(10, 5, 7) },
+  { name: "Chof-Ches Sivan", sub: "28 Sivan", kind: 'chassidic', tag: 'Chof-Ches Sivan', dates: [[10,28]] },
+  { name: "Gimmel Tammuz", sub: "3 Tammuz", kind: 'chassidic', tag: 'Gimmel Tammuz', dates: [[11,3]] },
+  { name: "Yud-Beis Tammuz", sub: "12–13 Tammuz", kind: 'chassidic', tag: 'Yud-Beis Tammuz', dates: [[11,12],[11,13]] },
+  { name: "Shiva Asar B'Tammuz", sub: "17 Tammuz", kind: 'fast', tag: "The Three Weeks & Tisha B'Av", dates: [[11,17],[11,18]] },
+  { name: "Tisha B'Av", sub: "9 Av", kind: 'fast', tag: "The Three Weeks & Tisha B'Av", dates: [[12,9],[12,10]] },
+  { name: "Tu B'Av", sub: "15 Av", kind: 'yomtov', tag: "Tu B'Av", dates: [[12,15]] },
+  { name: "Chof Av", sub: "20 Av", kind: 'chassidic', tag: 'Chof Av', dates: [[12,20]] },
+  { name: "Chai Elul", sub: "18 Elul", kind: 'chassidic', tag: 'Chai Elul', dates: [[13,18]] },
+  { name: "Elul", sub: "The whole month", kind: 'season', tag: 'Elul', dates: dayRange(13, 1, 29) },
+  { name: "Sefiras HaOmer", sub: "16 Nissan – 5 Sivan", kind: 'season', tag: 'Sefiras HaOmer', dates: [...dayRange(8, 16, 30), ...dayRange(9, 1, 29), ...dayRange(10, 1, 5)] },
+  { name: "The Three Weeks", sub: "17 Tammuz – 9 Av", kind: 'season', tag: "The Three Weeks & Tisha B'Av", dates: [...dayRange(11, 17, 29), ...dayRange(12, 1, 10)] },
 ];
+const OCCASION_KINDS = [['yomtov', 'Yom Tov'], ['chassidic', 'Chassidic days'], ['fast', 'Fast days'], ['season', 'Seasons']];
 
 function getAudioUrl(row) {
   if (!row.audio_uri) return null;
@@ -734,7 +795,7 @@ function openBrowseSheet(tab) {
   }
   document.getElementById('browseSheet').classList.add('open');
   document.getElementById('browseBackdrop').classList.add('open');
-  switchBrowseTab(tab || 'type');
+  switchBrowseTab(tab || (TOPICS.length ? 'topics' : 'type'));
   loadBrowseSheetContent();
 }
 function closeBrowseSheet(fromBackButton) {
@@ -753,11 +814,19 @@ async function loadBrowseSheetContent() {
   if (!browseStaticLoaded) {
     browseStaticLoaded = true;
     document.getElementById('browseTypeGrid').innerHTML = typeTilesHtml(true);
-    document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) =>
-      '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('');
+    document.getElementById('browseCollectionsGrid').innerHTML = OCCASION_KINDS.map(([kind, label]) =>
+      '<div class="browse-group"><h4>' + label + '</h4><div class="card-grid">'
+      + COLLECTIONS.map((c, i) => c.kind !== kind ? '' :
+          '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('')
+      + '</div></div>').join('');
     document.getElementById('browseMonthsGrid').innerHTML = MONTH_LIST.map(m =>
       '<div class="occasion" onclick="closeBrowseSheet();browseByMonth(\'' + m + '\')"><strong>' + m + '</strong></div>').join('');
   }
+  document.getElementById('browseTopics').innerHTML = TOPICS.length
+    ? topicGroups().map(g => '<div class="browse-group"><h4>' + esc(g.name_en) + '</h4><div class="chip-wrap">'
+        + '<button class="chip topic-chip active tg-' + groupIndex(g.slug) + '" onclick="openTopic(\'' + g.slug + '\')">All</button>'
+        + TOPICS.filter(t => t.parent_slug === g.slug).map(topicChipHtml).join('') + '</div></div>').join('')
+    : '<div class="shelf-empty">Topics will appear once the catalogue is set up.</div>';
   const years = await getYears();
   document.getElementById('browseYearsScroll').innerHTML = years.length
     ? years.map(y => '<button class="chip" onclick="closeBrowseSheet();browseByYear(' + y + ')">' + y + '</button>').join('')
@@ -819,6 +888,8 @@ async function search() {
   if (yf) params.set('year', yf);
   if (mf) params.set('month', mf);
   if (currentDates) params.set('dates', JSON.stringify(currentDates));
+  const occasionTag = currentDates ? document.getElementById('rmeta').dataset.collectionTag : '';
+  if (occasionTag) params.set('occasion', occasionTag);
 
   try {
     const r = await fetch('/api/search?' + params.toString());
@@ -833,13 +904,21 @@ async function search() {
     }
 
     const results = j.results || [];
+    const talks = j.talks || [];
     const collectionName = currentDates ? document.getElementById('rmeta').dataset.collectionName : null;
     document.getElementById('rmeta').textContent =
-      results.length + ' result' + (results.length !== 1 ? 's' : '') +
+      (talks.length ? talks.length + ' talk' + (talks.length !== 1 ? 's' : '') + ' · ' : '') +
+      results.length + ' track' + (results.length !== 1 ? 's' : '') + ' by name or date' +
       (results.length >= 200 ? ' (first 200)' : '') +
       (collectionName ? ' for ' + collectionName : (q ? ' for "' + q + '"' : ''));
 
-    renderCards(results);
+    // Topics first (the ones the query named, plus name/alias matches), then
+    // the ranked catalogue "Talks", then farbrengens and tracks by name/date.
+    const topicHits = [...(j.matchedTopics || []), ...suggestTopics(q)]
+      .filter((t, i, a) => a.findIndex(x => x.slug === t.slug) === i).slice(0, 6);
+    const before = (topicHits.length ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + topicHits.map(topicChipHtml).join('') + '</div>' : '')
+      + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '');
+    renderCards(results, before);
   } catch (e) {
     document.getElementById('searchIcon').classList.remove('loading');
     document.getElementById('rmeta').textContent = 'Search failed: ' + e.message;
@@ -863,6 +942,7 @@ async function loadTodayHebrewDate() {
     const gy = now.getFullYear(), gm = now.getMonth()+1, gd = now.getDate();
     const r = await fetch(`https://www.hebcal.com/converter?cfg=json&gy=${gy}&gm=${gm}&gd=${gd}&g2h=1`);
     const j = await r.json();
+    if (!(j.hd && j.hm && j.hy)) return; // unexpected answer: keep "Archive Search"
     const monthNum = HEBCAL_MONTH_MAP[j.hm] || null;
     todayHebrew = { year: j.hy, month: monthNum, day: j.hd, monthName: j.hm };
     document.getElementById('todayStrip').textContent = j.hd + ' ' + j.hm + ' ' + j.hy;
@@ -894,6 +974,7 @@ function browseByCollection(idx) {
   document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
   document.querySelector('.chip[data-type=""]')?.classList.add('active');
   document.getElementById('rmeta').dataset.collectionName = c.name;
+  document.getElementById('rmeta').dataset.collectionTag = c.tag || '';
   search();
 }
 function browseByYear(year) {
@@ -902,23 +983,30 @@ function browseByYear(year) {
   search();
 }
 
-// Approximate day-ordinal for sorting "what's coming up" — treats every
-// Hebrew month as 30 days for comparison purposes only (exact leap-year/
-// month-length arithmetic isn't needed just to rank occasions by proximity).
+// Where an occasion stands relative to today. Treats every Hebrew month as
+// 30 days, which is plenty to rank occasions by how soon they come; the only
+// labels shown from it are "Now" (today is one of its days), "Today" and
+// "Tomorrow" (same or next day), which the approximation gets right.
 function approxOrdinal(month, day) { return month * 30 + day; }
-
+function occasionTiming(c) {
+  const today = approxOrdinal(todayHebrew.month, todayHebrew.day);
+  const diffs = c.dates.map(([m, d]) => ((approxOrdinal(m, d) - today) % 390 + 390) % 390);
+  const now = diffs.includes(0);
+  // For "now", how far into it we are doesn't matter; otherwise days to its first day.
+  return { now, diff: now ? 0 : Math.min(...diffs), started: now && c.dates.length > 1 && !(c.dates[0][0] === todayHebrew.month && c.dates[0][1] === todayHebrew.day) };
+}
 function getUpcomingCollections(count) {
   if (!todayHebrew || !todayHebrew.month) return [];
-  const todayOrd = approxOrdinal(todayHebrew.month, todayHebrew.day);
   return COLLECTIONS
-    .map(c => {
-      const startOrd = approxOrdinal(c.dates[0][0], c.dates[0][1]);
-      let diff = startOrd - todayOrd;
-      if (diff < 0) diff += 13 * 30; // wrap forward into next year (13-month numbering)
-      return { ...c, diff };
-    })
-    .sort((a, b) => a.diff - b.diff)
+    .filter(c => c.kind !== 'season')
+    .map(c => ({ ...c, ...occasionTiming(c) }))
+    .sort((a, b) => a.diff - b.diff || (b.now - a.now))
     .slice(0, count);
+}
+function occasionHeading(c) {
+  if (c.now) return (c.started ? 'Now: ' : 'Today: ') + c.name;
+  if (c.diff === 1) return 'Tomorrow: ' + c.name;
+  return 'Coming up: ' + c.name;
 }
 
 // ── "Continue listening": recently played tracks + where you stopped in each.
@@ -979,9 +1067,6 @@ function continueCardHtml(row) {
 
 async function showLanding() {
   document.getElementById('rmeta').textContent = '';
-  const upcoming = getUpcomingCollections(4);
-  const next = upcoming[0];
-  const idxOf = c => COLLECTIONS.findIndex(x => x.name === c.name);
   const recent = getRecent();
 
   // Search is the primary action (in the header). Below it: what you were
@@ -992,22 +1077,20 @@ async function showLanding() {
       ? '<div class="home-section"><div class="home-section-head"><h3>Continue listening</h3></div>'
         + '<div class="shelf">' + recent.map(continueCardHtml).join('') + '</div></div>'
       : '')
+    + '<div class="home-section" id="upSection" style="display:none"></div>'
+    + '<div class="home-section" id="newSection" style="display:none">'
+      + '<div class="home-section-head"><h3>Newly catalogued</h3></div>'
+      + '<div class="shelf" id="newShelf"></div>'
+    + '</div>'
     + '<div class="home-section" id="otdSection" style="display:none">'
       + '<div class="home-section-head"><h3>On this day</h3></div>'
       + '<div class="home-sub" id="otdSub"></div>'
       + '<div class="shelf" id="otdShelf"></div>'
     + '</div>'
-    + (next
-      ? '<div class="home-section">'
-        + '<div class="home-section-head"><h3>Coming up: ' + esc(next.name) + '</h3>'
-          + '<button class="see-all" onclick="browseByCollection(' + idxOf(next) + ')">See all</button></div>'
-        + '<div class="home-sub">' + esc(next.sub) + ', across the years</div>'
-        + '<div class="shelf" id="upShelf">' + shelfSkeleton() + '</div>'
-        + (upcoming.length > 1
-          ? '<div class="chip-scroll" style="margin-top:14px">' + upcoming.slice(1).map(c =>
-              '<button class="chip" onclick="browseByCollection(' + idxOf(c) + ')">' + esc(c.name) + '</button>').join('') + '</div>'
-          : '')
-      + '</div>'
+    + (topicGroups().some(g => topicCount(g) > 0)
+      ? '<div class="home-section"><div class="home-section-head"><h3>Explore topics</h3>'
+        + '<button class="see-all" onclick="openBrowseSheet(\'topics\')">All topics</button></div>'
+        + '<div class="tile-grid">' + topicTilesHtml(true) + '</div></div>'
       : '')
     + '<div class="home-section"><div class="home-section-head"><h3>Browse all</h3>'
       + '<button class="see-all" onclick="openBrowseSheet(\'collections\')">Occasions</button></div>'
@@ -1016,44 +1099,162 @@ async function showLanding() {
       + '<div class="chip-scroll" id="homeYears"></div></div>';
 
   loadOnThisDay();
-  if (next) loadFarbrengenShelf('upShelf', next.dates, 'No recordings for ' + next.name + ' yet.');
+  loadNewlyCatalogued();
+  loadComingUp();
   getYears().then(years => {
     const el = document.getElementById('homeYears');
     if (el) el.innerHTML = years.map(y => '<button class="chip" onclick="browseByYear(' + y + ')">' + y + '</button>').join('');
   });
 }
 
-// Farbrengens held on any of the given [month, day] dates, any year.
-async function fetchFarbrengensOn(dates) {
-  const r = await fetch('/api/search?type=farbrengen&limit=24&dates=' + encodeURIComponent(JSON.stringify(dates)));
-  const j = await r.json();
-  if (j.error) throw new Error(j.error);
-  return j.results || [];
+// Every recorded event (farbrengen, Kos Shel Brachah, rally, sicha...) held on
+// any of the given [month, day] dates, any year, plus, when the occasion has
+// a catalogue name, the talks tagged with it. Main events first (farbrengens,
+// then sichos and the like, then davening), newest year first within each.
+function eventRank(row) {
+  const t = (row.type || '').toLowerCase();
+  if (t === 'farbrengen') return 0;
+  if (/shacharis|minchah|ma.ariv|maftir|prayer|hataras|kidush levanah/.test(t)) return 2;
+  return 1;
 }
-async function loadFarbrengenShelf(elId, dates, emptyText) {
-  const el = document.getElementById(elId);
-  try {
-    const rows = await fetchFarbrengensOn(dates);
-    if (!document.getElementById(elId)) return; // user navigated away
-    el.innerHTML = rows.length ? rows.map(farbrengenCardHtml).join('') : '<div class="shelf-empty">' + esc(emptyText) + '</div>';
-  } catch (e) {
-    if (document.getElementById(elId)) el.innerHTML = '<div class="shelf-empty">Could not load.</div>';
+async function fetchEventsOn(dates, occasionTag) {
+  const params = new URLSearchParams({ toplevel: '1', limit: '300', dates: JSON.stringify(dates) });
+  if (occasionTag) params.set('occasion', occasionTag);
+  const j = await (await fetch('/api/search?' + params)).json();
+  if (j.error) throw new Error(j.error);
+  const rows = (j.results || []).sort((a, b) => eventRank(a) - eventRank(b) || (b.hebrew_year || 0) - (a.hebrew_year || 0));
+  return { rows, talks: j.talks || [] };
+}
+// A home card for one event: a farbrengen (or anything with tracks inside)
+// opens as an album; a single recording plays on tap.
+function eventCardHtml(row) {
+  if (row.type === 'Farbrengen' || !row.audio_uri) return farbrengenCardHtml(row);
+  rowsById[String(row.id)] = row;
+  return '<div class="shelf-card" onclick="playFromOrder(\'' + row.id + '\')">'
+    + '<div class="shelf-cover cover cover-' + typeKey(row.type) + '">' + coverInner(row, true) + '</div>'
+    + '<div class="shelf-title">' + esc(trackTitle(row)) + '</div>'
+    + '<div class="shelf-sub">' + esc(row.secular_year || hebDate(row)) + '</div>'
+  + '</div>';
+}
+// "Coming up": the nearest occasion that actually has recordings (or tagged
+// talks). One with nothing is skipped rather than shown as an empty shelf.
+async function loadComingUp() {
+  const upcoming = getUpcomingCollections(6);
+  const idxOf = c => COLLECTIONS.findIndex(x => x.name === c.name);
+  for (const c of upcoming) {
+    let found;
+    try { found = await fetchEventsOn(c.dates, c.tag); } catch (e) { return; }
+    const section = document.getElementById('upSection');
+    if (!section) return; // user navigated away
+    if (!found.rows.length && !found.talks.length) continue;
+    const others = upcoming.filter(o => o !== c && !o.now).slice(0, 3);
+    section.innerHTML =
+      '<div class="home-section-head"><h3>' + esc(occasionHeading(c)) + '</h3>'
+        + '<button class="see-all" onclick="browseByCollection(' + idxOf(c) + ')">See all</button></div>'
+      + '<div class="home-sub">' + esc(c.sub) + ', across the years</div>'
+      + (found.talks.length ? '<div class="shelf">' + found.talks.slice(0, 12).map(continueCardHtml).join('') + '</div>' : '')
+      + (found.rows.length ? '<div class="shelf"' + (found.talks.length ? ' style="margin-top:14px"' : '') + '>' + found.rows.slice(0, 20).map(eventCardHtml).join('') + '</div>' : '')
+      + (others.length
+        ? '<div class="chip-scroll" style="margin-top:14px">' + others.map(o =>
+            '<button class="chip" onclick="browseByCollection(' + idxOf(o) + ')">' + esc(o.name) + '</button>').join('') + '</div>'
+        : '');
+    section.style.display = 'block';
+    return;
   }
+}
+
+// Talks that just got real titles and summaries, newest first.
+async function loadNewlyCatalogued() {
+  try {
+    const rows = (await (await fetch('/api/search?recent=12')).json()).results || [];
+    const section = document.getElementById('newSection');
+    if (!section || !rows.length) return;
+    document.getElementById('newShelf').innerHTML = rows.map(continueCardHtml).join('');
+    section.style.display = 'block';
+  } catch (e) { /* catalogue not set up yet */ }
 }
 
 async function loadOnThisDay() {
   if (!todayHebrew || !todayHebrew.month) return;
   try {
-    const rows = await fetchFarbrengensOn([[todayHebrew.month, todayHebrew.day]]);
+    const { rows } = await fetchEventsOn([[todayHebrew.month, todayHebrew.day]]);
     const section = document.getElementById('otdSection');
     if (!section || !rows.length) return; // nothing recorded today — keep the section hidden
     document.getElementById('otdSub').textContent = todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years';
-    document.getElementById('otdShelf').innerHTML = rows.map(farbrengenCardHtml).join('');
+    document.getElementById('otdShelf').innerHTML = rows.slice(0, 20).map(eventCardHtml).join('');
     section.style.display = 'block';
   } catch (e) { /* leave hidden */ }
 }
 
 // Open one farbrengen as an album page with all its tracks.
+// ── Topics (the browsing menu) ──
+let TOPICS = [], TOPIC_BY_SLUG = {};
+async function loadTopicList() {
+  try {
+    const j = await (await fetch('/api/search?topics=1')).json();
+    TOPICS = j.topics || [];
+    TOPIC_BY_SLUG = Object.fromEntries(TOPICS.map(t => [t.slug, t]));
+  } catch (e) { /* topics not set up yet: the app works without them */ }
+}
+function topicName(slug) { return TOPIC_BY_SLUG[slug]?.name_en || ''; }
+function topicGroups() { return TOPICS.filter(t => !t.parent_slug); }
+function groupIndex(slug) {
+  const t = TOPIC_BY_SLUG[slug];
+  const g = t?.parent_slug || slug;
+  return Math.max(0, topicGroups().findIndex(x => x.slug === g)) % 9;
+}
+function topicCount(t) {
+  return t.parent_slug ? (t.count || 0) : TOPICS.filter(c => c.parent_slug === t.slug).reduce((a, c) => a + (c.count || 0), 0);
+}
+// Topics whose name or alias starts with what's typed ("teshu" → Teshuvah).
+function suggestTopics(q) {
+  const n = String(q || '').toLowerCase().trim();
+  if (n.length < 2) return [];
+  return TOPICS.filter(t => t.parent_slug && [t.name_en, t.name_he, ...(t.aliases || [])]
+    .some(a => a && (a.toLowerCase().startsWith(n) || (n.length >= 4 && a.toLowerCase().includes(n))))).slice(0, 6);
+}
+function topicChipHtml(t) {
+  return '<button class="chip topic-chip tg-' + groupIndex(t.slug) + '" onclick="openTopic(\'' + t.slug + '\')">' + esc(t.name_en) + '</button>';
+}
+function topicTilesHtml(onlyWithTalks) {
+  return topicGroups().filter(g => !onlyWithTalks || topicCount(g) > 0).map(g =>
+    '<div class="topic-tile tg-' + groupIndex(g.slug) + '" onclick="openTopic(\'' + g.slug + '\')"><strong>' + esc(g.name_en) + '</strong>'
+    + '<span>' + (topicCount(g) ? topicCount(g) + ' talks' : esc(g.description || '')) + '</span></div>').join('');
+}
+
+// A topic page, like a genre page: header, sub-topics, then the talks
+// mainly about it, then talks that also discuss it.
+async function openTopic(slug) {
+  closeReader(); closeNowPlaying(); closeBrowseSheet();
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML =
+    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+  window.scrollTo(0, 0);
+  showSkeletons();
+  try {
+    const j = await (await fetch('/api/search?topic=' + encodeURIComponent(slug))).json();
+    if (j.error) throw new Error(j.error);
+    const t = j.topic, parent = TOPIC_BY_SLUG[t.parent_slug];
+    const total = j.main.length + j.related.length;
+    document.getElementById('res').innerHTML =
+      '<section class="topic-hero tg-' + groupIndex(t.slug) + '">'
+        + '<div class="kicker">' + esc(parent ? parent.name_en : 'Topics') + '</div>'
+        + '<h2>' + esc(t.name_en) + '</h2>'
+        + (t.name_he ? '<div class="he" dir="rtl">' + esc(t.name_he) + '</div>' : '')
+        + (t.description ? '<p>' + esc(t.description) + '</p>' : '')
+        + '<div class="count">' + total + ' talk' + (total !== 1 ? 's' : '') + '</div>'
+      + '</section>'
+      + (j.subtopics.length ? '<div class="chip-scroll" style="margin:0 -16px 8px">' + j.subtopics.map(topicChipHtml).join('') + '</div>' : '')
+      + (parent ? '<div class="chip-scroll" style="margin:0 -16px 8px">' + topicChipHtml(parent) + '</div>' : '')
+      + (j.main.length ? '<h3 class="res-heading">' + (t.parent_slug ? 'Mainly about ' + esc(t.name_en) : 'Talks') + '</h3>' + j.main.map(r => trackRowHtml(r, true, true)).join('') : '')
+      + (j.related.length ? '<h3 class="res-heading">Also discusses ' + esc(t.name_en) + '</h3>' + j.related.map(r => trackRowHtml(r, true, true)).join('') : '')
+      + (!total ? '<div class="empty">No talks have been catalogued under this topic yet.</div>' : '');
+    rebuildOrder();
+  } catch (e) {
+    document.getElementById('res').innerHTML = '<div class="empty">Could not load this topic: ' + esc(e.message) + '</div>';
+  }
+}
+
 function openFarbrengen(fid) {
   const head = rowsById[String(fid)];
   document.getElementById('filterRow').classList.remove('active');
@@ -1094,15 +1295,17 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14
 
 // One track row. `loose` = shown on its own (not under its farbrengen), so
 // the subtitle has to carry the farbrengen name and date itself.
-function trackRowHtml(row, loose) {
+function trackRowHtml(row, loose, withSummary) {
   const rid = String(row.id);
   rowsById[rid] = row;
   const playable = !!getAudioUrl(row);
   const farbrengenId = row.parent_id || row.id;
   const label = row.confirmed_title ? row.name : typeLabel(row.type);
-  const sub = loose
-    ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
-    : [label, dur(row.duration_ms)];
+  const sub = withSummary
+    ? [row.main_topic ? topicName(row.main_topic) : label, hebDate(row), dur(row.duration_ms)]
+    : loose
+      ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
+      : [label, dur(row.duration_ms)];
   const isNigun = typeKey(row.type) === 'niggun';
   return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + '" id="card-' + rid + '" data-rid="' + rid + '"'
       + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
@@ -1110,6 +1313,7 @@ function trackRowHtml(row, loose) {
       + '<div class="track-info">'
         + '<div class="track-title">' + esc(trackTitle(row)) + '</div>'
         + '<div class="track-sub">' + esc(sub.filter(Boolean).join(' · ')) + '</div>'
+        + (withSummary && row.summary_en ? '<div class="track-summary">' + esc(row.summary_en) + '</div>' : '')
       + '</div>'
       + (isNigun ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
     + '</div>';
@@ -1144,9 +1348,10 @@ function albumHtml(fid, head, tracks) {
   + '</section>';
 }
 
-function renderCards(items) {
+function renderCards(items, before) {
   const el = document.getElementById('res');
-  if (!items.length) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; currentOrder = []; return; }
+  if (!items.length && !before) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; currentOrder = []; return; }
+  if (!items.length) { el.innerHTML = before; rebuildOrder(); return; }
 
   // Group consecutive items that belong to the same farbrengen (results
   // already come back in chronological order, so same-farbrengen items
@@ -1165,7 +1370,7 @@ function renderCards(items) {
     }
   }
 
-  el.innerHTML = groups.map(g => {
+  el.innerHTML = (before ? before + '<h3 class="res-heading">Farbrengens &amp; tracks</h3>' : '') + groups.map(g => {
     // A lone track with no farbrengen context renders as a single row;
     // grouping only adds value with 2+ items or the farbrengen's own info.
     if (g.items.length === 1 && !g.farbrengenRow) return '<div class="loose">' + trackRowHtml(g.items[0], true) + '</div>';
@@ -1643,19 +1848,28 @@ async function loadTextPreview(rid) {
     }
     if (!j.hasText || !j.segments?.length) { el.innerHTML = '<p class="pv-note">No transcribed text for this farbrengen yet.</p>'; return; }
     const s = j.segments[0];
-    const { firstText } = renderSourceText(s.source_text, s.footnotes, 'pv');
+    const { firstText } = renderSourceText(s.source_text || s.outline_he, s.footnotes, 'pv');
     el.innerHTML =
-      (j.precise ? '<span class="rd-badge">' + ICON_CHECK + 'Verified match</span>' : '')
+      sourceBadge(j, false)
       + (s.summary_en ? '<p class="pv-summary">' + esc(s.summary_en) + '</p>' : '')
-      + tagChipsHtml(s.tags)
+      + tagChipsHtml(s.tags, s.topic_slugs)
       + (firstText ? '<div class="pv-excerpt" dir="rtl" lang="he">' + esc(firstText) + '</div>' : '')
-      + '<button class="pv-btn" onclick="openReader(\'' + rid + '\',' + fid + ')">Read full text</button>';
+      + '<button class="pv-btn" onclick="openReader(\'' + rid + '\',' + fid + ')">' + (s.source_text ? 'Read full text' : 'Read the outline') + '</button>';
   } catch (e) {
     el.innerHTML = '<p class="pv-note">Could not load the text. <button class="see-all" onclick="loadTextPreview(\'' + rid + '\')">Retry</button></p>';
   }
 }
+// Where an entry came from: a human confirmed it, or Claude wrote it from
+// Ashreinu's own outline for this track.
+function sourceBadge(j, long) {
+  if (j.precise) return '<span class="rd-badge">' + ICON_CHECK + (long ? 'Verified match for this track' : 'Verified match') + '</span>';
+  if (j.catalogued) return '<span class="rd-badge neutral">Summary from Ashreinu\'s outline</span>';
+  return '';
+}
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-function tagChipsHtml(tags) {
+function tagChipsHtml(tags, topicSlugs) {
+  const known = (topicSlugs || []).map(sl => TOPIC_BY_SLUG[sl]).filter(Boolean);
+  if (known.length) return '<div class="rd-tags">' + known.map(t => topicChipHtml(t)).join('') + '</div>';
   if (!tags || !tags.length) return '';
   return '<div class="rd-tags">' + tags.map(t =>
     '<button class="chip" onclick="searchTag(this.dataset.tag)" data-tag="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>';
@@ -1730,11 +1944,14 @@ async function openReader(eventId, farbrengenId) {
           + '<header class="rd-head">'
             + (!many && kicker ? '<div class="rd-kicker">' + esc(kicker) + '</div>' : (many ? '<div class="rd-kicker">Sicha ' + (i + 1) + ' of ' + segs.length + '</div>' : ''))
             + '<h2 class="rd-title">' + esc(s.title_en || (row ? trackTitle(row) : 'Source text')) + '</h2>'
-            + (j.precise ? '<span class="rd-badge">' + ICON_CHECK + 'Verified match for this track</span>' : '')
+            + sourceBadge(j, true)
             + (s.summary_en ? '<p class="rd-summary">' + esc(s.summary_en) + '</p>' : '')
-            + tagChipsHtml(s.tags)
+            + ((s.key_points || []).length ? '<ul class="rd-kp">' + s.key_points.map(k => '<li>' + esc(k) + '</li>').join('') + '</ul>' : '')
+            + tagChipsHtml(s.tags, s.topic_slugs)
           + '</header>'
-          + '<article class="rd-text" dir="rtl" lang="he">' + html + '</article>'
+          + (s.outline_he ? '<div class="rd-sublabel">Outline</div><div class="rd-outline" lang="he">' + esc(s.outline_he) + '</div>' : '')
+          + (s.source_text && s.outline_he ? '<div class="rd-sublabel">' + esc(s.transcript_kind || 'Hanacha') + '</div>' : '')
+          + (s.source_text ? '<article class="rd-text" dir="rtl" lang="he">' + html + '</article>' : '')
           + notesHtml
         + '</section>';
       }).join('<div class="rd-seg-sep"></div>');
@@ -1825,8 +2042,12 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   enableDragToClose('browseSheet', 'browseScroll', () => closeBrowseSheet());
   enableDragToClose('reader', 'readerScroll', () => closeReader());
   loadYearOptions();
-  await loadTodayHebrewDate();
-  showLanding();
+  await Promise.all([loadTodayHebrewDate(), loadTopicList()]);
+  // Links like index.html?q=teshuvah or index.html?track=5009&f=4999 (used by the pipeline review page).
+  const params = new URLSearchParams(location.search);
+  if (params.get('q')) { document.getElementById('q').value = params.get('q'); search(); }
+  else showLanding();
+  if (params.get('track') && params.get('f')) openReader(params.get('track'), parseInt(params.get('f'), 10));
 })();
 </script>
 </body>
