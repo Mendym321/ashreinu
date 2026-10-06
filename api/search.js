@@ -1,14 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { understandQuery } from '../lib/searchQuery.js';
+import { groupNiggunim, niggunKey, niggunTitle } from '../lib/niggunim.js';
 
 // Fields the app needs for a track row (not raw_data, which is large).
-const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri, pics:raw_data->pictures';
+const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri, pics:raw_data->pictures, desc:raw_data->>description';
 
 // JEM photos from the event itself (Ashreinu has them for about a quarter of
 // farbrengens), as covers: 300px for cards, 900px for the big player. The
 // large raw_data is dropped from what's sent to the app.
 function attachPhotos(rows) {
   for (const row of rows) {
+    if (row.desc === undefined) row.desc = row.raw_data?.description || null;
     const pics = row.pics || row.raw_data?.pictures || [];
     const pic = pics.find(p => p?.urls?.['300px'] && !p.video_still) || pics.find(p => p?.urls?.['300px']);
     if (pic) { row.photo = pic.urls['300px']; row.photo_lg = pic.urls['900px'] || pic.urls['300px']; }
@@ -62,6 +64,35 @@ async function occasionTalks(supabase, occasion, dates) {
   if (error) throw new Error(error.message);
   const ids = [...new Set([...catalogued, ...tagged.map(r => r.ashreinu_event_id)])].slice(0, 100);
   return rowsForIds(supabase, ids, {});
+}
+
+// Every recorded niggun track, grouped into niggunim (see lib/niggunim.js).
+// Kept for 10 minutes in a warm server, since the list rarely changes.
+let niggunCache = null;
+async function loadNiggunim(supabase) {
+  if (niggunCache && Date.now() - niggunCache.at < 600000) return niggunCache;
+  const tracks = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('ashreinu_events').select('id, name, hebrew_year, description:raw_data->>description')
+      .ilike('type', '%nigun%').not('audio_uri', 'is', null).order('id').range(from, from + 999);
+    if (error) throw new Error(error.message);
+    tracks.push(...data);
+    if (data.length < 1000) break;
+  }
+  const yearOf = new Map(tracks.map(t => [t.id, t.hebrew_year]));
+  const groups = groupNiggunim(tracks).map(g => {
+    const years = g.ids.map(id => yearOf.get(id)).filter(Boolean);
+    return { ...g, count: g.ids.length, first: years.length ? Math.min(...years) : null, last: years.length ? Math.max(...years) : null };
+  });
+  niggunCache = { at: Date.now(), groups };
+  return niggunCache;
+}
+// Niggunim whose name matches what's typed ("daled" → Daled Bavos).
+function matchNiggunim(groups, q) {
+  const k = niggunKey(q), low = String(q || '').toLowerCase().trim();
+  if (low.length < 3 || !k) return [];
+  return groups.filter(g => g.count >= 2 && (g.key.startsWith(k) || g.name.toLowerCase().includes(low))).slice(0, 4)
+    .map(({ slug, name, count }) => ({ key: slug, name, count }));
 }
 
 // Every row with audio (id, parent), paged past the 1000-row cap.
@@ -132,8 +163,10 @@ async function attachConfirmedTitles(supabase, rows) {
   const verified = Object.fromEntries((links || []).filter(l => l.title_en).map(l => [l.ashreinu_event_id, l.title_en]));
   const cat = Object.fromEntries((catalogue || []).filter(c => c.title_en).map(c => [c.ashreinu_event_id, c]));
   for (const row of rows) {
-    row.confirmed_title = verified[row.id] || cat[row.id]?.title_en || null;
-    row.title_source = verified[row.id] ? 'verified' : cat[row.id] ? 'catalogue' : null;
+    // A niggun track named only "Two Nigunim" gets the names Ashreinu lists.
+    const niggun = /nigun/i.test(row.type || '') ? niggunTitle(row.name, row.desc) : null;
+    row.confirmed_title = verified[row.id] || cat[row.id]?.title_en || niggun || null;
+    row.title_source = verified[row.id] ? 'verified' : cat[row.id] ? 'catalogue' : niggun ? 'ashreinu' : null;
     if (cat[row.id]) { row.summary_en = cat[row.id].summary_en; row.main_topic = cat[row.id].main_topic; row.other_topics = cat[row.id].topics; }
   }
 }
@@ -175,6 +208,30 @@ export default async function handler(req, res) {
     if (data) await attachConfirmedTitles(supabase, [data]);
     res.setHeader('Cache-Control', 's-maxage=300');
     return res.status(200).json({ result: data || null });
+  }
+
+  // Niggunim: the list (sung at least twice, most-sung first), or one
+  // niggun's recordings in date order.
+  if (req.query.niggunim || req.query.niggun) {
+    try {
+      const { groups } = await loadNiggunim(supabase);
+      res.setHeader('Cache-Control', 's-maxage=600');
+      if (req.query.niggunim) {
+        return res.status(200).json({ niggunim: groups.filter(g => g.count >= 2).map(({ slug, name, count, first, last }) => ({ key: slug, name, count, first, last })) });
+      }
+      const wanted = String(req.query.niggun);
+      const g = groups.find(x => x.slug === wanted) || groups.find(x => x.key === niggunKey(wanted.replace(/-/g, ' ')));
+      if (!g) return res.status(404).json({ error: 'Unknown niggun' });
+      const rows = [];
+      for (let i = 0; i < g.ids.length; i += 200) {
+        const { data, error } = await supabase.from('ashreinu_events').select(ROW_FIELDS).in('id', g.ids.slice(i, i + 200));
+        if (error) throw new Error(error.message);
+        rows.push(...data);
+      }
+      await attachConfirmedTitles(supabase, rows);
+      rows.sort((a, b) => (a.hebrew_year || 0) - (b.hebrew_year || 0) || (a.hebrew_month || 0) - (b.hebrew_month || 0) || (a.hebrew_day || 0) - (b.hebrew_day || 0) || a.id - b.id);
+      return res.status(200).json({ niggun: { key: g.slug, name: g.name, count: g.count, first: g.first, last: g.last }, results: rows });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
   // Topic list (the browsing menu), with how many talks each has as main topic.
@@ -407,11 +464,12 @@ export default async function handler(req, res) {
         .catch(e => ({ talks: [], matchedTopics: [], talksError: e.message }))
     : Promise.resolve({ talks: [], matchedTopics: [] });
 
-  const [{ data, error, count }, { talks, matchedTopics, talksError }] = await Promise.all([query, talksPromise]);
+  const niggunPromise = q ? loadNiggunim(supabase).then(n => matchNiggunim(n.groups, q)).catch(() => []) : Promise.resolve([]);
+  const [{ data, error, count }, { talks, matchedTopics, talksError }, matchedNiggunim] = await Promise.all([query, talksPromise, niggunPromise]);
   if (error) return res.status(500).json({ error: error.message });
 
   await attachConfirmedTitles(supabase, data);
 
   res.setHeader('Cache-Control', 's-maxage=30');
-  res.status(200).json({ results: data, count, talks, matchedTopics, ...(talksError ? { talksError } : {}) });
+  res.status(200).json({ results: data, count, talks, matchedTopics, matchedNiggunim, ...(talksError ? { talksError } : {}) });
 }
