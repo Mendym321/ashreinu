@@ -208,11 +208,9 @@ function checkEntry(m, budget) {
   return warnings;
 }
 
-async function enrich(src, topics) {
-  const budget = lengthBudget(src);
-  const heading = outlineHeading(src.outline, budget.points);
-  const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
-  const material = [
+// What Claude reads about a track: its facts and Ashreinu's own text.
+function buildMaterial(src, budget, heading) {
+  return [
     `Track: ${src.name} (${src.type})`,
     src.parent_name ? `Part of: ${src.parent_name}` : null,
     src.hebrew_date ? `Date: ${src.hebrew_date}` : null,
@@ -224,6 +222,20 @@ async function enrich(src, topics) {
     `\nLength limits for this track: summary at most ${budget.summaryWords} words; ` +
       (budget.points > 1 ? `at most ${budget.points} key points (one per main part of the talk).` : 'no key points.'),
   ].filter(Boolean).join('\n');
+}
+// When a person rejected the last entry: show it, with their note, so the
+// new attempt changes course instead of repeating itself.
+function feedbackBlock(rejected, note) {
+  return `\n<rejected_entry>\nTitle: ${rejected.title_en || ''}\nSummary: ${rejected.summary_en || ''}\n</rejected_entry>\n`
+    + `The editor read this entry and rejected it. Their note: «${note}». Write a new entry that fixes what they point out. `
+    + `The new title must be clearly different from the rejected one, not a rewording of it.`;
+}
+
+async function enrich(src, topics) {
+  const budget = lengthBudget(src);
+  const heading = outlineHeading(src.outline, budget.points);
+  const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
+  const material = buildMaterial(src, budget, heading) + (src.feedback ? feedbackBlock(src.feedback.rejected, src.feedback.note) : '');
 
   const response = await client.beta.messages.create({
     model: MODEL,
@@ -343,14 +355,16 @@ async function collectNext(supabase, limit) {
   };
 }
 
-async function enrichStored(supabase, id) {
+async function enrichStored(supabase, id, note) {
   const [{ data: tm, error: e1 }, { data: ev, error: e2 }] = await Promise.all([
     supabase.from('track_metadata').select('*').eq('ashreinu_event_id', id).maybeSingle(),
     supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month, hebrew_month_name, hebrew_year, duration_ms').eq('id', id).maybeSingle(),
   ]);
   if (e1 || e2) throw new Error((e1 || e2).message);
   if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
-  if (tm.locked) return { id, skipped: 'locked (edited by a person), so re-runs leave it alone' };
+  // Batch runs leave locked entries alone; a redo a person asks for with a
+  // note is deliberate, so it may replace one.
+  if (tm.locked && !note) return { id, skipped: 'locked (edited by a person), so re-runs leave it alone' };
   const topics = await loadTopics(supabase);
   const audience = audienceFor(ev?.name, ev?.type);
   const src = {
@@ -358,12 +372,13 @@ async function enrichStored(supabase, id) {
     hebrew_date: ev?.hebrew_day ? `${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` : null,
     date_occasions: occasionsOn(ev?.hebrew_month, ev?.hebrew_day),
     duration_ms: ev?.duration_ms, outline: tm.outline_he || '', transcript: tm.transcript || '', transcript_kind: tm.transcript_kind,
+    feedback: note && tm.status === 'enriched' ? { rejected: { title_en: tm.title_en, summary_en: tm.summary_en }, note } : null,
   };
   try {
     const r = await enrich(src, topics);
     const m = r.metadata;
     const row = {
-      status: 'enriched', error: null, prompt_version: PROMPT_VERSION,
+      status: 'enriched', error: null, prompt_version: PROMPT_VERSION, locked: false,
       title_en: m.title_en, title_he: m.title_he, summary_en: m.summary_en, key_points: m.key_points,
       main_topic: m.main_topic, topics: m.other_topics, suggested_new_topics: m.suggested_new_topics,
       occasions: m.occasions, parsha: m.parsha, people: m.people, sources: m.sources, phrases: m.phrases,
@@ -376,9 +391,67 @@ async function enrichStored(supabase, id) {
     if (error) throw new Error(error.message);
     return { id, saved: true, metadata: m, previous_title: tm.status === 'enriched' ? tm.title_en : null, audience, warnings: r.warnings, usage: r.usage };
   } catch (e) {
-    await supabase.from('track_metadata').update({ status: 'error', error: 'enrich: ' + e.message, updated_at: new Date().toISOString() }).eq('ashreinu_event_id', id);
+    // A failed redo must not take a good entry out of the app.
+    if (tm.status !== 'enriched') await supabase.from('track_metadata').update({ status: 'error', error: 'enrich: ' + e.message, updated_at: new Date().toISOString() }).eq('ashreinu_event_id', id);
     throw e;
   }
+}
+
+// Five alternative titles for one track, for a person to choose from. Uses
+// the same title rules; the current title (and the person's note) are shown
+// so the options go somewhere new. Nothing is saved.
+async function suggestTitles(supabase, id, note) {
+  const [{ data: tm, error: e1 }, { data: ev, error: e2 }] = await Promise.all([
+    supabase.from('track_metadata').select('*').eq('ashreinu_event_id', id).maybeSingle(),
+    supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month, hebrew_month_name, hebrew_year, duration_ms').eq('id', id).maybeSingle(),
+  ]);
+  if (e1 || e2) throw new Error((e1 || e2).message);
+  if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
+  const src = {
+    name: ev?.name, type: ev?.type, parent_name: ev?.parent_name,
+    hebrew_date: ev?.hebrew_day ? `${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` : null,
+    date_occasions: occasionsOn(ev?.hebrew_month, ev?.hebrew_day),
+    duration_ms: ev?.duration_ms, outline: tm.outline_he || '', transcript: tm.transcript || '', transcript_kind: tm.transcript_kind,
+  };
+  const budget = lengthBudget(src);
+  const material = buildMaterial(src, budget, outlineHeading(src.outline, budget.points))
+    + `\n\nTASK: do not write a full entry. Propose 5 alternative English titles for this talk, following the title rules. `
+    + `Make them genuinely different from each other (different angles on the main teaching, a question, a short phrase), not rewordings. `
+    + (tm.title_en ? `The current title is «${tm.title_en}»${tm.summary_en ? ` (summary: ${tm.summary_en})` : ''}; don't repeat it. ` : '')
+    + (note ? `The editor's note on what they want: «${note}».` : '');
+  const response = await new Anthropic().beta.messages.create({
+    model: MODEL,
+    max_tokens: 3000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    output_config: { effort: 'medium', format: { type: 'json_schema', schema: {
+      type: 'object', additionalProperties: false, required: ['titles'],
+      properties: { titles: { type: 'array', items: { type: 'string' }, description: 'Exactly 5 alternative titles' } },
+    } } },
+    system: SYSTEM,
+    messages: [{ role: 'user', content: material }],
+  });
+  if (response.stop_reason === 'refusal') throw new Error('Claude declined this track (refusal)');
+  const text = response.content.find(b => b.type === 'text')?.text;
+  if (!text) throw new Error('No text in Claude response');
+  const titles = [...new Set(JSON.parse(text).titles.map(t => String(t).trim()).filter(Boolean))].slice(0, 6);
+  return { id, current: tm.title_en, titles, usage: response.usage };
+}
+
+// Save a title a person chose (or typed), lock the entry so batch runs keep
+// it, and refresh its search words.
+async function setTitle(supabase, id, title) {
+  title = String(title || '').trim().slice(0, 90);
+  if (!title) throw new Error('Empty title');
+  const { error } = await supabase.from('track_metadata').update({ title_en: title, locked: true, updated_at: new Date().toISOString() })
+    .eq('ashreinu_event_id', id).eq('status', 'enriched');
+  if (error) throw new Error(error.message);
+  const { data: r, error: e2 } = await supabase.from('track_metadata')
+    .select('ashreinu_event_id, title_en, title_he, summary_en, key_points, main_topic, topics, occasions, parsha, people, sources, phrases, audience, outline_he')
+    .eq('ashreinu_event_id', id).maybeSingle();
+  if (e2 || !r) throw new Error(e2?.message || 'Entry not found');
+  await reindexRow(supabase, await loadTopics(supabase), r);
+  return { id, saved: true, title, locked: true };
 }
 
 // Rebuild the search layers from what's stored now: after a person edits an
@@ -389,15 +462,16 @@ async function reindex(supabase, offset) {
     .select('ashreinu_event_id, title_en, title_he, summary_en, key_points, main_topic, topics, occasions, parsha, people, sources, phrases, audience, outline_he')
     .eq('status', 'enriched').order('ashreinu_event_id').range(offset, offset + 199);
   if (error) throw new Error(error.message);
-  for (const r of data) {
-    const m = { ...r, key_points: r.key_points || [], other_topics: r.topics || [], occasions: r.occasions || [],
-                people: r.people || [], sources: r.sources || [], phrases: r.phrases || [] };
-    const { error: e } = await supabase.from('track_metadata')
-      .update({ ...buildSearchLayers(m, r.outline_he, topics, r.audience || []), updated_at: new Date().toISOString() })
-      .eq('ashreinu_event_id', r.ashreinu_event_id);
-    if (e) throw new Error(e.message);
-  }
+  for (const r of data) await reindexRow(supabase, topics, r);
   return { reindexed: data.length, next_offset: data.length === 200 ? offset + 200 : null };
+}
+async function reindexRow(supabase, topics, r) {
+  const m = { ...r, key_points: r.key_points || [], other_topics: r.topics || [], occasions: r.occasions || [],
+              people: r.people || [], sources: r.sources || [], phrases: r.phrases || [] };
+  const { error } = await supabase.from('track_metadata')
+    .update({ ...buildSearchLayers(m, r.outline_he, topics, r.audience || []), updated_at: new Date().toISOString() })
+    .eq('ashreinu_event_id', r.ashreinu_event_id);
+  if (error) throw new Error(error.message);
 }
 
 // Opus 5.5 pricing ($ per million tokens), for the running cost estimate.
@@ -475,7 +549,7 @@ export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
   const { mode, id } = req.query;
-  const needsId = ['source', 'preview', 'enrich'].includes(mode);
+  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle'].includes(mode);
   if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit || '30', 10) || 30, 100));
 
@@ -505,8 +579,14 @@ export default async function handler(req, res) {
     }
     if (mode === 'enrich') {
       if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
-      return res.status(200).json(await enrichStored(supa(), parseInt(id, 10)));
+      const note = String(req.query.note || '').trim().slice(0, 500);
+      return res.status(200).json(await enrichStored(supa(), parseInt(id, 10), note));
     }
+    if (mode === 'titles') {
+      if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+      return res.status(200).json(await suggestTitles(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
+    }
+    if (mode === 'settitle') return res.status(200).json(await setTitle(supa(), parseInt(id, 10), req.query.title));
     if (mode === 'stats') return res.status(200).json(await stats(supa()));
     if (mode === 'coverage') return res.status(200).json(await coverage(supa()));
     if (mode === 'list') {
