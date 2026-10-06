@@ -919,9 +919,12 @@ function closeBrowseSheet(fromBackButton) {
 // ── Filter the open Browse list as you type ──
 // Forgiving about spelling: case, apostrophes and Hebrew quote marks, dashes,
 // y/i, and a word's final h ("Tzamah"/"Tzama", "Zhuritzy"/"Zhuritzi").
+// Common alternate spellings of Hebrew letters, months and days.
+const SPELLINGS = { dalet: 'daled', tet: 'tes', tevet: 'teves', aleph: 'alef', gimel: 'gimmel', kaf: 'chof', caf: 'chof', yod: 'yud',
+  shvat: 'shevat', nisan: 'nissan', iyyar: 'iyar', tamuz: 'tammuz', tishri: 'tishrei', heshvan: 'cheshvan', marcheshvan: 'cheshvan', vav: 'vov' };
 function filterKey(text) {
-  return String(text || '').toLowerCase().replace(/['’‘`"״׳]/g, '').replace(/[-–—_,.·()]/g, ' ').replace(/y/g, 'i')
-    .split(/\s+/).filter(Boolean).map(w => w.replace(/h$/, '')).join(' ');
+  return String(text || '').toLowerCase().replace(/['’‘`"״׳]/g, '').replace(/[-–—_,.·()]/g, ' ')
+    .split(/\s+/).filter(Boolean).map(w => (SPELLINGS[w] || w).replace(/y/g, 'i').replace(/h$/, '')).join(' ');
 }
 function filterBrowse() {
   const q = filterKey(document.getElementById('browseFilter').value);
