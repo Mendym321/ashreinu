@@ -64,12 +64,23 @@ async function occasionTalks(supabase, occasion, dates) {
   return rowsForIds(supabase, ids, {});
 }
 
-// Every row with audio (id, parent, year), paged past the 1000-row cap.
+// Every row with audio (id, parent), paged past the 1000-row cap.
+// Every whole event (no parent) with a year: id and year.
+async function topLevelRows(supabase, narrow) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await narrow(supabase.from('ashreinu_events').select('id, hebrew_year')
+      .is('parent_id', null).not('hebrew_year', 'is', null)).order('id').range(from, from + 999);
+    if (error) throw new Error(error.message);
+    out.push(...data);
+    if (data.length < 1000) return out;
+  }
+}
 async function audioRows(supabase, narrow) {
   const out = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await narrow(supabase.from('ashreinu_events').select('id, parent_id, hebrew_year')
-      .not('audio_uri', 'is', null).not('hebrew_year', 'is', null)).order('id').range(from, from + 999);
+    const { data, error } = await narrow(supabase.from('ashreinu_events').select('id, parent_id')
+      .not('audio_uri', 'is', null)).order('id').range(from, from + 999);
     if (error) throw new Error(error.message);
     out.push(...data);
     if (data.length < 1000) return out;
@@ -252,44 +263,52 @@ export default async function handler(req, res) {
   // Special mode: return distinct Hebrew years present in the data, for the
   // "Browse by year" homepage row — earliest first, so the scroll reads
   // left-to-right in real chronological order.
-  // Years that have something to PLAY (an event with audio itself or in its
-  // tracks), each with how many such events it has. A year with only
-  // unrecorded entries (e.g. 5709's single wedding listing) is left out.
+  // Years that have something to PLAY, each with how many such events it
+  // has. An event's year is the WHOLE event's date (a farbrengen's), not a
+  // single track's: some tracks carry their own odd dates (5700, 5706...)
+  // or belong to no event, and those made empty years appear.
   if (distinct === 'years') {
+    let tops, audio;
+    try { [tops, audio] = await Promise.all([topLevelRows(supabase, q => q), audioRows(supabase, q => q)]); }
+    catch (e) { return res.status(500).json({ error: e.message }); }
+    const yearOf = new Map(tops.map(t => [t.id, t.hebrew_year]));
     const events = {}; // year -> Set of event ids
-    let rowsWithAudio;
-    try { rowsWithAudio = await audioRows(supabase, q => q); } catch (e) { return res.status(500).json({ error: e.message }); }
-    for (const r of rowsWithAudio) {
-      (events[r.hebrew_year] ||= new Set()).add(r.parent_id ?? r.id);
+    for (const r of audio) {
+      const ev = r.parent_id ?? r.id, y = yearOf.get(ev);
+      if (y) (events[y] ||= new Set()).add(ev);
     }
     const years = Object.keys(events).map(Number).sort((a, b) => a - b);
     res.setHeader('Cache-Control', 's-maxage=3600');
     return res.status(200).json({ years, counts: Object.fromEntries(years.map(y => [y, events[y].size])) });
   }
 
-  // A year page: every event of that year with audio (a farbrengen counts
-  // through its tracks), in date order, with how many tracks each has.
+  // A year page: every whole event of that year with audio (a farbrengen
+  // counts through its tracks), in date order, with its number of tracks.
   if (req.query.year_events) {
     const year = parseInt(req.query.year_events, 10);
-    const tracks = {}; // event id -> number of audio tracks
-    let rowsWithAudio;
-    try { rowsWithAudio = await audioRows(supabase, q => q.eq('hebrew_year', year)); } catch (e) { return res.status(500).json({ error: e.message }); }
-    for (const r of rowsWithAudio) {
-      const ev = r.parent_id ?? r.id;
-      tracks[ev] = (tracks[ev] || 0) + (r.parent_id ? 1 : 0);
-    }
-    const ids = Object.keys(tracks).map(Number);
-    const rows = [];
-    for (let i = 0; i < ids.length; i += 200) {
-      const { data, error } = await supabase.from('ashreinu_events').select(ROW_FIELDS).in('id', ids.slice(i, i + 200));
-      if (error) return res.status(500).json({ error: error.message });
-      rows.push(...data);
-    }
-    await attachConfirmedTitles(supabase, rows);
-    for (const r of rows) r.track_count = tracks[r.id] || 0;
-    rows.sort((a, b) => (a.hebrew_month || 0) - (b.hebrew_month || 0) || (a.hebrew_day || 0) - (b.hebrew_day || 0) || a.id - b.id);
-    res.setHeader('Cache-Control', 's-maxage=600');
-    return res.status(200).json({ year, events: rows });
+    try {
+      const tops = await topLevelRows(supabase, q => q.eq('hebrew_year', year));
+      const tracks = {}; // event id -> audio tracks inside it; own audio counts as present
+      for (let i = 0; i < tops.length; i += 150) {
+        const ids = tops.slice(i, i + 150).map(t => t.id).join(',');
+        for (const r of await audioRows(supabase, q => q.or(`id.in.(${ids}),parent_id.in.(${ids})`))) {
+          const ev = r.parent_id ?? r.id;
+          tracks[ev] = (tracks[ev] || 0) + (r.parent_id ? 1 : 0);
+        }
+      }
+      const ids = Object.keys(tracks).map(Number);
+      const rows = [];
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data, error } = await supabase.from('ashreinu_events').select(ROW_FIELDS).in('id', ids.slice(i, i + 200));
+        if (error) throw new Error(error.message);
+        rows.push(...data);
+      }
+      await attachConfirmedTitles(supabase, rows);
+      for (const r of rows) r.track_count = tracks[r.id] || 0;
+      rows.sort((a, b) => (a.hebrew_month || 0) - (b.hebrew_month || 0) || (a.hebrew_day || 0) - (b.hebrew_day || 0) || a.id - b.id);
+      res.setHeader('Cache-Control', 's-maxage=600');
+      return res.status(200).json({ year, events: rows });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
   // Home shelves (toplevel) need only the row fields, not the large raw_data.
