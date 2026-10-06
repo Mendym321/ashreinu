@@ -909,15 +909,13 @@ async function loadBrowseSheetContent() {
   document.getElementById('browseTopics').innerHTML = TOPICS.length
     ? topicTilesHtml(false)
     : '<div class="shelf-empty">Topics will appear once the catalogue is set up.</div>';
-  // Years by decade; each opens its own Year page.
+  // Every year with recordings, in order; each opens its own Year page.
   const years = await getYears();
-  const decades = [...new Set(years.map(y => Math.floor(y / 10) * 10))];
   document.getElementById('browseYears').innerHTML = years.length
-    ? decades.map(d => '<div class="browse-group"><h4>' + d + 's <span>' + (d - 3761) + '–' + (d + 9 - 3760) + '</span></h4><div class="year-grid">'
-        + years.filter(y => Math.floor(y / 10) * 10 === d).map(y =>
+    ? '<div class="year-grid">' + years.map(y =>
           '<button class="year-tile era-' + eraIndex(y) + '" onclick="closeBrowseSheet();openYear(' + y + ')"><strong>' + y + '</strong>'
           + '<span>' + secularSpan(y) + '</span>' + (yearCounts[y] ? '<span>' + yearCounts[y] + ' event' + (yearCounts[y] !== 1 ? 's' : '') + '</span>' : '') + '</button>').join('')
-        + '</div></div>').join('')
+        + '</div>'
     : '<div class="shelf-empty">No years indexed yet.</div>';
 }
 
