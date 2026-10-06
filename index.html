@@ -437,9 +437,12 @@ body.audio-paused .eq i{animation-play-state:paused}
 .year-tile{border:none;border-radius:12px;padding:12px 10px;color:#fff;text-align:left;cursor:pointer;font:inherit;transition:transform .15s}
 .year-tile:active{transform:scale(.97)}
 .year-tile strong{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em}
+.year-tile em{font-style:normal;font-family:'David Libre',serif;font-weight:700;font-size:15px;opacity:.85;margin-left:2px}
+.topic-hero h2 .he{display:inline;font-size:24px;margin-left:6px}
 .year-tile span{display:block;font-size:11.5px;opacity:.85;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .browse-group h4 span{font-weight:500;color:var(--ink-light);font-size:13px;margin-left:6px}
-.month-head{scroll-margin-top:140px}
+.month-jump{position:sticky;top:var(--hdr,0px);z-index:6;background:var(--bg);padding-top:8px;padding-bottom:8px}
+.month-head{scroll-margin-top:calc(var(--hdr,0px) + 64px)}
 .month-head span{font-size:13px;font-weight:600;color:var(--ink-light);margin-left:6px}
 .event-row{cursor:pointer}
 .row-chevron{width:18px;height:18px;color:var(--ink-light);flex-shrink:0;margin-right:6px}
@@ -578,13 +581,6 @@ body.audio-paused .eq i{animation-play-state:paused}
       <button class="chip" data-type="nigun" onclick="setType('nigun',this)">Niggunim</button>
       <span class="chip-divider"></span>
       <label class="chip chip-select" id="yearChip"><select id="yf" onchange="search()" aria-label="Year"><option value="">Year</option></select></label>
-      <label class="chip chip-select" id="monthChip"><select id="mf" onchange="search()" aria-label="Month">
-        <option value="">Month</option>
-        <option>Tishrei</option><option>Cheshvan</option><option>Kislev</option>
-        <option>Tevet</option><option>Shevat</option><option>Adar</option>
-        <option>Nissan</option><option>Iyar</option><option>Sivan</option>
-        <option>Tammuz</option><option>Av</option><option>Elul</option>
-      </select></label>
     </div>
   </div>
 </header>
@@ -846,6 +842,14 @@ let yearsPromise = null;
 let yearCounts = {};
 // A Hebrew year spans two secular years: 5747 → "1986–87".
 function secularSpan(y) { const a = y - 3761; return a + '–' + String(a + 1).slice(-2); }
+// How the year is said and written in Hebrew: 5747 → תשמ״ז.
+function hebrewYearLetters(y) {
+  let n = y % 1000, out = '';
+  for (const [v, l] of [[400, 'ת'], [300, 'ש'], [200, 'ר'], [100, 'ק']]) while (n >= v) { out += l; n -= v; }
+  if (n === 15) out += 'טו'; else if (n === 16) out += 'טז';
+  else { out += ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'][Math.floor(n / 10)] + ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'][n % 10]; }
+  return out.length > 1 ? out.slice(0, -1) + '״' + out.slice(-1) : out + '׳';
+}
 function getYears() {
   if (!yearsPromise) {
     yearsPromise = fetch('/api/search?distinct=years')
@@ -913,18 +917,18 @@ async function loadBrowseSheetContent() {
   const years = await getYears();
   document.getElementById('browseYears').innerHTML = years.length
     ? '<div class="year-grid">' + years.map(y =>
-          '<button class="year-tile era-' + eraIndex(y) + '" onclick="closeBrowseSheet();openYear(' + y + ')"><strong>' + y + '</strong>'
+          '<button class="year-tile era-' + eraIndex(y) + '" onclick="closeBrowseSheet();openYear(' + y + ')"><strong>' + y + ' <em lang="he">' + hebrewYearLetters(y) + '</em></strong>'
           + '<span>' + secularSpan(y) + '</span>' + (yearCounts[y] ? '<span>' + yearCounts[y] + ' event' + (yearCounts[y] !== 1 ? 's' : '') + '</span>' : '') + '</button>').join('')
         + '</div>'
     : '<div class="shelf-empty">No years indexed yet.</div>';
 }
 
-function goHome() {
+function goHome() { go({ p: 'home' }); }
+function renderHome() {
   currentType = '';
   currentDates = null;
   document.getElementById('q').value = '';
   document.getElementById('yf').value = '';
-  document.getElementById('mf').value = '';
   document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
   document.querySelector('.chip[data-type=""]')?.classList.add('active');
   document.getElementById('filterRow').classList.remove('active');
@@ -950,16 +954,27 @@ function debouncedSearch() {
 }
 
 let searchToken = 0;
-async function search() {
+async function search(fromHistory) {
   syncSearchClear();
   const q  = document.getElementById('q').value.trim();
   const yf = document.getElementById('yf').value;
-  const mf = document.getElementById('mf').value;
+  const mf = ''; // month is browsed inside a year page now, not filtered here
 
   if (!q && !currentType && !yf && !mf && !currentDates) {
     document.getElementById('filterRow').classList.remove('active');
+    if (!fromHistory && history.state?.page?.p === 'search') replacePage({ p: 'home' });
     showLanding();
     return;
+  }
+  if (!fromHistory) {
+    // Typing refines the search you're on; starting one (or filtering an
+    // occasion page) records it so Back returns to what came before.
+    const cur = history.state?.page;
+    if (cur?.p === 'occasion') replacePage({ ...cur, type: currentType, year: yf });
+    else {
+      const page = { p: 'search', q, type: currentType, year: yf };
+      if (cur?.p === 'search') replacePage(page); else pushPage(page);
+    }
   }
   document.getElementById('filterRow').classList.add('active');
   syncFilterChips();
@@ -992,11 +1007,12 @@ async function search() {
     const results = j.results || [];
     const talks = j.talks || [];
     const collectionName = currentDates ? document.getElementById('rmeta').dataset.collectionName : null;
-    document.getElementById('rmeta').textContent =
-      (talks.length ? talks.length + ' talk' + (talks.length !== 1 ? 's' : '') + ' · ' : '') +
+    const summary = (talks.length ? talks.length + ' talk' + (talks.length !== 1 ? 's' : '') + ' · ' : '') +
       results.length + ' track' + (results.length !== 1 ? 's' : '') + ' by name or date' +
       (results.length >= 200 ? ' (first 200)' : '') +
       (collectionName ? ' for ' + collectionName : (q ? ' for "' + q + '"' : ''));
+    // An occasion page is somewhere you went to, so it gets a way back.
+    document.getElementById('rmeta').innerHTML = (collectionName ? backChipHtml() + ' ' : '') + '<span class="rmeta-text">' + esc(summary) + '</span>';
 
     // Topics first (the ones the query named, plus name/alias matches), then
     // the ranked catalogue "Talks", then farbrengens and tracks by name/date.
@@ -1037,11 +1053,6 @@ async function loadTodayHebrewDate() {
 
 const MONTH_LIST = ['Tishrei','Cheshvan','Kislev','Tevet','Shevat','Adar','Nissan','Iyar','Sivan','Tammuz','Av','Elul'];
 
-function browseByMonth(monthName) {
-  currentDates = null;
-  document.getElementById('mf').value = monthName;
-  search();
-}
 function browseByType(type) {
   currentDates = null;
   currentType = type;
@@ -1050,27 +1061,28 @@ function browseByType(type) {
   document.getElementById('q').value = '';
   search();
 }
-function browseByCollection(idx) {
+function browseByCollection(idx) { go({ p: 'occasion', i: idx }); }
+function renderOccasion(idx) {
   const c = COLLECTIONS[idx];
   currentDates = c.dates;
   currentType = '';
   document.getElementById('q').value = '';
   document.getElementById('yf').value = '';
-  document.getElementById('mf').value = '';
   document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
   document.querySelector('.chip[data-type=""]')?.classList.add('active');
   document.getElementById('rmeta').dataset.collectionName = c.name;
   document.getElementById('rmeta').dataset.collectionTag = c.tag || '';
-  search();
+  return search(true);
 }
 // A year page: header, a month row to jump with, then the year month by
 // month: farbrengens (open as albums) and single recordings, in date order.
 const ERA_BG = ['linear-gradient(140deg,#4d7a8c,#1d3540)', 'linear-gradient(140deg,#6b6fb5,#262a5c)', 'linear-gradient(140deg,#a0688f,#4a2341)', 'linear-gradient(140deg,#b8794a,#55301a)', 'linear-gradient(140deg,#7f9a5a,#334320)'];
-async function openYear(year) {
+function openYear(year) { go({ p: 'year', y: +year }); }
+async function renderYear(year) {
   closeReader(); closeNowPlaying(); closeBrowseSheet();
   document.getElementById('filterRow').classList.remove('active');
   document.getElementById('rmeta').innerHTML =
-    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+    backChipHtml();
   window.scrollTo(0, 0);
   showSkeletons();
   try {
@@ -1086,9 +1098,9 @@ async function openYear(year) {
     const farb = j.events.filter(e => e.type === 'Farbrengen').length;
     document.getElementById('res').innerHTML =
       '<section class="topic-hero" style="background:' + ERA_BG[eraIndex(year)] + '">'
-        + '<div class="kicker">' + secularSpan(year) + '</div><h2>' + year + '</h2>'
+        + '<div class="kicker">' + secularSpan(year) + '</div><h2>' + year + ' <span class="he" lang="he">' + hebrewYearLetters(year) + '</span></h2>'
         + '<div class="count">' + j.events.length + ' events' + (farb ? ' · ' + farb + ' farbrengens' : '') + '</div></section>'
-      + (months.length > 1 ? '<div class="chip-scroll month-jump" style="margin:0 -16px 6px">' + months.map((m, i) =>
+      + (months.length > 1 ? '<div class="chip-scroll month-jump" style="margin:0 -16px 6px;--hdr:' + document.getElementById('appHeader').offsetHeight + 'px">' + months.map((m, i) =>
           '<button class="chip" onclick="document.getElementById(\'ym-' + i + '\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">' + esc(m.name) + '</button>').join('') + '</div>' : '')
       + months.map((m, i) => '<h3 class="res-heading month-head" id="ym-' + i + '">' + esc(m.name) + ' <span>' + m.events.length + '</span></h3>'
           + m.events.map(eventRowHtml).join('')).join('')
@@ -1203,11 +1215,12 @@ async function shareTrack(id) {
   catch (e) { prompt('Copy this link:', url); }
 }
 // The Saved page: every saved talk, newest first, ready to play in order.
-function openSaved() {
+function openSaved() { go({ p: 'saved' }); }
+function renderSaved() {
   closeReader(); closeNowPlaying(); closeBrowseSheet();
   document.getElementById('filterRow').classList.remove('active');
   document.getElementById('rmeta').innerHTML =
-    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+    backChipHtml();
   const list = getSaved();
   document.getElementById('res').innerHTML =
     '<section class="topic-hero saved-hero tg-0"><div class="kicker">Your library</div><h2>Saved</h2>'
@@ -1430,11 +1443,12 @@ function topicTilesHtml(onlyWithTalks) {
 
 // A topic page, like a genre page: header, sub-topics, then the talks
 // mainly about it, then talks that also discuss it.
-async function openTopic(slug) {
+function openTopic(slug) { go({ p: 'topic', slug }); }
+async function renderTopic(slug) {
   closeReader(); closeNowPlaying(); closeBrowseSheet();
   document.getElementById('filterRow').classList.remove('active');
   document.getElementById('rmeta').innerHTML =
-    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+    backChipHtml();
   window.scrollTo(0, 0);
   showSkeletons();
   try {
@@ -1466,11 +1480,9 @@ function farbrengenLinkHtml(row, withArrow) {
   return '<span class="farb-link" role="link" tabindex="0" onclick="event.stopPropagation();goToFarbrengen(' + row.parent_id + ')" title="Open the whole farbrengen">'
     + esc(row.parent_name) + (withArrow ? ' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' : '') + '</span>';
 }
-function goToFarbrengen(fid) {
-  closeReader(); closeNowPlaying(); closeBrowseSheet();
-  openFarbrengen(fid);
-}
-async function openFarbrengen(fid) {
+function goToFarbrengen(fid) { openFarbrengen(fid); }
+function openFarbrengen(fid) { go({ p: 'album', fid: +fid }); }
+async function renderAlbum(fid) {
   let head = rowsById[String(fid)];
   // Opened from one of its tracks: fetch the farbrengen's own row first, so
   // the page gets its title, date and cover.
@@ -1479,7 +1491,7 @@ async function openFarbrengen(fid) {
   }
   document.getElementById('filterRow').classList.remove('active');
   document.getElementById('rmeta').innerHTML =
-    '<button class="chip back-link" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Home</button>';
+    backChipHtml();
   document.getElementById('res').innerHTML = albumHtml(fid, head, []);
   window.scrollTo(0, 0);
   loadAlbumTracks(fid);
@@ -1882,9 +1894,74 @@ function closeTopLayer(fromBackButton) {
   else if (npIsOpen()) closeNowPlaying(fromBackButton);
   else closeBrowseSheet(fromBackButton);
 }
-window.addEventListener('popstate', () => {
-  if (ignoreNextPop) { ignoreNextPop = false; return; }
-  closeTopLayer(true);
+// ── Pages and history ──
+// Every page (home, a search, a topic, an occasion, a year, a farbrengen,
+// Saved) is one history entry with its own link, so Back (the phone's, or
+// the ‹ Back chip) returns to the previous page, at the same scroll spot.
+// Layers (player, reader, Browse) sit on top as entries of their own.
+let afterPop = null; // a page change waiting for a layer's history.back() to finish
+function pageUrl(page) {
+  const u = new URLSearchParams();
+  if (page.p === 'search') { if (page.q) u.set('q', page.q); if (page.type) u.set('type', page.type); if (page.year) u.set('year', page.year); }
+  else if (page.p === 'year') u.set('year', page.y);
+  else if (page.p === 'topic') u.set('topic', page.slug);
+  else if (page.p === 'album') u.set('album', page.fid);
+  else if (page.p === 'saved') u.set('saved', '1');
+  else if (page.p === 'occasion') u.set('occasion', COLLECTIONS[page.i]?.name || '');
+  const qs = u.toString();
+  return location.pathname + (qs ? '?' + qs : '');
+}
+function pushPage(page, render) {
+  const run = () => {
+    history.replaceState({ ...(history.state || {}), scroll: window.scrollY }, '');
+    history.pushState({ page, depth: (history.state?.depth || 0) + 1 }, '', pageUrl(page));
+    if (render) renderPage(page);
+  };
+  if (ignoreNextPop) afterPop = run; else run();
+}
+function replacePage(page) {
+  history.replaceState({ ...(history.state || {}), page }, '', pageUrl(page));
+}
+// Go to a page: close any layer on top, record it, render it.
+function go(page) {
+  closeReader(); closeNowPlaying(); closeBrowseSheet();
+  pushPage(page, true);
+}
+function goBack() {
+  if ((history.state?.depth || 0) > 0) history.back(); else goHome();
+}
+function backChipHtml() {
+  return '<button class="chip back-link" onclick="goBack()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back</button>';
+}
+async function renderPage(page) {
+  if (page.p !== 'search' && page.p !== 'occasion') { currentDates = null; }
+  switch (page.p) {
+    case 'year': return renderYear(page.y);
+    case 'topic': return renderTopic(page.slug);
+    case 'album': return renderAlbum(page.fid);
+    case 'saved': return renderSaved();
+    case 'occasion': return renderOccasion(page.i);
+    case 'search':
+      currentDates = null; currentType = page.type || '';
+      document.getElementById('q').value = page.q || '';
+      document.getElementById('yf').value = page.year || '';
+      document.querySelectorAll('.chip[data-type]').forEach(c => c.classList.toggle('active', c.dataset.type === currentType));
+      return search(true);
+    default: return renderHome();
+  }
+}
+window.addEventListener('popstate', async e => {
+  if (ignoreNextPop) {
+    ignoreNextPop = false;
+    const next = afterPop; afterPop = null;
+    if (next) next();
+    return;
+  }
+  if (readerIsOpen() || npIsOpen() || browseIsOpen()) { closeTopLayer(true); return; }
+  const scroll = e.state?.scroll || 0;
+  await renderPage(e.state?.page || { p: 'home' });
+  window.scrollTo(0, scroll);
+  if (scroll) setTimeout(() => window.scrollTo(0, scroll), 350); // after late-loading rows
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
@@ -2272,7 +2349,6 @@ function clearSearch() {
 }
 function syncFilterChips() {
   document.getElementById('yearChip').classList.toggle('active', !!document.getElementById('yf').value);
-  document.getElementById('monthChip').classList.toggle('active', !!document.getElementById('mf').value);
 }
 // Year picker lists only years that actually exist in the archive.
 async function loadYearOptions() {
@@ -2301,8 +2377,17 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   await Promise.all([loadTodayHebrewDate(), loadTopicList()]);
   // Links like index.html?q=teshuvah or index.html?track=5009&f=4999 (used by the pipeline review page).
   const params = new URLSearchParams(location.search);
-  if (params.get('q')) { document.getElementById('q').value = params.get('q'); search(); }
-  else showLanding();
+  const occ = COLLECTIONS.findIndex(c => c.name === params.get('occasion'));
+  const page = params.get('topic') ? { p: 'topic', slug: params.get('topic') }
+    : /^\d+$/.test(params.get('album') || '') ? { p: 'album', fid: +params.get('album') }
+    : params.get('saved') ? { p: 'saved' }
+    : occ >= 0 ? { p: 'occasion', i: occ }
+    : params.get('q') || params.get('type') ? { p: 'search', q: params.get('q') || '', type: params.get('type') || '', year: params.get('year') || '' }
+    : /^\d{4}$/.test(params.get('year') || '') ? { p: 'year', y: +params.get('year') }
+    : { p: 'home' };
+  if (!params.get('track') && !params.get('play')) history.replaceState({ page, depth: 0 }, '', pageUrl(page));
+  else history.replaceState({ page, depth: 0 }, '');
+  await renderPage(page);
   if (params.get('track') && params.get('f')) openReader(params.get('track'), parseInt(params.get('f'), 10));
   if (/^\d+$/.test(params.get('play') || '')) showShared(params.get('play'));
 })();
