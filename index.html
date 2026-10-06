@@ -434,6 +434,8 @@ body.audio-paused .eq i{animation-play-state:paused}
 .browse-group{margin-bottom:22px}
 .year-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 @media (min-width:560px){.year-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.niggun-chip{border-color:#c98a3a}
+.niggun-chip span{opacity:.6;font-weight:600;margin-left:2px}
 .year-tile{border:none;border-radius:12px;padding:12px 10px;color:#fff;text-align:left;cursor:pointer;font:inherit;transition:transform .15s}
 .year-tile:active{transform:scale(.97)}
 .year-tile strong{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em}
@@ -715,10 +717,12 @@ body.audio-paused .eq i{animation-play-state:paused}
       <button class="chip active" data-pane="topics" onclick="switchBrowseTab('topics')">Topics</button>
       <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
       <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
+      <button class="chip" data-pane="niggunim" onclick="switchBrowseTab('niggunim')">Niggunim</button>
     </div>
     <div class="browse-pane active" id="pane-topics"><div class="tile-grid" id="browseTopics"></div></div>
     <div class="browse-pane" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
     <div class="browse-pane" id="pane-years"><div id="browseYears"><div class="shelf-empty">Loading…</div></div></div>
+    <div class="browse-pane" id="pane-niggunim"><div class="card-grid" id="browseNiggunim"><div class="shelf-empty">Loading…</div></div></div>
   </div>
 </div>
 
@@ -895,6 +899,7 @@ function closeBrowseSheet(fromBackButton) {
   if (!fromBackButton) popOwnHistory('browse');
 }
 function switchBrowseTab(pane) {
+  if (pane === 'niggunim') loadNiggunList();
   document.querySelectorAll('.browse-tabs .chip').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
   document.querySelectorAll('.browse-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + pane));
 }
@@ -1018,7 +1023,8 @@ async function search(fromHistory) {
     // the ranked catalogue "Talks", then farbrengens and tracks by name/date.
     const topicHits = [...(j.matchedTopics || []), ...suggestTopics(q)]
       .filter((t, i, a) => a.findIndex(x => x.slug === t.slug) === i).slice(0, 6);
-    const before = (topicHits.length ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + topicHits.map(topicChipHtml).join('') + '</div>' : '')
+    const niggunHits = (j.matchedNiggunim || []).map(n => '<button class="chip niggun-chip" onclick="openNiggun(\'' + esc(n.key) + '\')">♪ ' + esc(n.name) + ' <span>' + n.count + '</span></button>').join('');
+    const before = (topicHits.length || niggunHits ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + niggunHits + topicHits.map(topicChipHtml).join('') + '</div>' : '')
       + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '');
     renderCards(results, before);
   } catch (e) {
@@ -1077,6 +1083,50 @@ function renderOccasion(idx) {
 // A year page: header, a month row to jump with, then the year month by
 // month: farbrengens (open as albums) and single recordings, in date order.
 const ERA_BG = ['linear-gradient(140deg,#4d7a8c,#1d3540)', 'linear-gradient(140deg,#6b6fb5,#262a5c)', 'linear-gradient(140deg,#a0688f,#4a2341)', 'linear-gradient(140deg,#b8794a,#55301a)', 'linear-gradient(140deg,#7f9a5a,#334320)'];
+// ── Niggunim: each niggun like a song, every time it was sung a recording ──
+let niggunList = null;
+async function loadNiggunList() {
+  if (niggunList) return;
+  try {
+    niggunList = (await (await fetch('/api/search?niggunim=1')).json()).niggunim || [];
+    document.getElementById('browseNiggunim').innerHTML = niggunList.length
+      ? niggunList.map(n => '<div class="occasion" onclick="closeBrowseSheet();openNiggun(\'' + esc(n.key) + '\')"><strong>' + esc(n.name) + '</strong>'
+          + '<span>' + n.count + ' recordings' + (n.first ? ' · ' + (n.first === n.last ? n.first : n.first + '–' + String(n.last).slice(-2)) : '') + '</span></div>').join('')
+      : '<div class="shelf-empty">No named niggunim yet.</div>';
+  } catch (e) { niggunList = null; document.getElementById('browseNiggunim').innerHTML = '<div class="shelf-empty">Could not load niggunim.</div>'; }
+}
+function openNiggun(key) { go({ p: 'niggun', key }); }
+// On a niggun's page every row is that niggun, so a row is named by where it
+// was sung (the farbrengen), with its date, or the other niggunim sung in the
+// same track. The player still shows the niggun's name.
+function niggunRecordingRowHtml(row, niggunName) {
+  const names = (row.confirmed_title || row.name || '').split(', ').filter(x => x && x.toLowerCase() !== niggunName.toLowerCase());
+  const shown = { ...row, confirmed_title: row.parent_name || hebDate(row) || trackTitle(row),
+    name: names.length && names.length < 4 ? 'with ' + names.join(', ') : hebDate(row) };
+  const html = trackRowHtml(shown, false);
+  rowsById[String(row.id)] = row;
+  return html;
+}
+async function renderNiggun(key) {
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML = backChipHtml();
+  window.scrollTo(0, 0);
+  showSkeletons();
+  try {
+    const j = await (await fetch('/api/search?niggun=' + encodeURIComponent(key))).json();
+    if (j.error) throw new Error(j.error);
+    const n = j.niggun;
+    document.getElementById('res').innerHTML =
+      '<section class="topic-hero" style="background:linear-gradient(140deg,#e0a04a,#7a4714)"><div class="kicker">Niggun</div><h2>' + esc(n.name) + '</h2>'
+        + '<div class="hero-foot"><div class="count">' + n.count + ' recordings' + (n.first ? ' · ' + n.first + (n.last !== n.first ? '–' + n.last : '') : '') + '</div>'
+        + '<button class="play-all" onclick="playPageAll()" aria-label="Play all, oldest first">' + ICON_PLAY + '</button></div></section>'
+      + j.results.map(r => niggunRecordingRowHtml(r, n.name)).join('');
+    rebuildOrder();
+  } catch (e) {
+    document.getElementById('res').innerHTML = '<div class="empty">Could not load this niggun: ' + esc(e.message) + '</div>';
+  }
+}
+
 function openYear(year) { go({ p: 'year', y: +year }); }
 async function renderYear(year) {
   closeReader(); closeNowPlaying(); closeBrowseSheet();
@@ -1226,7 +1276,7 @@ function renderSaved() {
     '<section class="topic-hero saved-hero tg-0"><div class="kicker">Your library</div><h2>Saved</h2>'
       + '<p>Talks you\'ve saved with the ♡. They\'re kept on this device.</p>'
       + '<div class="hero-foot"><div class="count">' + list.length + ' talk' + (list.length !== 1 ? 's' : '') + '</div>'
-      + (list.length ? '<button class="play-all" onclick="playSavedAll()" aria-label="Play all saved">' + ICON_PLAY + '</button>' : '') + '</div></section>'
+      + (list.length ? '<button class="play-all" onclick="playPageAll()" aria-label="Play all saved">' + ICON_PLAY + '</button>' : '') + '</div></section>'
     + (list.length
       ? list.map(r => trackRowHtml(r, true, !!r.summary_en)).join('')
       : '<div class="empty">Nothing saved yet. Tap the ♡ in the player to save a talk.</div>');
@@ -1246,7 +1296,8 @@ async function showShared(id) {
     history.replaceState(history.state, '', location.pathname); // so a refresh doesn't repeat it
   } catch (e) { /* ignore a bad link */ }
 }
-function playSavedAll() {
+// Play the page's list from the top (Saved, a niggun...); the queue is the page.
+function playPageAll() {
   const first = document.querySelector('#res .track[data-playable]');
   if (first) playFromOrder(first.dataset.rid);
 }
@@ -1908,6 +1959,7 @@ function pageUrl(page) {
   else if (page.p === 'album') u.set('album', page.fid);
   else if (page.p === 'saved') u.set('saved', '1');
   else if (page.p === 'occasion') u.set('occasion', COLLECTIONS[page.i]?.name || '');
+  else if (page.p === 'niggun') u.set('niggun', page.key);
   const qs = u.toString();
   return location.pathname + (qs ? '?' + qs : '');
 }
@@ -1941,6 +1993,7 @@ async function renderPage(page) {
     case 'album': return renderAlbum(page.fid);
     case 'saved': return renderSaved();
     case 'occasion': return renderOccasion(page.i);
+    case 'niggun': return renderNiggun(page.key);
     case 'search':
       currentDates = null; currentType = page.type || '';
       document.getElementById('q').value = page.q || '';
@@ -2379,6 +2432,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   const params = new URLSearchParams(location.search);
   const occ = COLLECTIONS.findIndex(c => c.name === params.get('occasion'));
   const page = params.get('topic') ? { p: 'topic', slug: params.get('topic') }
+    : params.get('niggun') ? { p: 'niggun', key: params.get('niggun') }
     : /^\d+$/.test(params.get('album') || '') ? { p: 'album', fid: +params.get('album') }
     : params.get('saved') ? { p: 'saved' }
     : occ >= 0 ? { p: 'occasion', i: occ }
