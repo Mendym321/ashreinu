@@ -60,6 +60,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .sheet-topbar{display:flex;justify-content:space-between;align-items:center;padding:4px 10px 6px 20px;flex-shrink:0}
 .sheet-title{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
 .sheet-scroll{flex:1;overflow-y:auto;padding:6px 20px calc(32px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+.browse-filter{display:flex;align-items:center;gap:8px;height:40px;border-radius:20px;background:var(--hover);padding:0 14px;margin:0 0 12px}
+.browse-filter svg{width:17px;height:17px;color:var(--ink-light);flex-shrink:0}
+.browse-filter input{flex:1;min-width:0;border:none;background:none;outline:none;color:var(--ink);font:inherit;font-size:15px}
+.browse-filter input::-webkit-search-cancel-button{display:none}
+[data-q][hidden]{display:none!important}
 .browse-tabs{display:flex;gap:8px;margin:0 -20px 18px;padding:0 20px 2px;overflow-x:auto;scrollbar-width:none}
 .browse-tabs::-webkit-scrollbar{display:none}
 .browse-pane{display:none}
@@ -435,6 +440,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 .year-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 @media (min-width:560px){.year-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
 .niggun-chip{border-color:#c98a3a}
+.occasion-chip span{opacity:.6;font-weight:600;margin-left:2px}
 .niggun-chip span{opacity:.6;font-weight:600;margin-left:2px}
 .year-tile{border:none;border-radius:12px;padding:12px 10px;color:#fff;text-align:left;cursor:pointer;font:inherit;transition:transform .15s}
 .year-tile:active{transform:scale(.97)}
@@ -713,13 +719,17 @@ body.audio-paused .eq i{animation-play-state:paused}
     </button>
   </div>
   <div class="sheet-scroll" id="browseScroll">
+    <div class="browse-filter">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <input id="browseFilter" type="search" placeholder="Find a topic" oninput="filterBrowse()" autocomplete="off" aria-label="Filter this list">
+    </div>
     <div class="browse-tabs">
       <button class="chip active" data-pane="topics" onclick="switchBrowseTab('topics')">Topics</button>
       <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
       <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
       <button class="chip" data-pane="niggunim" onclick="switchBrowseTab('niggunim')">Niggunim</button>
     </div>
-    <div class="browse-pane active" id="pane-topics"><div class="tile-grid" id="browseTopics"></div></div>
+    <div class="browse-pane active" id="pane-topics"><div class="tile-grid" id="browseTopics"></div><div class="chip-wrap" id="browseTopicMatches" hidden></div></div>
     <div class="browse-pane" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
     <div class="browse-pane" id="pane-years"><div id="browseYears"><div class="shelf-empty">Loading…</div></div></div>
     <div class="browse-pane" id="pane-niggunim"><div class="card-grid" id="browseNiggunim"><div class="shelf-empty">Loading…</div></div></div>
@@ -740,40 +750,47 @@ let debounceTimer = null;
 // Seasons are browse-only: "Now: Elul" for a whole month isn't news.
 function dayRange(m, from, to) { const out = []; for (let d = from; d <= to; d++) out.push([m, d]); return out; }
 const COLLECTIONS = [
-  { name: "Rosh Hashanah", sub: "29 Elul – 2 Tishrei", kind: 'yomtov', tag: 'Rosh Hashanah', dates: [[13,29],[1,1],[1,2]] },
+  { name: "Rosh Hashanah", sub: "28 Elul – 2 Tishrei", kind: 'yomtov', tag: 'Rosh Hashanah', dates: [[13,28],[13,29],[1,1],[1,2]] },
   { name: "Tzom Gedalyah", sub: "3–4 Tishrei", kind: 'fast', dates: [[1,3],[1,4]] },
+  { name: "Vov Tishrei", sub: "6 Tishrei · Rebbetzin Chana's yahrzeit", kind: 'chassidic', tag: 'Vov Tishrei', dates: [[1,6]] },
   { name: "Yom Kippur", sub: "9–10 Tishrei", kind: 'yomtov', tag: 'Yom Kippur', dates: [[1,9],[1,10]] },
-  { name: "Yud-Gimmel Tishrei", sub: "13 Tishrei", kind: 'chassidic', dates: [[1,13]] },
+  { name: "Yud-Gimmel Tishrei", sub: "12–13 Tishrei · the Rebbe Maharash", kind: 'chassidic', dates: [[1,12],[1,13]] },
   { name: "Sukkos", sub: "14–21 Tishrei", kind: 'yomtov', tag: 'Sukkos', dates: dayRange(1, 14, 21) },
   { name: "Shmini Atzeres & Simchas Torah", sub: "22–24 Tishrei", kind: 'yomtov', tag: 'Shmini Atzeres & Simchas Torah', dates: dayRange(1, 22, 24) },
-  { name: "Chof Cheshvan", sub: "20 Cheshvan", kind: 'chassidic', dates: [[2,20]] },
-  { name: "Yud Kislev", sub: "10 Kislev", kind: 'chassidic', tag: 'Yud Kislev', dates: [[3,10]] },
-  { name: "Yud-Daled Kislev", sub: "14 Kislev", kind: 'chassidic', tag: 'Yud-Daled Kislev', dates: [[3,14]] },
-  { name: "Yud-Tes Kislev", sub: "19–20 Kislev", kind: 'chassidic', tag: 'Yud-Tes Kislev', dates: [[3,19],[3,20]] },
-  { name: "Chanukah", sub: "25 Kislev – 3 Teves", kind: 'yomtov', tag: 'Chanukah', dates: [...dayRange(3, 25, 30), ...dayRange(4, 1, 3)] },
-  { name: "Hei Teves", sub: "5 Teves", kind: 'chassidic', tag: 'Hei Teves', dates: [[4,5]] },
+  { name: "Chof Cheshvan", sub: "20 Cheshvan · the Rebbe Rashab's birthday", kind: 'chassidic', dates: [[2,20]] },
+  { name: "Tes Kislev", sub: "9 Kislev · the Mitteler Rebbe", kind: 'chassidic', tag: 'Tes Kislev', dates: [[3,9]] },
+  { name: "Yud Kislev", sub: "10 Kislev · the Mitteler Rebbe's release", kind: 'chassidic', tag: 'Yud Kislev', dates: [[3,10]] },
+  { name: "Yud-Daled Kislev", sub: "14 Kislev · the Rebbe's wedding", kind: 'chassidic', tag: 'Yud-Daled Kislev', dates: [[3,14]] },
+  { name: "Yud-Tes Kislev", sub: "19–20 Kislev · the Alter Rebbe's release", kind: 'chassidic', tag: 'Yud-Tes Kislev', dates: [[3,19],[3,20]] },
+  { name: "Chanukah", sub: "24 Kislev – 3 Teves", kind: 'yomtov', tag: 'Chanukah', dates: [...dayRange(3, 24, 30), ...dayRange(4, 1, 3)] },
+  { name: "Hei Teves", sub: "5 Teves · Didan Notzach", kind: 'chassidic', tag: 'Hei Teves', dates: [[4,5]] },
   { name: "Asara B'Teves", sub: "10 Teves", kind: 'fast', dates: [[4,10]] },
-  { name: "Yud Shevat", sub: "10 Shevat", kind: 'chassidic', tag: 'Yud Shevat', dates: [[5,10]] },
-  { name: "Tu BiShvat", sub: "15 Shevat", kind: 'yomtov', tag: 'Tu BiShvat', dates: [[5,15]] },
-  { name: "Chof-Beis Shevat", sub: "22 Shevat", kind: 'chassidic', tag: 'Chof-Beis Shevat', dates: [[5,22]] },
-  { name: "Purim", sub: "13–15 Adar", kind: 'yomtov', tag: 'Purim', dates: [[7,13],[7,14],[7,15]] },
-  { name: "Yud-Alef Nissan", sub: "11 Nissan", kind: 'chassidic', tag: 'Yud-Alef Nissan', dates: [[8,11]] },
-  { name: "Yud-Gimmel Nissan", sub: "13 Nissan", kind: 'chassidic', tag: 'Yud-Gimmel Nissan', dates: [[8,13]] },
+  { name: "Chof-Daled Teves", sub: "24 Teves · the Alter Rebbe", kind: 'chassidic', tag: 'Chof-Daled Teves', dates: [[4,24]] },
+  { name: "Yud Shevat", sub: "10–11 Shevat · the Previous Rebbe; the Rebbe's nesius", kind: 'chassidic', tag: 'Yud Shevat', dates: [[5,10],[5,11]] },
+  { name: "Tu BiShvat", sub: "14–15 Shevat", kind: 'yomtov', tag: 'Tu BiShvat', dates: [[5,14],[5,15]] },
+  { name: "Chof-Beis Shevat", sub: "22 Shevat · Rebbetzin Chaya Mushka", kind: 'chassidic', tag: 'Chof-Beis Shevat', dates: [[5,22]] },
+  { name: "Purim", sub: "13–15 Adar", kind: 'yomtov', tag: 'Purim', dates: [[7,11],[7,13],[7,14],[7,15]] },
+  { name: "Beis Nissan", sub: "2 Nissan · the Rebbe Rashab", kind: 'chassidic', tag: 'Beis Nissan', dates: [[8,2]] },
+  { name: "Yud-Alef Nissan", sub: "10–11 Nissan · the Rebbe's birthday", kind: 'chassidic', tag: 'Yud-Alef Nissan', dates: [[8,10],[8,11]] },
+  { name: "Yud-Gimmel Nissan", sub: "12–13 Nissan · the Tzemach Tzedek", kind: 'chassidic', tag: 'Yud-Gimmel Nissan', dates: [[8,12],[8,13]] },
   { name: "Pesach", sub: "14–22 Nissan", kind: 'yomtov', tag: 'Pesach', dates: dayRange(8, 14, 22) },
   { name: "Sefiras HaOmer", sub: "16 Nissan – 5 Sivan", kind: 'season', tag: 'Sefiras HaOmer', dates: [...dayRange(8, 16, 30), ...dayRange(9, 1, 29), ...dayRange(10, 1, 5)] },
+  { name: "Chof-Ches Nissan", sub: "28 Nissan", kind: 'chassidic', tag: 'Chof-Ches Nissan', dates: [[8,28]] },
+  { name: "Beis Iyar", sub: "2 Iyar · the Rebbe Maharash", kind: 'chassidic', tag: 'Beis Iyar', dates: [[9,2]] },
   { name: "Pesach Sheini", sub: "14 Iyar", kind: 'yomtov', tag: 'Pesach Sheini', dates: [[9,14]] },
   { name: "Lag BaOmer", sub: "18 Iyar", kind: 'yomtov', tag: 'Lag BaOmer', dates: [[9,18]] },
-  { name: "Shavuos", sub: "5–7 Sivan", kind: 'yomtov', tag: 'Shavuos', dates: dayRange(10, 5, 7) },
-  { name: "Chof-Ches Sivan", sub: "28 Sivan", kind: 'chassidic', tag: 'Chof-Ches Sivan', dates: [[10,28]] },
+  { name: "Shavuos", sub: "4–7 Sivan", kind: 'yomtov', tag: 'Shavuos', dates: dayRange(10, 4, 7) },
+  { name: "Chof-Ches Sivan", sub: "28 Sivan · the Rebbe's arrival in America", kind: 'chassidic', tag: 'Chof-Ches Sivan', dates: [[10,28]] },
   { name: "Gimmel Tammuz", sub: "3 Tammuz", kind: 'chassidic', tag: 'Gimmel Tammuz', dates: [[11,3]] },
-  { name: "Yud-Beis Tammuz", sub: "12–13 Tammuz", kind: 'chassidic', tag: 'Yud-Beis Tammuz', dates: [[11,12],[11,13]] },
+  { name: "Yud-Beis Tammuz", sub: "12–15 Tammuz · the Previous Rebbe's release", kind: 'chassidic', tag: 'Yud-Beis Tammuz', dates: dayRange(11, 12, 15) },
   { name: "Shiva Asar B'Tammuz", sub: "17 Tammuz", kind: 'fast', tag: "The Three Weeks & Tisha B'Av", dates: [[11,17],[11,18]] },
   { name: "The Three Weeks", sub: "17 Tammuz – 9 Av", kind: 'season', tag: "The Three Weeks & Tisha B'Av", dates: [...dayRange(11, 17, 29), ...dayRange(12, 1, 10)] },
   { name: "Tisha B'Av", sub: "9 Av", kind: 'fast', tag: "The Three Weeks & Tisha B'Av", dates: [[12,9],[12,10]] },
-  { name: "Tu B'Av", sub: "15 Av", kind: 'yomtov', tag: "Tu B'Av", dates: [[12,15]] },
-  { name: "Chof Av", sub: "20 Av", kind: 'chassidic', tag: 'Chof Av', dates: [[12,20]] },
+  { name: "Tu B'Av", sub: "14–15 Av", kind: 'yomtov', tag: "Tu B'Av", dates: [[12,14],[12,15]] },
+  { name: "Chof Av", sub: "20 Av · Reb Levi Yitzchok", kind: 'chassidic', tag: 'Chof Av', dates: [[12,20]] },
   { name: "Elul", sub: "The whole month", kind: 'season', tag: 'Elul', dates: dayRange(13, 1, 29) },
-  { name: "Chai Elul", sub: "18 Elul", kind: 'chassidic', tag: 'Chai Elul', dates: [[13,18]] },
+  { name: "Chai Elul", sub: "18 Elul · the Baal Shem Tov and the Alter Rebbe", kind: 'chassidic', tag: 'Chai Elul', dates: [[13,18]] },
+  { name: "Rosh Chodesh", sub: "Every new month", kind: 'season', tag: 'Rosh Chodesh', dates: [...Array.from({ length: 13 }, (_, i) => [i + 1, 1]), ...[1, 2, 3, 5, 6, 8, 10, 12].map(m => [m, 30])] },
 ];
 
 function getAudioUrl(row) {
@@ -884,6 +901,7 @@ function browseIsOpen() { return document.getElementById('browseSheet').classLis
 function openBrowseSheet(tab) {
   if (!browseIsOpen()) {
     document.getElementById('browseScroll').scrollTop = 0;
+    document.getElementById('browseFilter').value = '';
     // A history entry means the phone's Back button closes the sheet.
     if (!history.state?.browse) history.pushState({ browse: true }, '');
   }
@@ -898,8 +916,39 @@ function closeBrowseSheet(fromBackButton) {
   document.getElementById('browseBackdrop').classList.remove('open');
   if (!fromBackButton) popOwnHistory('browse');
 }
+// ── Filter the open Browse list as you type ──
+// Forgiving about spelling: case, apostrophes and Hebrew quote marks, dashes,
+// y/i, and a word's final h ("Tzamah"/"Tzama", "Zhuritzy"/"Zhuritzi").
+function filterKey(text) {
+  return String(text || '').toLowerCase().replace(/['’‘`"״׳]/g, '').replace(/[-–—_,.·()]/g, ' ').replace(/y/g, 'i')
+    .split(/\s+/).filter(Boolean).map(w => w.replace(/h$/, '')).join(' ');
+}
+function filterBrowse() {
+  const q = filterKey(document.getElementById('browseFilter').value);
+  const pane = document.querySelector('.browse-pane.active');
+  if (!pane) return;
+  if (pane.id === 'pane-topics') {
+    // Topics: the nine tiles normally; while typing, every matching topic and sub-topic.
+    const tiles = document.getElementById('browseTopics'), matches = document.getElementById('browseTopicMatches');
+    tiles.hidden = !!q; matches.hidden = !q;
+    if (q) {
+      const hits = TOPICS.filter(t => filterKey([t.name_en, t.name_he, ...(t.aliases || [])].join(' ')).includes(q));
+      matches.innerHTML = hits.length ? hits.map(topicChipHtml).join('') : '<div class="shelf-empty">No topic matches “' + esc(document.getElementById('browseFilter').value) + '”.</div>';
+    }
+    return;
+  }
+  let shown = 0;
+  pane.querySelectorAll('[data-q]').forEach(el => { const ok = !q || el.dataset.q.includes(q); el.hidden = !ok; if (ok) shown++; });
+  let empty = pane.querySelector('.filter-empty');
+  if (!empty) { empty = document.createElement('div'); empty.className = 'shelf-empty filter-empty'; pane.appendChild(empty); }
+  empty.hidden = !q || shown > 0;
+  empty.textContent = 'Nothing matches “' + document.getElementById('browseFilter').value + '”.';
+}
 function switchBrowseTab(pane) {
   if (pane === 'niggunim') loadNiggunList();
+  const f = document.getElementById('browseFilter');
+  f.placeholder = { topics: 'Find a topic', collections: 'Find an occasion or date', years: 'Find a year (5747, תשמ״ז, 1987)', niggunim: 'Find a niggun' }[pane] || 'Find';
+  setTimeout(filterBrowse);
   document.querySelectorAll('.browse-tabs .chip').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
   document.querySelectorAll('.browse-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + pane));
 }
@@ -911,7 +960,7 @@ async function loadBrowseSheetContent() {
     browseStaticLoaded = true;
     // One list in calendar order, Tishrei to Elul.
     document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) =>
-      '<div class="occasion" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('');
+      '<div class="occasion" data-q="' + esc(filterKey(c.name + ' ' + c.sub + ' ' + (c.tag || ''))) + '" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('');
   }
   // Nine calm category tiles, like a music app's browse grid; each group's
   // page shows its sub-topics.
@@ -922,7 +971,7 @@ async function loadBrowseSheetContent() {
   const years = await getYears();
   document.getElementById('browseYears').innerHTML = years.length
     ? '<div class="year-grid">' + years.map(y =>
-          '<button class="year-tile era-' + eraIndex(y) + '" onclick="closeBrowseSheet();openYear(' + y + ')"><strong>' + y + ' <em lang="he">' + hebrewYearLetters(y) + '</em></strong>'
+          '<button class="year-tile era-' + eraIndex(y) + '" data-q="' + esc(filterKey(y + ' ' + hebrewYearLetters(y) + ' ' + (y - 3761) + ' ' + (y - 3760))) + '" onclick="closeBrowseSheet();openYear(' + y + ')"><strong>' + y + ' <em lang="he">' + hebrewYearLetters(y) + '</em></strong>'
           + '<span>' + secularSpan(y) + '</span>' + (yearCounts[y] ? '<span>' + yearCounts[y] + ' event' + (yearCounts[y] !== 1 ? 's' : '') + '</span>' : '') + '</button>').join('')
         + '</div>'
     : '<div class="shelf-empty">No years indexed yet.</div>';
@@ -1024,7 +1073,10 @@ async function search(fromHistory) {
     const topicHits = [...(j.matchedTopics || []), ...suggestTopics(q)]
       .filter((t, i, a) => a.findIndex(x => x.slug === t.slug) === i).slice(0, 6);
     const niggunHits = (j.matchedNiggunim || []).map(n => '<button class="chip niggun-chip" onclick="openNiggun(\'' + esc(n.key) + '\')">♪ ' + esc(n.name) + ' <span>' + n.count + '</span></button>').join('');
-    const before = (topicHits.length || niggunHits ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + niggunHits + topicHits.map(topicChipHtml).join('') + '</div>' : '')
+    const qk = filterKey(q);
+    const occasionHits = qk.length >= 3 ? COLLECTIONS.map((c, i) => [c, i]).filter(([c]) => filterKey(c.name + ' ' + c.sub).includes(qk)).slice(0, 3)
+      .map(([c, i]) => '<button class="chip occasion-chip" onclick="browseByCollection(' + i + ')">' + esc(c.name) + ' <span>' + esc(c.sub.split(' · ')[0]) + '</span></button>').join('') : '';
+    const before = (topicHits.length || niggunHits || occasionHits ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + occasionHits + niggunHits + topicHits.map(topicChipHtml).join('') + '</div>' : '')
       + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '');
     renderCards(results, before);
   } catch (e) {
@@ -1089,8 +1141,9 @@ async function loadNiggunList() {
   if (niggunList) return;
   try {
     niggunList = (await (await fetch('/api/search?niggunim=1')).json()).niggunim || [];
+    setTimeout(filterBrowse);
     document.getElementById('browseNiggunim').innerHTML = niggunList.length
-      ? niggunList.map(n => '<div class="occasion" onclick="closeBrowseSheet();openNiggun(\'' + esc(n.key) + '\')"><strong>' + esc(n.name) + '</strong>'
+      ? niggunList.map(n => '<div class="occasion" data-q="' + esc(filterKey(n.name)) + '" onclick="closeBrowseSheet();openNiggun(\'' + esc(n.key) + '\')"><strong>' + esc(n.name) + '</strong>'
           + '<span>' + n.count + ' recordings' + (n.first ? ' · ' + (n.first === n.last ? n.first : n.first + '–' + String(n.last).slice(-2)) : '') + '</span></div>').join('')
       : '<div class="shelf-empty">No named niggunim yet.</div>';
   } catch (e) { niggunList = null; document.getElementById('browseNiggunim').innerHTML = '<div class="shelf-empty">Could not load niggunim.</div>'; }
