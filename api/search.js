@@ -335,8 +335,23 @@ export default async function handler(req, res) {
       if (y) (events[y] ||= new Set()).add(ev);
     }
     const years = Object.keys(events).map(Number).sort((a, b) => a - b);
+    // One JEM photo per year (from a farbrengen that has one), for its tile.
+    const photos = {};
+    try {
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase.from('ashreinu_events').select('id, hebrew_year, pics:raw_data->pictures')
+          .is('parent_id', null).eq('type', 'Farbrengen').order('id').range(from, from + 999);
+        if (error) throw new Error(error.message);
+        for (const r of data) {
+          if (photos[r.hebrew_year] || !Array.isArray(r.pics)) continue;
+          const pic = r.pics.find(p => p?.urls?.['300px'] && !p.video_still) || r.pics.find(p => p?.urls?.['300px']);
+          if (pic) photos[r.hebrew_year] = pic.urls['300px'];
+        }
+        if (data.length < 1000) break;
+      }
+    } catch (e) { /* tiles fall back to colour */ }
     res.setHeader('Cache-Control', 's-maxage=3600');
-    return res.status(200).json({ years, counts: Object.fromEntries(years.map(y => [y, events[y].size])) });
+    return res.status(200).json({ years, counts: Object.fromEntries(years.map(y => [y, events[y].size])), photos });
   }
 
   // A year page: every whole event of that year with audio (a farbrengen
