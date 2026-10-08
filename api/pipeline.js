@@ -397,42 +397,71 @@ async function enrichStored(supabase, id, note) {
 // Five alternative titles for one track, for a person to choose from. Uses
 // the same title rules; the current title (and the person's note) are shown
 // so the options go somewhere new. Nothing is saved.
-async function suggestTitles(supabase, id, note) {
+// Titles alone are cheap: Claude reads the track's facts, its outline (or the
+// opening of its hanacha) and the entry's own summary and key points, not the
+// whole transcript, with only the title rules and less thinking time. About a
+// fifth of the cost of a full entry.
+const TITLE_SYSTEM = SYSTEM.slice(0, SYSTEM.indexOf('\nSummary:'));
+async function writeTitles(supabase, id, note, count) {
   const [{ data: tm, error: e1 }, { data: ev, error: e2 }] = await Promise.all([
     supabase.from('track_metadata').select('*').eq('ashreinu_event_id', id).maybeSingle(),
-    supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month, hebrew_month_name, hebrew_year, duration_ms').eq('id', id).maybeSingle(),
+    supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month, hebrew_month_name, hebrew_year').eq('id', id).maybeSingle(),
   ]);
   if (e1 || e2) throw new Error((e1 || e2).message);
   if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
-  const src = {
-    name: ev?.name, type: ev?.type, parent_name: ev?.parent_name,
-    hebrew_date: ev?.hebrew_day ? `${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` : null,
-    date_occasions: occasionsOn(ev?.hebrew_month, ev?.hebrew_day),
-    duration_ms: ev?.duration_ms, outline: tm.outline_he || '', transcript: tm.transcript || '', transcript_kind: tm.transcript_kind,
-  };
-  const budget = lengthBudget(src);
-  const material = buildMaterial(src, budget, outlineHeading(src.outline, budget.points))
-    + `\n\nTASK: do not write a full entry. Propose 5 alternative English titles for this talk, following the title rules. `
-    + `Make them genuinely different from each other (different angles on the main teaching, a question, a short phrase), not rewordings. `
-    + (tm.title_en ? `The current title is «${tm.title_en}»${tm.summary_en ? ` (summary: ${tm.summary_en})` : ''}; don't repeat it. ` : '')
-    + (note ? `The editor's note on what they want: «${note}».` : '');
+  const occ = occasionsOn(ev?.hebrew_month, ev?.hebrew_day);
+  const material = [
+    `Track: ${ev?.name} (${ev?.type})`,
+    ev?.parent_name ? `Part of: ${ev.parent_name}` : null,
+    ev?.hebrew_day ? `Date: ${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` + (occ.length ? ` (${occ.join(', ')})` : '') : null,
+    tm.outline_he ? `\n<outline>\n${tm.outline_he}\n</outline>` : tm.transcript ? `\n<hanacha_opening>\n${tm.transcript.slice(0, 1500)}\n</hanacha_opening>` : null,
+    tm.summary_en ? `\n<what_the_talk_teaches>\n${tm.summary_en}${(tm.key_points || []).length ? '\n- ' + tm.key_points.join('\n- ') : ''}\n</what_the_talk_teaches>` : null,
+    `\nTASK: write ${count === 1 ? 'one new English title' : count + ' alternative English titles'} for this talk, following the title rules.`
+      + (count > 1 ? ' Make them genuinely different from each other (different angles on the main teaching, a question, a short phrase), not rewordings.' : '')
+      + (tm.title_en ? ` The current title is «${tm.title_en}»; don't repeat or merely reword it.` : '')
+      + (note ? ` The editor's note on what they want: «${note}».` : ''),
+  ].filter(Boolean).join('\n');
   const response = await new Anthropic().beta.messages.create({
     model: MODEL,
-    max_tokens: 3000,
+    max_tokens: 2000,
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: {
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: {
       type: 'object', additionalProperties: false, required: ['titles'],
-      properties: { titles: { type: 'array', items: { type: 'string' }, description: 'Exactly 5 alternative titles' } },
+      properties: { titles: { type: 'array', items: { type: 'string' }, description: count === 1 ? 'Exactly 1 title' : `Exactly ${count} alternative titles` } },
     } } },
-    system: SYSTEM,
+    system: TITLE_SYSTEM,
     messages: [{ role: 'user', content: material }],
   });
   if (response.stop_reason === 'refusal') throw new Error('Claude declined this track (refusal)');
   const text = response.content.find(b => b.type === 'text')?.text;
   if (!text) throw new Error('No text in Claude response');
-  const titles = [...new Set(JSON.parse(text).titles.map(t => String(t).trim()).filter(Boolean))].slice(0, 6);
-  return { id, current: tm.title_en, titles, usage: response.usage };
+  const titles = [...new Set(JSON.parse(text).titles.map(t => String(t).trim()).filter(Boolean))].slice(0, Math.max(count, 1) + 1);
+  const u = response.usage || {};
+  const cost = +((u.input_tokens || 0) / 1e6 * PRICE_IN + (u.output_tokens || 0) / 1e6 * PRICE_OUT).toFixed(4);
+  return { tm, titles, usage: u, cost };
+}
+// Five options for a person to choose from. Nothing is saved.
+async function suggestTitles(supabase, id, note) {
+  const r = await writeTitles(supabase, id, note, 5);
+  return { id, current: r.tm.title_en, titles: r.titles, usage: r.usage, cost: r.cost };
+}
+// Replace just the title (summary, topics etc. stay). Skips entries a person
+// locked unless they asked with a note.
+async function retitle(supabase, id, note) {
+  const { data: lock } = await supabase.from('track_metadata').select('locked, status').eq('ashreinu_event_id', id).maybeSingle();
+  if (!lock || lock.status !== 'enriched') throw new Error(`Track ${id} isn't catalogued yet`);
+  if (lock.locked && !note) return { id, skipped: 'locked (edited by a person), so re-runs leave it alone' };
+  const r = await writeTitles(supabase, id, note, 1);
+  const title = r.titles[0];
+  if (!title) throw new Error('No title came back');
+  const { error } = await supabase.from('track_metadata').update({ title_en: title, locked: false, updated_at: new Date().toISOString() }).eq('ashreinu_event_id', id);
+  if (error) throw new Error(error.message);
+  const { data: row } = await supabase.from('track_metadata')
+    .select('ashreinu_event_id, title_en, title_he, summary_en, key_points, main_topic, topics, occasions, parsha, people, sources, phrases, audience, outline_he')
+    .eq('ashreinu_event_id', id).maybeSingle();
+  if (row) await reindexRow(supabase, await loadTopics(supabase), row);
+  return { id, saved: true, title, previous_title: r.tm.title_en, cost: r.cost };
 }
 
 // Save a title a person chose (or typed), lock the entry so batch runs keep
@@ -567,7 +596,7 @@ export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
   const { mode, id } = req.query;
-  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle'].includes(mode);
+  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle'].includes(mode);
   if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit || '30', 10) || 30, 100));
 
@@ -605,6 +634,10 @@ export default async function handler(req, res) {
       return res.status(200).json(await suggestTitles(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
     }
     if (mode === 'settitle') return res.status(200).json(await setTitle(supa(), parseInt(id, 10), req.query.title));
+    if (mode === 'retitle') {
+      if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+      return res.status(200).json(await retitle(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
+    }
     if (mode === 'stats') return res.status(200).json(await stats(supa()));
     if (mode === 'coverage') return res.status(200).json(await coverage(supa()));
     if (mode === 'topicreport') return res.status(200).json(await topicReport(supa()));

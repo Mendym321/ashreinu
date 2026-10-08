@@ -119,7 +119,8 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
       <span class="row-label">Redo</span>
       <input class="field" id="redoIds" placeholder="track ids, e.g. 22, 26, 4" style="flex:1;min-width:200px" aria-label="Track ids to redo">
       <input class="field" id="redoNote" placeholder="optional note, e.g. titles too generic" style="flex:1;min-width:200px" aria-label="What's wrong (optional)">
-      <button class="btn" onclick="redoTracks(parseIds(document.getElementById('redoIds').value))" title="Re-run Claude on these tracks (replaces their entries). With a note, Claude sees the old entry and your note.">Redo these tracks</button>
+      <button class="btn" onclick="redoTracks(parseIds(document.getElementById('redoIds').value))" title="Re-run Claude on these tracks (replaces their entries). With a note, Claude sees the old entry and your note.">Redo whole entry</button>
+      <button class="btn primary" onclick="retitleTracks(parseIds(document.getElementById('redoIds').value))" title="New titles only (summary and topics stay). About a fifth of the cost.">Redo titles only</button>
     </div>
     <div class="row">
       <button class="btn" id="collectBtn" onclick="collectAll()">Collect all (free)</button>
@@ -151,7 +152,8 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
     <div class="row"><input class="field" id="reviewFind" placeholder="Find: track numbers (47, 2203) or words in a title" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter')loadReview(0)" aria-label="Find catalogued tracks">
       <button class="btn" onclick="loadReview(0)">Find</button></div>
     <div class="row"><button class="btn primary" onclick="document.getElementById('reviewFind').value='';loadReview(0)">Show latest 20</button><button class="btn" id="reviewMore" onclick="loadReview(reviewOffset)" style="display:none">Show 20 more</button>
-      <button class="btn" id="redoChecked" onclick="redoTracks([...document.querySelectorAll('.redo-box:checked')].map(b => +b.value))" style="display:none">Redo ticked</button></div>
+      <button class="btn" id="redoChecked" onclick="redoTracks([...document.querySelectorAll('.redo-box:checked')].map(b => +b.value))" style="display:none">Redo ticked</button>
+      <button class="btn primary" id="retitleChecked" onclick="retitleTracks([...document.querySelectorAll('.redo-box:checked')].map(b => +b.value))" style="display:none">New titles for ticked</button></div>
     <div id="reviewCards" style="margin-top:16px"></div>
   </section>
 
@@ -353,6 +355,7 @@ function syncRedoChecked() {
   const n = document.querySelectorAll('.redo-box:checked').length;
   const b = document.getElementById('redoChecked');
   b.style.display = n ? '' : 'none'; b.textContent = 'Redo ticked (' + n + ')';
+  const t = document.getElementById('retitleChecked'); t.style.display = n ? '' : 'none'; t.textContent = 'New titles for ticked (' + n + ')';
 }
 // Re-run chosen tracks with the current instructions (replaces their entries).
 async function redoTracks(ids) {
@@ -376,6 +379,32 @@ async function loadTopicReport() {
       + j.groups.map(g => '<tr class="total"><td colspan="3">' + esc(g.name) + '</td></tr>' + g.topics.map(row).join('')).join('') + '</table></div>'
       + (j.suggested.length ? '<h3 style="font-size:15px;margin:16px 0 6px">Topics Claude suggested adding</h3><p class="lead">' + j.suggested.map(x => esc(x.name) + ' (' + x.count + ')').join(' · ') + '</p>' : '');
   } catch (e) { box.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
+// New titles only: Claude reads the entry's summary and the outline, not the
+// whole hanacha, so it costs about a fifth of a full redo.
+async function retitleTracks(ids) {
+  if (busy) return;
+  if (!ids.length) { plog('Type or tick the track ids first.'); return; }
+  const note = document.getElementById('redoNote').value.trim();
+  if (!confirm('New titles for ' + ids.length + ' track' + (ids.length > 1 ? 's' : '') + ' (about $' + (0.015 * ids.length).toFixed(2) + ')? Summaries and topics stay as they are.')) return;
+  setBusy(true);
+  plog('New titles for ' + ids.length + ' tracks…');
+  const queue = [...ids]; let ok = 0, fail = 0, spent = 0;
+  await Promise.all([0, 1, 2].map(async () => {
+    while (queue.length && !stopRequested) {
+      const id = queue.shift();
+      try {
+        const r = await api({ mode: 'retitle', id, ...(note ? { note } : {}) });
+        if (r.skipped) { plog('– #' + id + ' skipped: ' + r.skipped); continue; }
+        ok++; spent += r.cost || 0;
+        plog('✓ #' + id + ' ' + r.title + (r.previous_title ? '   (was: ' + r.previous_title + ')' : ''));
+        if (results[id]?.metadata) { results[id].metadata.title_en = r.title; rerenderReviewCard(id); }
+      } catch (e) { fail++; plog('✗ #' + id + ' ' + e.message); }
+    }
+  }));
+  plog((stopRequested ? 'Stopped' : 'Done') + ': ' + ok + ' new titles, ' + fail + ' failed · $' + spent.toFixed(3) + ' (about $' + (ok ? spent / ok : 0).toFixed(3) + ' each)');
+  document.querySelectorAll('.redo-box:checked').forEach(b => { b.checked = false; }); syncRedoChecked();
+  setBusy(false);
 }
 async function loadCoverage() {
   const box = document.getElementById('coverage');
