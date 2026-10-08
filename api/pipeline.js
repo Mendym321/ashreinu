@@ -360,6 +360,7 @@ async function enrichStored(supabase, id, note) {
   ]);
   if (e1 || e2) throw new Error((e1 || e2).message);
   if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
+  if (tm.status === 'skipped') throw new Error(`Track ${id} was fixed by hand as not a talk (Fix a track); remove that fix first`);
   // Batch runs leave locked entries alone; a redo a person asks for with a
   // note is deliberate, so it may replace one.
   if (tm.locked && !note) return { id, skipped: 'locked (edited by a person), so re-runs leave it alone' };
@@ -410,6 +411,7 @@ async function writeTitles(supabase, id, note, count) {
   ]);
   if (e1 || e2) throw new Error((e1 || e2).message);
   if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
+  if (tm.status === 'skipped') throw new Error(`Track ${id} was fixed by hand as not a talk (Fix a track); remove that fix first`);
   const occ = occasionsOn(ev?.hebrew_month, ev?.hebrew_day);
   const material = [
     `Track: ${ev?.name} (${ev?.type})`,
@@ -493,6 +495,55 @@ async function setTitle(supabase, id, title) {
   return { id, saved: true, title, locked: true };
 }
 
+// "Fix a track": a person's own correction, saved in track_fixes (see
+// supabase/003_track_fixes.sql). No AI. A track marked as a niggun or as not
+// a talk also leaves the catalogue: its track_metadata row (if any) is set to
+// 'skipped', so Claude never writes a talk entry for it and an entry already
+// written stops showing. Removing the fix undoes both.
+const NO_FIX_TABLE = 'The track_fixes table is missing: run supabase/003_track_fixes.sql in Supabase first';
+async function getFix(supabase, id) {
+  const [{ data: ev, error: e1 }, { data: fix, error }, { data: tm }] = await Promise.all([
+    supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month_name, hebrew_year, duration_ms, description:raw_data->>description').eq('id', id).maybeSingle(),
+    supabase.from('track_fixes').select('kind, title, note, updated_at').eq('ashreinu_event_id', id).maybeSingle(),
+    supabase.from('track_metadata').select('status, title_en').eq('ashreinu_event_id', id).maybeSingle(),
+  ]);
+  if (e1) throw new Error(e1.message);
+  if (error) throw new Error(/track_fixes/.test(error.message) && /does not exist|schema cache|could not find/i.test(error.message) ? NO_FIX_TABLE : error.message);
+  if (!ev) throw new Error(`No track #${id} in the archive`);
+  return { id, track: ev, fix: fix || null, catalogue: tm ? { status: tm.status, title: tm.title_en } : null };
+}
+// Put back a catalogue entry a fix had taken out (or, if Claude never wrote
+// one, let the track be catalogued like any other).
+async function unskip(supabase, id, tm) {
+  if (tm?.status !== 'skipped') return;
+  if (tm.title_en) await supabase.from('track_metadata').update({ status: 'enriched', error: null }).eq('ashreinu_event_id', id);
+  else await supabase.from('track_metadata').delete().eq('ashreinu_event_id', id);
+}
+async function setFix(supabase, id, kind, title, note) {
+  title = String(title || '').trim().slice(0, 90);
+  note = String(note || '').trim().slice(0, 300);
+  const { data: tm } = await supabase.from('track_metadata').select('status, title_en').eq('ashreinu_event_id', id).maybeSingle();
+  if (kind === 'remove') {
+    const { error } = await supabase.from('track_fixes').delete().eq('ashreinu_event_id', id);
+    if (error) throw new Error(/track_fixes/.test(error.message) && /does not exist|schema cache|could not find/i.test(error.message) ? NO_FIX_TABLE : error.message);
+    await unskip(supabase, id, tm);
+    return { id, removed: true };
+  }
+  if (!['niggun', 'not_a_talk', 'title'].includes(kind)) throw new Error('Unknown kind of fix');
+  if (kind !== 'not_a_talk' && !title) throw new Error(kind === 'niggun' ? "Type the niggun's name" : 'Type the title');
+  const { error } = await supabase.from('track_fixes').upsert({ ashreinu_event_id: id, kind, title: title || null, note: note || null, updated_at: new Date().toISOString() });
+  if (error) throw new Error(/track_fixes/.test(error.message) && /does not exist|schema cache|could not find/i.test(error.message) ? NO_FIX_TABLE : error.message);
+  if (kind === 'title') await unskip(supabase, id, tm); // only the title was wrong: it's still a talk
+  else {
+    const why = 'Fixed by hand: ' + (kind === 'niggun' ? 'a niggun' : 'not a talk');
+    const { error: e2 } = tm
+      ? await supabase.from('track_metadata').update({ status: 'skipped', error: why }).eq('ashreinu_event_id', id)
+      : await supabase.from('track_metadata').insert({ ashreinu_event_id: id, status: 'skipped', error: why });
+    if (e2) throw new Error(e2.message);
+  }
+  return { id, saved: true, kind, title: title || null, took_out_of_catalogue: kind !== 'title' && tm?.status === 'enriched' };
+}
+
 // Rebuild the search layers from what's stored now: after a person edits an
 // entry in the table editor, or a topic's names/aliases change. No AI.
 async function reindex(supabase, offset) {
@@ -517,7 +568,7 @@ async function reindexRow(supabase, topics, r) {
 const PRICE_IN = 4, PRICE_OUT = 20;
 async function stats(supabase) {
   const count = async (q) => { const { count, error } = await q; if (error) throw new Error(error.message); return count; };
-  const statuses = ['collected', 'enriched', 'no_source', 'error'];
+  const statuses = ['collected', 'enriched', 'no_source', 'error', 'skipped'];
   const [candidates, ...byStatus] = await Promise.all([
     count(candidateQuery(supabase, 'id', { count: 'exact', head: true })),
     ...statuses.map(st => count(supabase.from('track_metadata').select('ashreinu_event_id', { count: 'exact', head: true }).eq('status', st))),
@@ -609,7 +660,7 @@ export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
   const { mode, id } = req.query;
-  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle'].includes(mode);
+  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'fix', 'setfix'].includes(mode);
   if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit || '30', 10) || 30, 100));
 
@@ -651,6 +702,8 @@ export default async function handler(req, res) {
       if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
       return res.status(200).json(await retitle(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
     }
+    if (mode === 'fix') return res.status(200).json(await getFix(supa(), parseInt(id, 10)));
+    if (mode === 'setfix') return res.status(200).json(await setFix(supa(), parseInt(id, 10), String(req.query.kind || ''), req.query.title, req.query.note));
     if (mode === 'stats') return res.status(200).json(await stats(supa()));
     if (mode === 'coverage') return res.status(200).json(await coverage(supa()));
     if (mode === 'topicreport') return res.status(200).json(await topicReport(supa()));
