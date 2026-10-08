@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { understandQuery } from '../lib/searchQuery.js';
-import { groupNiggunim, niggunKey, niggunTitle } from '../lib/niggunim.js';
+import { groupNiggunim, niggunKey, niggunTitle, niggunNames, niggunKind } from '../lib/niggunim.js';
 
 // Fields the app needs for a track row (not raw_data, which is large).
 const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri, pics:raw_data->pictures, desc:raw_data->>description';
@@ -262,9 +262,15 @@ export default async function handler(req, res) {
   if (req.query.niggunim || req.query.niggun) {
     try {
       const { groups } = await loadNiggunim(supabase);
-      res.setHeader('Cache-Control', 's-maxage=600');
+      // Served from Vercel's cache: fresh for 10 minutes, and after that the
+      // saved copy is still sent at once while a fresh one is made behind the
+      // scenes, so nobody waits for the whole list to be rebuilt.
+      res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=604800');
       if (req.query.niggunim) {
-        return res.status(200).json({ niggunim: groups.filter(g => g.count >= 2).map(({ slug, name, count, first, last }) => ({ key: slug, name, count, first, last })) });
+        return res.status(200).json({ niggunim: groups.filter(g => g.count >= 2).map(({ slug, name, count, first, last }) => {
+          const kind = niggunKind(name);
+          return { key: slug, name, count, first, last, ...(kind !== null ? { kind: true, gloss: kind } : {}) };
+        }) });
       }
       const wanted = String(req.query.niggun);
       const g = groups.find(x => x.slug === wanted) || groups.find(x => x.key === niggunKey(wanted.replace(/-/g, ' ')));
@@ -276,6 +282,13 @@ export default async function handler(req, res) {
         rows.push(...data);
       }
       await attachConfirmedTitles(supabase, rows);
+      // The OTHER niggunim on each recording ("with Daled Bavos"): this
+      // niggun's own spellings ("Nye Zhuritzi Chloptzi 2") don't count.
+      for (const r of rows) {
+        const seen = new Set([g.key]);
+        r.other_niggunim = (r.title_source === 'fixed' ? [] : niggunNames(r.name, r.desc))
+          .filter(n => { const k = niggunKey(n); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+      }
       rows.sort((a, b) => (a.hebrew_year || 0) - (b.hebrew_year || 0) || (a.hebrew_month || 0) - (b.hebrew_month || 0) || (a.hebrew_day || 0) - (b.hebrew_day || 0) || a.id - b.id);
       return res.status(200).json({ niggun: { key: g.slug, name: g.name, count: g.count, first: g.first, last: g.last }, results: rows });
     } catch (e) { return res.status(500).json({ error: e.message }); }

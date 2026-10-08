@@ -467,8 +467,14 @@ body.audio-paused .eq i{animation-play-state:paused}
 .ph-cover .cv-date span{font-size:18px}
 .ph-cover .np-cover-label{left:16px;right:16px;bottom:14px}
 .pane-sub{font-size:15px;font-weight:800;color:var(--ink);margin:4px 0 8px}
-.nig-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border-soft);cursor:pointer;font-size:15px;font-weight:600;color:var(--ink)}
-.nig-row span{font-size:12.5px;color:var(--ink-light);font-weight:500;white-space:nowrap}
+.nig-row{display:flex;flex-direction:column;gap:2px;padding:10px 4px;border-bottom:1px solid var(--border-soft);cursor:pointer;font-size:15px;font-weight:600;color:var(--ink)}
+.nig-row span{font-size:12.5px;color:var(--ink-light);font-weight:500}
+.nig-letter{font-size:13px;font-weight:800;color:var(--gold);padding:14px 4px 2px;border-bottom:1px solid var(--border-soft)}
+.nig-kinds{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.nig-kind{display:inline-flex;align-items:baseline;gap:6px;padding:8px 13px;border-radius:18px;background:var(--hover);color:var(--ink);font-size:13.5px;font-weight:700;cursor:pointer}
+.nig-kind em{font-style:normal;font-weight:500;color:var(--ink-light);font-size:12.5px}
+.nig-kind:hover{color:var(--gold)}
+.nig-tile.skel-cover{width:auto;height:auto;cursor:default}
 .nig-row:hover{color:var(--gold)}
 .topic-tile .tile-art{opacity:.28}
 .topic-tile strong,.topic-tile span,.year-tile strong,.year-tile span{position:relative;z-index:1}
@@ -971,6 +977,7 @@ function openBrowseSheet(tab) {
   document.getElementById('browseBackdrop').classList.add('open');
   switchBrowseTab(tab || (TOPICS.length ? 'topics' : 'collections'));
   loadBrowseSheetContent();
+  fetchNiggunList().catch(() => {}); // ready before the Niggunim tab is tapped
 }
 function closeBrowseSheet(fromBackButton) {
   if (!browseIsOpen()) return;
@@ -1341,32 +1348,61 @@ async function sharePage(title) {
 }
 
 // ── Niggunim: each niggun like a song, every time it was sung a recording ──
-let niggunList = null;
+// The list is kept on the phone (localStorage) and shown at once on the next
+// visit, while a fresh copy loads quietly; it is also fetched in the
+// background as soon as Browse opens, before the tab is tapped.
+const NIGGUN_LIST_KEY = 'ashreinu-niggunim';
+let niggunList = readJSON(NIGGUN_LIST_KEY, null), niggunFetch = null, niggunShown = null;
+function fetchNiggunList() {
+  if (!niggunFetch) niggunFetch = fetch('/api/search?niggunim=1').then(r => r.json()).then(j => {
+    if (!j.niggunim) throw new Error(j.error || 'No list');
+    niggunList = j.niggunim; writeJSON(NIGGUN_LIST_KEY, niggunList);
+    return niggunList;
+  }).catch(e => { niggunFetch = null; throw e; });
+  return niggunFetch;
+}
 async function loadNiggunList() {
-  if (niggunList) return;
-  try {
-    niggunList = (await (await fetch('/api/search?niggunim=1')).json()).niggunim || [];
-    setTimeout(filterBrowse);
-    const open = n => 'closeBrowseSheet();openNiggun(\'' + esc(n.key) + '\')';
-    const az = [...niggunList].sort((a, b) => a.name.localeCompare(b.name));
-    document.getElementById('browseNiggunim').innerHTML = niggunList.length
-      ? '<h4 class="pane-sub filter-hide">Most sung</h4><div class="nig-featured filter-hide">' + niggunList.slice(0, 6).map((n, i) =>
-          '<div class="nig-tile" style="background:' + NIGGUN_BG[i % NIGGUN_BG.length] + '" onclick="' + open(n) + '">'
-          + '<strong>' + esc(n.name) + '</strong><span>' + n.count + ' recordings</span></div>').join('') + '</div>'
-        + '<h4 class="pane-sub filter-hide">All niggunim</h4>'
-        + az.map(n => '<div class="nig-row" data-q="' + esc(filterKey(n.name)) + '" onclick="' + open(n) + '">' + esc(n.name)
-          + '<span>' + n.count + (n.first ? ' · ' + (n.first === n.last ? n.first : n.first + '–' + String(n.last).slice(-2)) : '') + '</span></div>').join('')
-      : '<div class="shelf-empty">No named niggunim yet.</div>';
-  } catch (e) { niggunList = null; document.getElementById('browseNiggunim').innerHTML = '<div class="shelf-empty">Could not load niggunim.</div>'; }
+  const box = document.getElementById('browseNiggunim');
+  if (niggunList) renderNiggunList(); // the saved copy, instantly
+  else box.innerHTML = '<div class="nig-featured">' + '<div class="nig-tile skel-cover"></div>'.repeat(6) + '</div>' + shelfSkeletonRows(6);
+  try { await fetchNiggunList(); renderNiggunList(); }
+  catch (e) { if (!niggunList) box.innerHTML = '<div class="shelf-empty">Could not load niggunim. <a href="#" onclick="loadNiggunList();return false">Try again</a></div>'; }
+}
+function shelfSkeletonRows(n) {
+  return '<div class="skel-row"><div class="skel-lines"><div class="skel-line title"></div><div class="skel-line" style="width:35%"></div></div></div>'.repeat(n);
+}
+function renderNiggunList() {
+  if (!niggunList || niggunShown === niggunList) return; // already on screen
+  niggunShown = niggunList;
+  const open = n => 'closeBrowseSheet();openNiggun(\'' + esc(n.key) + '\')';
+  const years = n => n.first ? ' · ' + (n.first === n.last ? n.first : n.first + '–' + n.last) : '';
+  const named = niggunList.filter(n => !n.kind), kinds = niggunList.filter(n => n.kind);
+  // A–Z with a letter heading at each new first letter.
+  let letter = '', az = '';
+  for (const n of [...niggunList].sort((a, b) => a.name.localeCompare(b.name))) {
+    const L = n.name.replace(/^[^A-Za-z]+/, '').charAt(0).toUpperCase();
+    if (L !== letter) { letter = L; az += '<div class="nig-letter filter-hide">' + esc(L) + '</div>'; }
+    az += '<div class="nig-row" data-q="' + esc(filterKey(n.name)) + '" onclick="' + open(n) + '">' + esc(n.name)
+      + '<span>' + n.count + ' recording' + (n.count === 1 ? '' : 's') + years(n) + '</span></div>';
+  }
+  document.getElementById('browseNiggunim').innerHTML = niggunList.length
+    ? '<h4 class="pane-sub filter-hide">Most recorded</h4><div class="nig-featured filter-hide">' + named.slice(0, 6).map((n, i) =>
+        '<div class="nig-tile" style="background:' + NIGGUN_BG[i % NIGGUN_BG.length] + '" onclick="' + open(n) + '">'
+        + '<strong>' + esc(n.name) + '</strong><span>' + n.count + ' recordings</span></div>').join('') + '</div>'
+      + (kinds.length ? '<h4 class="pane-sub filter-hide">By kind</h4><div class="nig-kinds filter-hide">' + kinds.map(n =>
+          '<span class="nig-kind" onclick="' + open(n) + '">' + esc(n.name) + (n.gloss ? ' <em>' + esc(n.gloss) + '</em>' : '') + ' <em>' + n.count + '</em></span>').join('') + '</div>' : '')
+      + '<h4 class="pane-sub filter-hide">All niggunim, A–Z</h4>' + az
+    : '<div class="shelf-empty">No named niggunim yet.</div>';
+  setTimeout(filterBrowse);
 }
 function openNiggun(key) { go({ p: 'niggun', key }); }
 // On a niggun's page every row is that niggun, so a row is named by where it
 // was sung (the farbrengen), with its date, or the other niggunim sung in the
 // same track. The player still shows the niggun's name.
 function niggunRecordingRowHtml(row, niggunName) {
-  const names = (row.confirmed_title || row.name || '').split(', ').filter(x => x && x.toLowerCase() !== niggunName.toLowerCase());
+  const names = row.other_niggunim || (row.confirmed_title || row.name || '').split(', ').filter(x => x && x.toLowerCase() !== niggunName.toLowerCase());
   const shown = { ...row, confirmed_title: row.parent_name || hebDate(row) || trackTitle(row),
-    name: names.length && names.length < 4 ? 'with ' + names.join(', ') : hebDate(row) };
+    name: !names.length ? hebDate(row) : names.length < 4 ? 'with ' + names.join(', ') : 'with ' + names.length + ' other niggunim' };
   const html = trackRowHtml(shown, false);
   rowsById[String(row.id)] = row;
   return html;
