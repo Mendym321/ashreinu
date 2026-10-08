@@ -271,6 +271,8 @@ body.audio-paused .eq i{animation-play-state:paused}
 
 
 /* ═══ Skeleton rows while loading ═══ */
+.pv-desc{margin-bottom:14px}
+.pv-desc .pv-summary{margin-top:8px}
 .skel-row{display:flex;align-items:center;gap:12px;padding:7px 0}
 .skel-cover{width:46px;height:46px;border-radius:7px;flex-shrink:0}
 .skel-lines{flex:1}
@@ -1519,7 +1521,7 @@ function occasionHeading(c) {
 // Stored only on this device (localStorage). Every read/write is wrapped,
 // because storage can be blocked (private browsing) — the app must still work.
 const RECENT_KEY = 'ashreinu-recent', POS_KEY = 'ashreinu-pos';
-const RECENT_FIELDS = ['id','name','type','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
+const RECENT_FIELDS = ['id','name','type','ashreinu_desc','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
   'secular_year','secular_month','secular_day','duration_ms','audio_uri','confirmed_title','main_topic','summary_en','photo','photo_lg'];
 function readJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
@@ -2019,7 +2021,7 @@ function renderCards(items, before) {
   el.innerHTML = (before ? before + '<h3 class="res-heading">Farbrengens &amp; tracks</h3>' : '') + groups.map(g => {
     // A lone track with no farbrengen context renders as a single row;
     // grouping only adds value with 2+ items or the farbrengen's own info.
-    if (g.items.length === 1 && !g.farbrengenRow) return '<div class="loose">' + trackRowHtml(g.items[0], true) + '</div>';
+    if (g.items.length === 1 && !g.farbrengenRow) return '<div class="loose">' + trackRowHtml(g.items[0], true, !!g.items[0].summary_en) + '</div>';
     const tracks = g.farbrengenRow ? g.items.filter(r => r.id !== g.farbrengenRow.id) : g.items;
     return albumHtml(g.key, g.farbrengenRow, tracks);
   }).join('');
@@ -2633,21 +2635,24 @@ async function loadTextPreview(rid) {
     return;
   }
   el.innerHTML = '<div class="skel-line title"></div><div class="skel-line"></div><div class="skel-line meta"></div>';
+  // Ashreinu's own one-line description, written by its editors: shown as
+  // theirs, above whatever text or AI summary there is.
+  const desc = row.ashreinu_desc ? '<div class="pv-desc"><span class="rd-badge neutral">Ashreinu\'s description</span><p class="pv-summary">' + esc(row.ashreinu_desc) + '</p></div>' : '';
   try {
     const j = await fetchSourceText(fid, rid);
     if (currentTrackId !== rid) return; // track changed while loading
     if (j.unconfirmed) {
-      el.innerHTML = '<p class="pv-note">' + (j.candidateCount
+      el.innerHTML = desc + '<p class="pv-note">' + (j.candidateCount
           ? 'This track hasn\'t been matched to its written text yet. The farbrengen has ' + j.candidateCount + ' transcribed ' + (j.candidateCount !== 1 ? 'sichos' : 'sicha') + '.'
           : 'No transcribed text for this farbrengen yet.') + '</p>'
         + (j.candidateCount ? '<button class="pv-btn ghost" onclick="openReader(\'' + fid + '\',' + fid + ')">Read the whole farbrengen\'s text</button>' : '');
       return;
     }
-    if (!j.hasText || !j.segments?.length) { el.innerHTML = '<p class="pv-note">No transcribed text for this farbrengen yet.</p>'; return; }
+    if (!j.hasText || !j.segments?.length) { el.innerHTML = desc + (desc ? '' : '<p class="pv-note">No transcribed text for this farbrengen yet.</p>'); return; }
     const s = j.segments[0];
     const { firstText } = renderSourceText(s.source_text || s.outline_he, s.footnotes, 'pv');
-    el.innerHTML =
-      sourceBadge(j, false)
+    el.innerHTML = desc
+      + sourceBadge(j, false)
       + (s.summary_en ? '<p class="pv-summary">' + esc(s.summary_en) + '</p>' : '')
       + tagChipsHtml(s.tags, s.topic_slugs)
       + (firstText ? '<div class="pv-excerpt" dir="rtl" lang="he">' + esc(firstText) + '</div>' : '')
@@ -2660,7 +2665,7 @@ async function loadTextPreview(rid) {
 // Ashreinu's own outline for this track.
 function sourceBadge(j, long) {
   if (j.precise) return '<span class="rd-badge">' + ICON_CHECK + (long ? 'Verified match for this track' : 'Verified match') + '</span>';
-  if (j.catalogued) return '<span class="rd-badge neutral">Summary from Ashreinu\'s outline</span>';
+  if (j.catalogued) return '<span class="rd-badge neutral">' + (long ? 'Summary written with AI from Ashreinu\'s outline' : 'AI summary of Ashreinu\'s outline') + '</span>';
   return '';
 }
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';

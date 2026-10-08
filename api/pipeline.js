@@ -172,6 +172,7 @@ async function fetchSource(id) {
     hebrew_date: date.hebrew_day ? `${date.hebrew_day} ${date.hebrew_month_name} ${date.hebrew_year}` : null,
     date_occasions: occasionsOn(date.hebrew_month, date.hebrew_day),
     duration_ms: ev.audio_recordings_duration || null,
+    description: /nigun/i.test(ev.type || '') ? '' : (ev.description || '').trim(),
     outline: htmlToText(outlineRes?.data),
     transcript: htmlToText(t?.content),
     transcript_kind: t?.type || null, // e.g. "Hanacha (Lahak)", "Yiddish Hanacha (Notik)"
@@ -229,6 +230,7 @@ function buildMaterial(src, budget, heading) {
     src.hebrew_date ? `Date: ${src.hebrew_date}` : null,
     src.date_occasions?.length ? `This date falls on: ${src.date_occasions.join(', ')}. If the talk discusses that occasion or its themes at all, include it in occasions.` : null,
     src.duration_ms ? `Length: ${Math.round(src.duration_ms / 60000)} minutes` : null,
+    src.description ? `The archive editors' own one-line English description of this track (human-written and reliable; use it to anchor the subject, but still follow the title rules): «${src.description}»` : null,
     src.outline ? `\n<outline>\n${src.outline}\n</outline>` : null,
     src.transcript ? `\n<hanacha kind="${src.transcript_kind || 'unknown'}">\n${src.transcript}\n</hanacha>` : null,
     heading ? `\nThe outline's own heading (written by the archive's editors): «${heading}». Use it as title_he (verbatim or lightly shortened). It tells you the subject; phrase title_en naturally, not as a literal translation.` : null,
@@ -371,7 +373,7 @@ async function collectNext(supabase, limit) {
 async function enrichStored(supabase, id, note) {
   const [{ data: tm, error: e1 }, { data: ev, error: e2 }] = await Promise.all([
     supabase.from('track_metadata').select('*').eq('ashreinu_event_id', id).maybeSingle(),
-    supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month, hebrew_month_name, hebrew_year, duration_ms').eq('id', id).maybeSingle(),
+    supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month, hebrew_month_name, hebrew_year, duration_ms, description:raw_data->>description').eq('id', id).maybeSingle(),
   ]);
   if (e1 || e2) throw new Error((e1 || e2).message);
   if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
@@ -386,6 +388,7 @@ async function enrichStored(supabase, id, note) {
     hebrew_date: ev?.hebrew_day ? `${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` : null,
     date_occasions: occasionsOn(ev?.hebrew_month, ev?.hebrew_day),
     duration_ms: ev?.duration_ms, outline: tm.outline_he || '', transcript: tm.transcript || '', transcript_kind: tm.transcript_kind,
+    description: /nigun/i.test(ev?.type || '') ? '' : (ev?.description || '').trim(),
     feedback: note && tm.status === 'enriched' ? { rejected: { title_en: tm.title_en, summary_en: tm.summary_en }, note } : null,
   };
   try {
