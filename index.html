@@ -1534,11 +1534,21 @@ async function loadPlaylistShelf() {
     const { playlists } = await getPlaylists();
     const section = document.getElementById('playlistSection');
     if (!section || !playlists?.length) return;
-    const soon = getUpcomingCollections(6).map(c => COLLECTIONS.findIndex(x => x.name === c.name));
-    const seasonal = soon.flatMap(i => playlists.filter(p => occasionOfPlaylist(p) === i));
-    const rest = playlists.filter(p => ['Themes', 'Stories & moments', 'Timelines'].includes(p.group) && !seasonal.includes(p));
+    // A playlist tied to a day ("Lag B'Omer Highlights", "The Story of 12
+    // Tammuz") shows only when that day is now or within three weeks; the
+    // rest of the shelf is timeless (themes, stories, timelines of no date).
+    const soon = getUpcomingCollections(12).filter(c => c.now || c.diff <= 21).map(c => COLLECTIONS.findIndex(x => x.name === c.name));
+    // English titles first (the home page is in English); at most four, so
+    // one occasion doesn't fill the shelf. A name with a year in it ("Nichum
+    // Aveilim 5748", "Chazarah ST 5748") is one event, not timeless.
+    const english = p => /[a-z]/i.test(p.name);
+    const oneEvent = p => /\b57\d\d\b|תש|\bST\b/.test(p.name);
+    const seasonal = soon.flatMap(i => playlists.filter(p => occasionOfPlaylist(p) === i))
+      .sort((a, b) => english(b) - english(a)).slice(0, 4);
+    const rest = playlists.filter(p => ['Themes', 'Stories & moments', 'Timelines'].includes(p.group)
+      && occasionOfPlaylist(p) < 0 && english(p) && !oneEvent(p));
     for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
-    const list = [...new Set([...seasonal.slice(0, 6), ...rest])].slice(0, 12);
+    const list = [...new Set([...seasonal, ...rest])].slice(0, 10);
     section.innerHTML = '<div class="home-section-head"><h3>From JEM\'s playlists</h3><button class="see-all" onclick="openBrowseSheet(\'playlists\')">See all</button></div>'
       + '<div class="shelf">' + list.map(playlistCardHtml).join('') + '</div>';
     section.style.display = 'block';
