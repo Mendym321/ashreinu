@@ -483,6 +483,7 @@ const FIX_KINDS = {
   niggun: { label: "It's a niggun", help: 'Shows under its name, joins that niggun in Browse → Niggunim, and Claude never catalogues it as a talk.', needsTitle: "The niggun's name, e.g. Ani Maamin" },
   not_a_talk: { label: 'Not a talk', help: 'Silence, a broken recording, or music with no known name. Claude skips it. A title is optional.', needsTitle: 'Title (optional)' },
   title: { label: 'Just the title is wrong', help: 'It is a talk; only the name shown is wrong. Works on any track, catalogued or not.', needsTitle: 'The right title' },
+  duplicate: { label: 'Duplicate recording', help: 'The same audio as another track. This copy is hidden (if it holds other tracks, it opens as a folder of them), and links to it play the original.', needsTitle: 'Number of the original track, e.g. 8386' },
 };
 async function lookupFix() {
   const id = parseIds(document.getElementById('fixId').value)[0];
@@ -498,7 +499,7 @@ async function lookupFix() {
       + '<div class="lead" style="font-size:13px;margin:4px 0 0">' + esc([t.type, t.parent_name, date, t.duration_ms ? Math.round(t.duration_ms / 60000) + ' min' : ''].filter(Boolean).join(' · ')) + '</div>'
       + (t.description ? '<div class="lead" style="font-size:13px;margin:4px 0 0">Ashreinu\'s description: ' + esc(t.description) + '</div>' : '')
       + (r.catalogue?.title ? '<div class="lead" style="font-size:13px;margin:4px 0 0">Claude\'s entry: <b>' + esc(r.catalogue.title) + '</b>' + (r.catalogue.status === 'skipped' ? ' (hidden by your fix)' : '') + '</div>' : '')
-      + (r.fix ? '<div style="margin:10px 0 0"><span class="pill">FIXED: ' + esc(FIX_KINDS[r.fix.kind].label.toUpperCase()) + (r.fix.title ? ' · ' + esc(r.fix.title) : '') + '</span></div>' : '')
+      + (r.fix ? '<div style="margin:10px 0 0"><span class="pill">FIXED: ' + esc(FIX_KINDS[r.fix.kind].label.toUpperCase()) + (r.fix.title ? ' · ' + esc(r.fix.title) : '') + (r.fix.same_as ? ' OF #' + r.fix.same_as : '') + '</span></div>' : '')
       + '<div class="row" style="margin-top:14px">' + Object.entries(FIX_KINDS).map(([k, v]) =>
           '<label class="redo-check"><input type="radio" name="fixKind" value="' + k + '"' + (k === kind ? ' checked' : '') + ' onchange="syncFixKind()"> ' + v.label + '</label>').join('') + '</div>'
       + '<p class="lead" id="fixHelp" style="font-size:13px;margin:6px 0 0"></p>'
@@ -508,7 +509,7 @@ async function lookupFix() {
       + (r.fix ? '<button class="btn" onclick="removeFix(' + id + ')">Remove fix</button>' : '')
       + '<a class="btn" href="/index.html?play=' + id + '" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center">Listen ↗</a></div>'
       + '<div class="fix-out" id="fixMsg"></div></div>';
-    document.getElementById('fixTitle').value = r.fix?.title || '';
+    document.getElementById('fixTitle').value = r.fix?.same_as || r.fix?.title || '';
     syncFixKind();
   } catch (e) { panel.innerHTML = '<p class="lead">' + esc(e.message) + '</p>'; }
 }
@@ -523,8 +524,8 @@ async function saveFix(id) {
   const msg = document.getElementById('fixMsg');
   if (kind !== 'not_a_talk' && !title) { msg.textContent = FIX_KINDS[kind].needsTitle + ': type it first.'; return; }
   try {
-    const r = await api({ mode: 'setfix', id, kind, ...(title ? { title } : {}) });
-    plog('✓ #' + id + ' fixed: ' + FIX_KINDS[kind].label + (title ? ' · ' + title : '') + (r.took_out_of_catalogue ? ' (Claude\'s talk entry is hidden; Remove fix brings it back)' : ''));
+    const r = await api({ mode: 'setfix', id, kind, ...(kind === 'duplicate' ? { same_as: title } : title ? { title } : {}) });
+    plog('✓ #' + id + ' fixed: ' + FIX_KINDS[kind].label + (r.same_as ? ' of #' + r.same_as : title ? ' · ' + title : '') + (r.took_out_of_catalogue ? ' (Claude\'s talk entry is hidden; Remove fix brings it back)' : ''));
     await lookupFix();
     document.getElementById('fixMsg').textContent = 'Saved. The app shows it now' + (kind === 'niggun' ? '; the Niggunim list catches up within about 10 minutes.' : '.');
   } catch (e) { msg.textContent = 'Error: ' + e.message; }

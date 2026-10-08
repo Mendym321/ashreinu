@@ -1587,13 +1587,19 @@ function renderSaved() {
 // (Browsers don't allow audio to start by itself, so it waits for the tap.)
 async function showShared(id) {
   try {
-    const row = (await (await fetch('/api/search?event=' + id)).json()).result;
+    const get = async (n) => (await (await fetch('/api/search?event=' + n)).json()).result;
+    let row = await get(id);
+    // A link to a duplicate copy plays the original recording.
+    if (row?.same_as) row = await get(row.same_as) || row;
     if (!row) return;
     rowsById[String(row.id)] = row;
     document.getElementById('res').insertAdjacentHTML('afterbegin',
       '<div class="home-section"><div class="home-section-head"><h3>Shared with you</h3></div>' + trackRowHtml(row, true, !!row.summary_en) + '</div>');
     rebuildOrder();
     history.replaceState(history.state, '', location.pathname); // so a refresh doesn't repeat it
+    // Start it straight away, in the full player. If the browser blocks
+    // sound before a first tap, the player is open with its big Play button.
+    if (getAudioUrl(row)) { playFromOrder(String(row.id)); openNowPlaying(); }
   } catch (e) { /* ignore a bad link */ }
 }
 // Play the page's list from the top (Saved, a niggun...); the queue is the page.

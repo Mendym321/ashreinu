@@ -81,12 +81,12 @@ async function loadNiggunim(supabase) {
   }
   // Tracks a person marked as a niggun in the pipeline page ("Fix a track"),
   // which Ashreinu filed as something else. Renamed ones take the new name;
-  // ones marked "not a talk" (silence, a broken recording) leave the list.
+  // ones marked "not a talk" or a duplicate leave the list.
   const { data: fixList } = await supabase.from('track_fixes').select('ashreinu_event_id, kind, title');
   const fixes = new Map((fixList || []).map(f => [f.ashreinu_event_id, f]));
   for (let i = tracks.length - 1; i >= 0; i--) {
     const f = fixes.get(tracks[i].id);
-    if (f?.kind === 'not_a_talk') tracks.splice(i, 1);
+    if (f?.kind === 'not_a_talk' || f?.kind === 'duplicate') tracks.splice(i, 1);
     else if (f?.title) tracks[i] = { ...tracks[i], name: f.title, description: '' };
   }
   const known = new Set(tracks.map(t => t.id));
@@ -169,14 +169,16 @@ async function searchTalks(supabase, q, topics, filters) {
 // instead of the generic "Sicha 1" label. A title a human confirmed in
 // finder.html (audio_text_links) wins over the catalogue entry Claude wrote
 // from Ashreinu's outline (track_metadata).
-async function attachConfirmedTitles(supabase, rows) {
+// keep: also keep tracks fixed as duplicates (with their audio hidden), for
+// a single looked-up event; lists drop them unless they hold other tracks.
+async function attachConfirmedTitles(supabase, rows, keep) {
   if (!rows.length) return;
   attachPhotos(rows);
   const ids = rows.map(r => r.id);
   const [{ data: links }, { data: catalogue }, { data: fixList }] = await Promise.all([
     supabase.from('audio_text_links').select('ashreinu_event_id, title_en').in('ashreinu_event_id', ids),
     supabase.from('track_metadata').select('ashreinu_event_id, title_en, summary_en, main_topic, topics').eq('status', 'enriched').in('ashreinu_event_id', ids),
-    supabase.from('track_fixes').select('ashreinu_event_id, kind, title').in('ashreinu_event_id', ids), // no table yet → no fixes
+    supabase.from('track_fixes').select('*').in('ashreinu_event_id', ids), // no table yet → no fixes
   ]);
   const fixes = Object.fromEntries((fixList || []).map(f => [f.ashreinu_event_id, f]));
   const verified = Object.fromEntries((links || []).filter(l => l.title_en).map(l => [l.ashreinu_event_id, l.title_en]));
@@ -191,8 +193,17 @@ async function attachConfirmedTitles(supabase, rows) {
     if (fix) {
       if (fix.kind === 'niggun') row.type = 'Nigun';
       if (fix.title) { row.confirmed_title = fix.title; row.title_source = 'fixed'; }
+      // A second copy of another recording: no audio of its own (so an event
+      // holding other tracks opens as an album), and links go to the original.
+      if (fix.kind === 'duplicate') { row.audio_uri = null; row.same_as = fix.same_as; }
     }
     if (cat[row.id]) { row.summary_en = cat[row.id].summary_en; row.main_topic = cat[row.id].main_topic; row.other_topics = cat[row.id].topics; }
+  }
+  const dups = rows.filter(r => fixes[r.id]?.kind === 'duplicate').map(r => r.id);
+  if (dups.length && !keep) {
+    const { data: kids } = await supabase.from('ashreinu_events').select('parent_id').in('parent_id', dups).not('audio_uri', 'is', null).limit(1000);
+    const holders = new Set((kids || []).map(k => k.parent_id));
+    for (let i = rows.length - 1; i >= 0; i--) if (dups.includes(rows[i].id) && !holders.has(rows[i].id)) rows.splice(i, 1);
   }
 }
 
@@ -230,7 +241,7 @@ export default async function handler(req, res) {
   if (req.query.event) {
     const { data, error } = await supabase.from('ashreinu_events').select(ROW_FIELDS).eq('id', parseInt(req.query.event, 10)).maybeSingle();
     if (error) return res.status(500).json({ error: error.message });
-    if (data) await attachConfirmedTitles(supabase, [data]);
+    if (data) await attachConfirmedTitles(supabase, [data], true);
     res.setHeader('Cache-Control', 's-maxage=300');
     return res.status(200).json({ result: data || null });
   }

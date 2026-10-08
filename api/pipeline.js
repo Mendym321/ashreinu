@@ -496,19 +496,20 @@ async function setTitle(supabase, id, title) {
 }
 
 // "Fix a track": a person's own correction, saved in track_fixes (see
-// supabase/003_track_fixes.sql). No AI. A track marked as a niggun or as not
-// a talk also leaves the catalogue: its track_metadata row (if any) is set to
+// supabase/003_track_fixes.sql). No AI. A track marked as a niggun, not a talk
+// or a duplicate also leaves the catalogue: its track_metadata row (if any) is set to
 // 'skipped', so Claude never writes a talk entry for it and an entry already
 // written stops showing. Removing the fix undoes both.
-const NO_FIX_TABLE = 'The track_fixes table is missing: run supabase/003_track_fixes.sql in Supabase first';
+const NO_FIX_TABLE = 'The track_fixes table is missing or out of date: run supabase/003_track_fixes.sql in Supabase (again)';
+const fixTableError = (e) => /track_fixes|same_as/.test(e.message) && /does not exist|schema cache|could not find|check constraint/i.test(e.message) ? NO_FIX_TABLE : e.message;
 async function getFix(supabase, id) {
   const [{ data: ev, error: e1 }, { data: fix, error }, { data: tm }] = await Promise.all([
     supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month_name, hebrew_year, duration_ms, description:raw_data->>description').eq('id', id).maybeSingle(),
-    supabase.from('track_fixes').select('kind, title, note, updated_at').eq('ashreinu_event_id', id).maybeSingle(),
+    supabase.from('track_fixes').select('*').eq('ashreinu_event_id', id).maybeSingle(),
     supabase.from('track_metadata').select('status, title_en').eq('ashreinu_event_id', id).maybeSingle(),
   ]);
   if (e1) throw new Error(e1.message);
-  if (error) throw new Error(/track_fixes/.test(error.message) && /does not exist|schema cache|could not find/i.test(error.message) ? NO_FIX_TABLE : error.message);
+  if (error) throw new Error(fixTableError(error));
   if (!ev) throw new Error(`No track #${id} in the archive`);
   return { id, track: ev, fix: fix || null, catalogue: tm ? { status: tm.status, title: tm.title_en } : null };
 }
@@ -519,29 +520,38 @@ async function unskip(supabase, id, tm) {
   if (tm.title_en) await supabase.from('track_metadata').update({ status: 'enriched', error: null }).eq('ashreinu_event_id', id);
   else await supabase.from('track_metadata').delete().eq('ashreinu_event_id', id);
 }
-async function setFix(supabase, id, kind, title, note) {
+async function setFix(supabase, id, kind, title, note, sameAs) {
   title = String(title || '').trim().slice(0, 90);
   note = String(note || '').trim().slice(0, 300);
   const { data: tm } = await supabase.from('track_metadata').select('status, title_en').eq('ashreinu_event_id', id).maybeSingle();
   if (kind === 'remove') {
     const { error } = await supabase.from('track_fixes').delete().eq('ashreinu_event_id', id);
-    if (error) throw new Error(/track_fixes/.test(error.message) && /does not exist|schema cache|could not find/i.test(error.message) ? NO_FIX_TABLE : error.message);
+    if (error) throw new Error(fixTableError(error));
     await unskip(supabase, id, tm);
     return { id, removed: true };
   }
-  if (!['niggun', 'not_a_talk', 'title'].includes(kind)) throw new Error('Unknown kind of fix');
-  if (kind !== 'not_a_talk' && !title) throw new Error(kind === 'niggun' ? "Type the niggun's name" : 'Type the title');
-  const { error } = await supabase.from('track_fixes').upsert({ ashreinu_event_id: id, kind, title: title || null, note: note || null, updated_at: new Date().toISOString() });
-  if (error) throw new Error(/track_fixes/.test(error.message) && /does not exist|schema cache|could not find/i.test(error.message) ? NO_FIX_TABLE : error.message);
+  if (!['niggun', 'not_a_talk', 'title', 'duplicate'].includes(kind)) throw new Error('Unknown kind of fix');
+  let same = null;
+  if (kind === 'duplicate') {
+    same = parseInt(String(sameAs || '').replace(/[^0-9]/g, ''), 10);
+    if (!same) throw new Error('Type the number of the track it duplicates');
+    if (same === id) throw new Error("A track can't duplicate itself");
+    const { data: orig } = await supabase.from('ashreinu_events').select('id, audio_uri').eq('id', same).maybeSingle();
+    if (!orig?.audio_uri) throw new Error(`Track #${same} isn't a recording in the archive`);
+    title = '';
+  }
+  if (kind !== 'not_a_talk' && kind !== 'duplicate' && !title) throw new Error(kind === 'niggun' ? "Type the niggun's name" : 'Type the title');
+  const { error } = await supabase.from('track_fixes').upsert({ ashreinu_event_id: id, kind, title: title || null, same_as: same, note: note || null, updated_at: new Date().toISOString() });
+  if (error) throw new Error(fixTableError(error));
   if (kind === 'title') await unskip(supabase, id, tm); // only the title was wrong: it's still a talk
   else {
-    const why = 'Fixed by hand: ' + (kind === 'niggun' ? 'a niggun' : 'not a talk');
+    const why = 'Fixed by hand: ' + (kind === 'niggun' ? 'a niggun' : kind === 'duplicate' ? 'duplicate of #' + same : 'not a talk');
     const { error: e2 } = tm
       ? await supabase.from('track_metadata').update({ status: 'skipped', error: why }).eq('ashreinu_event_id', id)
       : await supabase.from('track_metadata').insert({ ashreinu_event_id: id, status: 'skipped', error: why });
     if (e2) throw new Error(e2.message);
   }
-  return { id, saved: true, kind, title: title || null, took_out_of_catalogue: kind !== 'title' && tm?.status === 'enriched' };
+  return { id, saved: true, kind, title: title || null, same_as: same, took_out_of_catalogue: kind !== 'title' && tm?.status === 'enriched' };
 }
 
 // Rebuild the search layers from what's stored now: after a person edits an
@@ -703,7 +713,7 @@ export default async function handler(req, res) {
       return res.status(200).json(await retitle(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
     }
     if (mode === 'fix') return res.status(200).json(await getFix(supa(), parseInt(id, 10)));
-    if (mode === 'setfix') return res.status(200).json(await setFix(supa(), parseInt(id, 10), String(req.query.kind || ''), req.query.title, req.query.note));
+    if (mode === 'setfix') return res.status(200).json(await setFix(supa(), parseInt(id, 10), String(req.query.kind || ''), req.query.title, req.query.note, req.query.same_as));
     if (mode === 'stats') return res.status(200).json(await stats(supa()));
     if (mode === 'coverage') return res.status(200).json(await coverage(supa()));
     if (mode === 'topicreport') return res.status(200).json(await topicReport(supa()));
