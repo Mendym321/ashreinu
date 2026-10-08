@@ -313,9 +313,33 @@ function decorateReviewCard(id) {
     + '<button class="btn" onclick="redoWithNote(' + id + ')" title="Claude sees this entry and your note, and writes a different one">Redo with note</button>'
     + '<button class="btn primary" onclick="retitleOne(' + id + ')" title="A new title for this entry, right away (about $0.01). Uses your note if you typed one.">New title</button>'
     + '<button class="btn" onclick="suggestTitlesFor(' + id + ')" title="5 alternative titles to choose from (nothing changes until you pick one)">Suggest titles</button>'
+    + '<button class="btn" onclick="editTitle(' + id + ')" title="Type the title yourself. Free: no AI, saved straight away and locked.">Edit title</button>'
     + '<div class="fix-out" id="fixout-' + id + '"></div></div>');
 }
 function rerenderReviewCard(id) { renderCard(id); decorateReviewCard(id); }
+// Type a title yourself: free (no AI), saved and locked so batch runs keep it.
+function editTitle(id) {
+  const out = document.getElementById('fixout-' + id);
+  out.innerHTML = '<div class="row" style="margin-top:8px"><input class="field" id="edit-' + id + '" style="flex:1;min-width:240px" maxlength="90">'
+    + '<button class="btn primary" onclick="saveEditedTitle(' + id + ')">Save</button>'
+    + '<button class="btn" onclick="document.getElementById(\'fixout-' + id + '\').textContent=\'\'">Cancel</button></div>'
+    + '<div class="lead" id="editcount-' + id + '" style="font-size:12px;margin-top:4px"></div>';
+  const box = document.getElementById('edit-' + id), count = document.getElementById('editcount-' + id);
+  const show = () => { const n = box.value.trim().length; count.textContent = n + ' characters' + (n > 40 ? ' · a bit long: aim for 40 or fewer' : ''); };
+  box.value = results[id]?.metadata?.title_en || '';
+  box.oninput = show; show();
+  box.onkeydown = ev => { if (ev.key === 'Enter') saveEditedTitle(id); if (ev.key === 'Escape') out.textContent = ''; };
+  box.focus(); box.select();
+}
+async function saveEditedTitle(id) {
+  const title = document.getElementById('edit-' + id).value.trim();
+  const prev = results[id]?.metadata?.title_en || '';
+  if (!title || title === prev) { document.getElementById('fixout-' + id).textContent = ''; return; }
+  if (!(await pickTitle(id, title))) return;
+  const out = document.getElementById('fixout-' + id);
+  if (out && prev) out.innerHTML = 'Saved and locked. Was: <b>' + esc(prev) + '</b> '
+    + '<button class="btn" data-t="' + esc(prev) + '" onclick="pickTitle(' + id + ', this.dataset.t)">Undo</button>';
+}
 // A new title for one entry, in place (no confirm: it's about a cent).
 async function retitleOne(id) {
   const note = document.getElementById('fixnote-' + id).value.trim();
@@ -367,7 +391,8 @@ async function pickTitle(id, title) {
     plog('✓ #' + id + ' title set: ' + r.title + ' (locked, so batch runs keep it)');
     results[id] = { ...results[id], metadata: { ...results[id].metadata, title_en: r.title }, locked: true };
     rerenderReviewCard(id);
-  } catch (e) { document.getElementById('fixout-' + id).textContent = 'Error: ' + e.message; }
+    return true;
+  } catch (e) { document.getElementById('fixout-' + id).textContent = 'Error: ' + e.message; return false; }
 }
 function parseIds(text) { return [...new Set(String(text).split(/[^0-9]+/).filter(Boolean).map(Number))]; }
 function tickedIds() { return [...document.querySelectorAll('.redo-box:checked')].map(b => +b.value); }
