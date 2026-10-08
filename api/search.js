@@ -198,6 +198,18 @@ async function attachConfirmedTitles(supabase, rows, keep) {
       if (fix.kind === 'duplicate') { row.audio_uri = null; row.same_as = fix.same_as; }
     }
     if (cat[row.id]) { row.summary_en = cat[row.id].summary_en; row.main_topic = cat[row.id].main_topic; row.other_topics = cat[row.id].topics; }
+    // Ashreinu's own English line for a talk, written by its editors, often
+    // "Title: what it teaches" ("Every Jew is a Soldier: Lessons from the
+    // recent Six Day War."). Shown as-is in the player; for a talk not
+    // catalogued yet, its short head becomes the title and the rest the summary.
+    const d = !/nigun/i.test(row.type || '') && typeof row.desc === 'string' ? row.desc.trim() : '';
+    if (d) {
+      row.ashreinu_desc = d;
+      const m = d.match(/^([^:]{3,45}):\s*(.+)$/);
+      const head = m && m[1].trim().split(/\s+/).length <= 6 ? m[1].trim() : null;
+      if (!row.confirmed_title && head) { row.confirmed_title = head; row.title_source = 'ashreinu'; }
+      if (!row.summary_en) { row.summary_en = head ? m[2].trim() : d; row.summary_source = 'ashreinu'; }
+    }
   }
   const dups = rows.filter(r => fixes[r.id]?.kind === 'duplicate').map(r => r.id);
   if (dups.length && !keep) {
@@ -475,7 +487,8 @@ export default async function handler(req, res) {
     } catch (e) { /* no confirmed links yet — fine, just skip */ }
 
 
-    const clauses = [`name.ilike.%${safe}%`, `parent_name.ilike.%${safe}%`];
+    // Ashreinu's own English description of a track is searched too.
+    const clauses = [`name.ilike.%${safe}%`, `parent_name.ilike.%${safe}%`, `raw_data->>description.ilike.%${safe}%`];
     if (tagFarbrengenIds.length) {
       const idList = tagFarbrengenIds.join(',');
       clauses.push(`id.in.(${idList})`, `parent_id.in.(${idList})`);
