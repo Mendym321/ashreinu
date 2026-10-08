@@ -27,6 +27,7 @@
   --sicha:#5b8ce8;--maamar:#b478e8;--farb:#4fbf82;--niggun:#e0a24f;
   --elevated:#2b261f;--hover:rgba(255,255,255,0.08);--track:rgba(255,255,255,0.18);
   --tint-sicha:#1c2a4d;--tint-maamar:#2c1d45;--tint-farb:#16352a;--tint-niggun:#3d2a12;--tint-other:#2b261f;
+  --wash-op:.55;
 }
 :root[data-theme="light"]{
   /* Light theme — the original warm archival palette, opt-in via the toggle. */
@@ -40,6 +41,7 @@
   --sicha:#2f5fb8;--maamar:#8a3ab8;--farb:#2e7d4f;--niggun:#b8721a;
   --elevated:#ffffff;--hover:rgba(27,23,18,0.06);--track:rgba(27,23,18,0.14);
   --tint-sicha:#dde6f7;--tint-maamar:#ebdff5;--tint-farb:#dcefe3;--tint-niggun:#f6e6cc;--tint-other:#efe9dd;
+  --wash-op:.3;
 }
 html{scroll-behavior:smooth;transition:background-color .2s}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:96px;-webkit-font-smoothing:antialiased;transition:background-color .2s,color .2s}
@@ -64,7 +66,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .browse-filter svg{width:17px;height:17px;color:var(--ink-light);flex-shrink:0}
 .browse-filter input{flex:1;min-width:0;border:none;background:none;outline:none;color:var(--ink);font:inherit;font-size:15px}
 .browse-filter input::-webkit-search-cancel-button{display:none}
-[data-q][hidden]{display:none!important}
+[data-q][hidden],.filter-hide[hidden]{display:none!important}
 .browse-tabs{display:flex;gap:8px;margin:0 -20px 18px;padding:0 20px 2px;overflow-x:auto;scrollbar-width:none}
 .browse-tabs::-webkit-scrollbar{display:none}
 .browse-pane{display:none}
@@ -137,6 +139,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .chip-scroll{display:flex;gap:8px;overflow-x:auto;margin:0 -16px;padding:0 16px 2px;scrollbar-width:none}
 .chip-scroll::-webkit-scrollbar{display:none}
 .chip-wrap{display:flex;flex-wrap:wrap;gap:8px}
+#rmeta{position:relative;z-index:2}
 .back-link{display:inline-flex;align-items:center;gap:2px;padding-left:10px}
 .back-link svg{width:18px;height:18px}
 
@@ -410,6 +413,65 @@ body.audio-paused .eq i{animation-play-state:paused}
 .np-text-label{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px}
 
 /* ═══ Topics — one colour per topic group, used on tiles, chips and topic pages ═══ */
+/* ═══ Page header (topic, occasion, year, niggun, farbrengen, Saved):
+   artwork, a wash of its colour fading into the page, title, actions ═══ */
+.page-hero{position:relative;isolation:isolate;margin:-6px -16px 12px;padding:18px 16px 6px}
+.ph-wash{position:absolute;inset:-60px 0 0 0;z-index:-1;pointer-events:none;opacity:var(--wash-op);background-size:cover;background-position:center;
+  -webkit-mask-image:linear-gradient(#000 25%,transparent 96%);mask-image:linear-gradient(#000 25%,transparent 96%)}
+.ph-wash.photo{filter:blur(30px) saturate(1.4);transform:scale(1.15)}
+.ph-cover-wrap{display:flex;justify-content:center;margin:4px 0 18px}
+.ph-cover{width:min(56vw,224px);aspect-ratio:1;border-radius:12px;box-shadow:0 18px 44px rgba(0,0,0,.45);background-size:cover;background-position:center;overflow:hidden;position:relative}
+.ph-art{display:flex;align-items:center;justify-content:center;color:#fff}
+.ph-art > svg{width:50%;height:50%;stroke-width:1.4}
+.ph-art .wave{position:absolute;left:12%;right:12%;bottom:10%;height:16%;opacity:.45}
+.ph-art .big-year{font-size:clamp(40px,14vw,64px);font-weight:800;letter-spacing:-.04em}
+.ph-kicker{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-mid)}
+.ph-title{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.1;color:var(--ink);margin-top:4px}
+.ph-he{font-family:'David Libre',serif;font-weight:700;font-size:.78em;color:var(--ink-mid);white-space:nowrap}
+.ph-desc{font-size:14.5px;color:var(--ink-mid);margin-top:8px;line-height:1.5}
+.ph-meta{font-size:13.5px;color:var(--ink-light);margin-top:6px;font-weight:600}
+.ph-actions{display:flex;align-items:center;gap:2px;margin:8px -8px 0}
+.ph-actions .icon-btn{color:var(--ink-mid)}
+.ph-actions .icon-btn:hover{color:var(--ink)}
+.ph-actions .spacer{flex:1}
+.ph-actions .play-all{margin-right:8px}
+@media (min-width:720px){
+  .page-hero{display:grid;grid-template-columns:200px 1fr;column-gap:24px;align-items:end;padding-top:28px}
+  .ph-cover-wrap{grid-row:1 / 7;margin:0}
+  .ph-cover{width:200px}
+  .ph-title{font-size:40px}
+}
+/* Browse tiles with art in the corner, like a music app's genre tiles */
+.tile-art{position:absolute;right:-10px;bottom:-12px;width:64px;height:64px;transform:rotate(-14deg);opacity:.32;color:#fff;stroke-width:1.5}
+.occ-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:560px){.occ-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.occ-tile{position:relative;overflow:hidden;border-radius:12px;min-height:76px;padding:12px 14px;color:#fff;cursor:pointer;transition:transform .15s;-webkit-tap-highlight-color:transparent}
+.occ-tile:active{transform:scale(.97)}
+.occ-tile strong{display:block;font-size:15.5px;font-weight:800;letter-spacing:-.01em;line-height:1.2;position:relative;max-width:88%}
+.occ-tile span{display:block;font-size:12px;opacity:.9;margin-top:3px;position:relative}
+.occ-tile em{display:block;font-style:normal;font-size:11.5px;opacity:.75;margin-top:2px;position:relative;max-width:78%}
+.occ-next{position:relative;overflow:hidden;border-radius:16px;padding:16px 18px 18px;color:#fff;cursor:pointer;margin-bottom:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.occ-next .kicker{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.occ-next strong{display:block;font-size:24px;font-weight:800;letter-spacing:-.02em;margin-top:4px;position:relative;max-width:80%}
+.occ-next span{display:block;font-size:13px;opacity:.9;margin-top:4px;position:relative}
+.occ-next .tile-art{width:110px;height:110px;right:-14px;bottom:-20px;opacity:.3}
+.year-tile{position:relative;overflow:hidden;background-size:cover;background-position:center}
+.year-tile{min-height:78px;display:flex;flex-direction:column;justify-content:flex-end}
+.nig-featured{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.nig-tile{position:relative;overflow:hidden;border-radius:12px;min-height:88px;padding:12px 14px;color:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between}
+.nig-tile strong{font-size:16px;font-weight:800;letter-spacing:-.01em;line-height:1.2;position:relative}
+.nig-tile span{font-size:12px;opacity:.9;position:relative}
+.nig-tile .wave{position:absolute;left:12px;right:12px;bottom:30px;height:22px;opacity:.28}
+.list-sub{font-size:12.5px;font-weight:700;color:var(--ink-light);letter-spacing:.04em;margin:16px 0 2px}
+.ph-cover .cv-date b{font-size:clamp(56px,18vw,88px)}
+.ph-cover .cv-date span{font-size:18px}
+.ph-cover .np-cover-label{left:16px;right:16px;bottom:14px}
+.pane-sub{font-size:15px;font-weight:800;color:var(--ink);margin:4px 0 8px}
+.nig-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border-soft);cursor:pointer;font-size:15px;font-weight:600;color:var(--ink)}
+.nig-row span{font-size:12.5px;color:var(--ink-light);font-weight:500;white-space:nowrap}
+.nig-row:hover{color:var(--gold)}
+.topic-tile .tile-art{opacity:.28}
+.topic-tile strong,.topic-tile span,.year-tile strong,.year-tile span{position:relative;z-index:1}
 .tg-0{--tg:linear-gradient(140deg,#e2b456,#8a5a14)}
 .tg-1{--tg:linear-gradient(140deg,#5b86e0,#1f3470)}
 .tg-2{--tg:linear-gradient(140deg,#e07a8a,#7a2236)}
@@ -598,7 +660,7 @@ body.audio-paused .eq i{animation-play-state:paused}
   <div id="res"></div>
 </div>
 
-<div class="mini-player" id="playerBar" onclick="openNowPlaying()">
+<div class="mini-player" id="playerBar" onclick="if (!this.dataset.swiped) openNowPlaying()">
   <div class="mini-cover cover" id="miniCover"></div>
   <div class="mini-info">
     <div class="mini-title" id="playerTitle"></div>
@@ -730,9 +792,9 @@ body.audio-paused .eq i{animation-play-state:paused}
       <button class="chip" data-pane="niggunim" onclick="switchBrowseTab('niggunim')">Niggunim</button>
     </div>
     <div class="browse-pane active" id="pane-topics"><div class="tile-grid" id="browseTopics"></div><div class="chip-wrap" id="browseTopicMatches" hidden></div></div>
-    <div class="browse-pane" id="pane-collections"><div class="card-grid" id="browseCollectionsGrid"></div></div>
+    <div class="browse-pane" id="pane-collections"><div id="occNext"></div><div class="occ-grid" id="browseCollectionsGrid"></div></div>
     <div class="browse-pane" id="pane-years"><div id="browseYears"><div class="shelf-empty">Loading…</div></div></div>
-    <div class="browse-pane" id="pane-niggunim"><div class="card-grid" id="browseNiggunim"><div class="shelf-empty">Loading…</div></div></div>
+    <div class="browse-pane" id="pane-niggunim"><div id="browseNiggunim"><div class="shelf-empty">Loading…</div></div></div>
   </div>
 </div>
 
@@ -860,7 +922,7 @@ function initTheme() {
 // ── Years in the archive: fetched once, shared by the year chip, the home
 // "By year" row and the Browse sheet ──
 let yearsPromise = null;
-let yearCounts = {};
+let yearCounts = {}, yearPhotos = {};
 // A Hebrew year spans two secular years: 5747 → "1986–87".
 function secularSpan(y) { const a = y - 3761; return a + '–' + String(a + 1).slice(-2); }
 // How the year is said and written in Hebrew: 5747 → תשמ״ז.
@@ -874,7 +936,7 @@ function hebrewYearLetters(y) {
 function getYears() {
   if (!yearsPromise) {
     yearsPromise = fetch('/api/search?distinct=years')
-      .then(r => r.json()).then(j => { yearCounts = j.counts || {}; return j.years || []; })
+      .then(r => r.json()).then(j => { yearCounts = j.counts || {}; yearPhotos = j.photos || {}; return j.years || []; })
       .catch(() => { yearsPromise = null; return []; });
   }
   return yearsPromise;
@@ -930,6 +992,7 @@ function filterBrowse() {
   const q = filterKey(document.getElementById('browseFilter').value);
   const pane = document.querySelector('.browse-pane.active');
   if (!pane) return;
+  pane.querySelectorAll('.filter-hide').forEach(el => { el.hidden = !!q; });
   if (pane.id === 'pane-topics') {
     // Topics: the nine tiles normally; while typing, every matching topic and sub-topic.
     const tiles = document.getElementById('browseTopics'), matches = document.getElementById('browseTopicMatches');
@@ -950,7 +1013,7 @@ function filterBrowse() {
 function switchBrowseTab(pane) {
   if (pane === 'niggunim') loadNiggunList();
   const f = document.getElementById('browseFilter');
-  f.placeholder = { topics: 'Find a topic', collections: 'Find an occasion or date', years: 'Find a year (5747, תשמ״ז, 1987)', niggunim: 'Find a niggun' }[pane] || 'Find';
+  f.placeholder = { topics: 'Find a topic', collections: 'Find an occasion or date', years: 'Find a year: 5747, 1987 or Hebrew', niggunim: 'Find a niggun' }[pane] || 'Find';
   setTimeout(filterBrowse);
   document.querySelectorAll('.browse-tabs .chip').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
   document.querySelectorAll('.browse-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + pane));
@@ -962,8 +1025,18 @@ async function loadBrowseSheetContent() {
   if (!browseStaticLoaded) {
     browseStaticLoaded = true;
     // One list in calendar order, Tishrei to Elul.
-    document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) =>
-      '<div class="occasion" data-q="' + esc(filterKey(c.name + ' ' + c.sub + ' ' + (c.tag || ''))) + '" onclick="closeBrowseSheet();browseByCollection(' + i + ')"><strong>' + esc(c.name) + '</strong><span>' + esc(c.sub) + '</span></div>').join('');
+    document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) => {
+      const [date, note] = c.sub.split(' · ');
+      return '<div class="occ-tile" data-q="' + esc(filterKey(c.name + ' ' + c.sub + ' ' + (c.tag || ''))) + '" style="background:' + occasionBg(c) + '" onclick="closeBrowseSheet();browseByCollection(' + i + ')">'
+        + '<strong>' + esc(c.name) + '</strong><span>' + esc(date) + '</span></div>';
+    }).join('');
+    // The nearest occasion, big, at the top.
+    const next = getUpcomingCollections(1)[0];
+    if (next) {
+      const i = COLLECTIONS.findIndex(x => x.name === next.name);
+      document.getElementById('occNext').innerHTML = '<div class="occ-next filter-hide" style="background:' + occasionBg(next) + '" onclick="closeBrowseSheet();browseByCollection(' + i + ')">'
+        + '<div class="kicker">' + (next.now ? 'Now' : next.diff === 1 ? 'Tomorrow' : 'Coming up') + '</div><strong>' + esc(next.name) + '</strong><span>' + esc(next.sub) + '</span>' + svgArt(OCC_ART[next.name], 'tile-art') + '</div>';
+    }
   }
   // Nine calm category tiles, like a music app's browse grid; each group's
   // page shows its sub-topics.
@@ -1123,21 +1196,150 @@ function browseByType(type) {
   search();
 }
 function browseByCollection(idx) { go({ p: 'occasion', i: idx }); }
-function renderOccasion(idx) {
+// An occasion's page: what it is, talks about it, its farbrengens, then
+// every recording from its days, year by year.
+async function renderOccasion(idx) {
   const c = COLLECTIONS[idx];
-  currentDates = c.dates;
-  currentType = '';
-  document.getElementById('q').value = '';
-  document.getElementById('yf').value = '';
-  document.querySelectorAll('.chip[data-type]').forEach(el => el.classList.remove('active'));
-  document.querySelector('.chip[data-type=""]')?.classList.add('active');
-  document.getElementById('rmeta').dataset.collectionName = c.name;
-  document.getElementById('rmeta').dataset.collectionTag = c.tag || '';
-  return search(true);
+  if (!c) return renderHome();
+  currentDates = null;
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML = backChipHtml();
+  window.scrollTo(0, 0);
+  showSkeletons();
+  try {
+    const { rows, talks } = await fetchEventsOn(c.dates, c.tag);
+    const [date, note] = c.sub.split(' · ');
+    const bg = occasionBg(c);
+    const farbs = rows.filter(r => r.type === 'Farbrengen');
+    const chrono = [...rows].sort((a, b) => (a.hebrew_year || 0) - (b.hebrew_year || 0) || (a.hebrew_month || 0) - (b.hebrew_month || 0) || (a.hebrew_day || 0) - (b.hebrew_day || 0) || a.id - b.id);
+    const years = [];
+    for (const r of chrono) { const last = years[years.length - 1]; if (last && last.y === r.hebrew_year) last.rows.push(r); else years.push({ y: r.hebrew_year, rows: [r] }); }
+    const counts = [talks.length ? talks.length + ' talk' + (talks.length !== 1 ? 's' : '') : '', rows.length + ' recording' + (rows.length !== 1 ? 's' : ''),
+      years.length > 1 ? years[0].y + '–' + years[years.length - 1].y : ''].filter(Boolean).join(' · ');
+    document.getElementById('res').innerHTML =
+      pageHeroHtml({ cover: artCoverHtml(OCC_ART[c.name], bg), wash: bg, kicker: 'Occasion · ' + date, title: c.name, desc: note || '', meta: counts,
+        play: rows.length ? undefined : null, noShuffle: rows.length < 2 })
+      + (talks.length ? '<div class="home-section"><div class="home-section-head"><h3>Talks about ' + esc(c.name) + '</h3></div><div class="shelf">' + talks.slice(0, 20).map(episodeCardHtml).join('') + '</div></div>' : '')
+      + (farbs.length ? '<div class="home-section"><div class="home-section-head"><h3>Farbrengens</h3></div><div class="shelf">' + farbs.slice(0, 24).map(cardHtml).join('') + '</div></div>' : '')
+      + (rows.length ? '<h3 class="res-heading">All recordings</h3>' + years.map(g => '<div class="list-sub">' + (g.y || 'Undated') + (g.y ? ' · ' + secularSpan(g.y) : '') + '</div>' + g.rows.map(eventRowHtml).join('')).join('')
+        : '<div class="empty">No recordings for ' + esc(c.name) + ' yet.</div>');
+    rebuildOrder();
+  } catch (e) {
+    document.getElementById('res').innerHTML = '<div class="empty">Could not load ' + esc(c.name) + ': ' + esc(e.message) + '</div>';
+  }
 }
 // A year page: header, a month row to jump with, then the year month by
 // month: farbrengens (open as albums) and single recordings, in date order.
 const ERA_BG = ['linear-gradient(140deg,#4d7a8c,#1d3540)', 'linear-gradient(140deg,#6b6fb5,#262a5c)', 'linear-gradient(140deg,#a0688f,#4a2341)', 'linear-gradient(140deg,#b8794a,#55301a)', 'linear-gradient(140deg,#7f9a5a,#334320)'];
+// ── Artwork: simple line icons for occasions, topics and pages ──
+const ART = {
+  shofar: '<path d="M3 15c3 0 5.5-1.5 7.5-4S14 5 19 4l1.5 2.5c-3 1.5-4.5 3.5-5.5 6-1.5 4-4.5 6.5-10 7.5z"/><path d="M19 4l2-1"/>',
+  lulav: '<path d="M12 22V3"/><path d="M12 7c-2-1-3-3-3-5"/><path d="M12 7c2-1 3-3 3-5"/><path d="M12 12c-3-1-4.5-3.5-4.5-6"/><path d="M12 12c3-1 4.5-3.5 4.5-6"/><path d="M9 22h6"/>',
+  torah: '<rect x="7" y="4" width="10" height="16" rx="1"/><path d="M5 3v18M19 3v18"/><path d="M10 9h4M10 12h4M10 15h3"/>',
+  menorah: '<path d="M12 6v14"/><path d="M4 7c0 4 3.5 6.5 8 6.5s8-2.5 8-6.5"/><path d="M8 7c0 2.5 1.8 4 4 4s4-1.5 4-4"/><path d="M8 20h8"/><path d="M12 3v1M4 4v1M8 4v1M16 4v1M20 4v1"/>',
+  megillah: '<path d="M8 3h10a2 2 0 0 1 2 2v12"/><path d="M8 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2H10v2a2 2 0 0 1-2 2"/><path d="M10 8h6M10 11h6"/>',
+  matzah: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
+  fire: '<path d="M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-2 1-3 2-4 0 1.5 1 2.5 2 2.5 0-3-1-5 0-7z"/><path d="M4 21l16-3M20 21L4 18"/>',
+  mountain: '<path d="M3 20l6.5-11 4 6.5 2.5-4 5 8.5z"/><path d="M14 5l1.5-2 1.5 2"/>',
+  candle: '<path d="M9 10h6v11H9z"/><path d="M12 3c1.6 2 1.6 3.6 0 5-1.6-1.4-1.6-3 0-5z"/><path d="M12 8v2"/>',
+  key: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+  gate: '<path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M10 12v.01"/><path d="M13 4.562v16.157a1 1 0 0 1-1.242.97L5 20V5.562a2 2 0 0 1 1.515-1.94l4-1A2 2 0 0 1 13 4.561Z"/>',
+  crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
+  tree: '<path d="M8 19a4 4 0 0 1-2.24-7.32A3.5 3.5 0 0 1 9 6.03V6a3 3 0 1 1 6 0v.04a3.5 3.5 0 0 1 3.24 5.65A4 4 0 0 1 16 19Z"/><path d="M12 19v3"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  ruins: '<path d="M3 21h18"/><path d="M5 21V8l2-2 2 2v13"/><path d="M15 21v-5l2-2 2 2v5"/><path d="M11 21v-3"/><path d="M9 11l3-1"/>',
+  heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  ring: '<circle cx="12" cy="14" r="6"/><path d="M9 4l3 4 3-4-1.5-1.5h-3z"/>',
+  ship: '<path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M19.38 20A11.6 11.6 0 0 0 21 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76"/><path d="M19 13V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6"/><path d="M12 10v4"/><path d="M12 2v3"/>',
+  sunrise: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+  count: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+  book: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  note: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  people: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  megaphone: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>',
+  calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+};
+function svgArt(key, cls) { return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ART[key] || ART.calendar) + '</svg>'; }
+// What each occasion looks like.
+const OCC_ART = {
+  'Rosh Hashanah': 'shofar', 'Tzom Gedalyah': 'ruins', 'Vov Tishrei': 'candle', 'Yom Kippur': 'gate', 'Yud-Gimmel Tishrei': 'candle',
+  'Sukkos': 'lulav', 'Shmini Atzeres & Simchas Torah': 'torah', 'Chof Cheshvan': 'crown', 'Tes Kislev': 'candle', 'Yud Kislev': 'key',
+  'Yud-Daled Kislev': 'ring', 'Yud-Tes Kislev': 'key', 'Chanukah': 'menorah', 'Hei Teves': 'book', "Asara B'Teves": 'ruins',
+  'Chof-Daled Teves': 'candle', 'Yud Shevat': 'crown', 'Tu BiShvat': 'tree', 'Chof-Beis Shevat': 'candle', 'Purim': 'megillah',
+  'Beis Nissan': 'candle', 'Yud-Alef Nissan': 'crown', 'Yud-Gimmel Nissan': 'candle', 'Pesach': 'matzah', 'Sefiras HaOmer': 'count',
+  'Pesach Sheini': 'matzah', 'Chof-Ches Nissan': 'sunrise', 'Beis Iyar': 'crown', 'Lag BaOmer': 'fire', 'Shavuos': 'mountain',
+  'Chof-Ches Sivan': 'ship', 'Gimmel Tammuz': 'candle', 'Yud-Beis Tammuz': 'key', "Shiva Asar B'Tammuz": 'ruins', 'The Three Weeks': 'ruins',
+  "Tisha B'Av": 'ruins', "Tu B'Av": 'heart', 'Chof Av': 'candle', 'Elul': 'shofar', 'Chai Elul': 'crown', 'Rosh Chodesh': 'moon',
+};
+// Colours follow the year: autumn gold in Tishrei, winter blues, spring
+// greens in Nissan, slate for the summer's mourning, rose for Elul.
+const SEASON = { 1: ['#e3a547', '#7c4a12'], 2: ['#c7774b', '#5e2f17'], 3: ['#5b7fd6', '#1d2f6b'], 4: ['#4a63b8', '#1a2457'], 5: ['#4fa37f', '#17493a'],
+  6: ['#b062c4', '#4b1d5c'], 7: ['#b062c4', '#4b1d5c'], 8: ['#6fb86a', '#244d20'], 9: ['#4fb0c4', '#174b57'], 10: ['#3e9e7a', '#124a39'],
+  11: ['#7d8798', '#2f3542'], 12: ['#6c7a92', '#262d3d'], 13: ['#c4677f', '#5a1f33'] };
+function occasionBg(c) {
+  if (OCC_ART[c.name] === 'ruins') return 'linear-gradient(140deg,#6b6f78,#24262b)'; // fast days
+  const m = c.dates[Math.floor(c.dates.length / 2)][0];
+  const [a, b] = SEASON[m] || SEASON[1];
+  return 'linear-gradient(140deg,' + a + ',' + b + ')';
+}
+const TG_BG = ['linear-gradient(140deg,#e2b456,#8a5a14)', 'linear-gradient(140deg,#5b86e0,#1f3470)', 'linear-gradient(140deg,#e07a8a,#7a2236)',
+  'linear-gradient(140deg,#46a872,#1a4c31)', 'linear-gradient(140deg,#e0964a,#7a3f14)', 'linear-gradient(140deg,#a66ae0,#43226b)',
+  'linear-gradient(140deg,#3fb3b0,#14524f)', 'linear-gradient(140deg,#6f7ee8,#262f80)', 'linear-gradient(140deg,#8f9aa8,#363c45)'];
+const GROUP_ART = { 'g-moshiach': 'sunrise', 'g-avodah': 'fire', 'g-community': 'people', 'g-outreach': 'megaphone', 'g-family': 'home',
+  'g-torah': 'book', 'g-time': 'calendar', 'g-chabad': 'crown', 'g-world': 'globe' };
+const NIGGUN_BG = ['linear-gradient(140deg,#e0a04a,#7a4714)', 'linear-gradient(140deg,#d7834a,#6e3415)', 'linear-gradient(140deg,#c9a24a,#5f4a14)',
+  'linear-gradient(140deg,#e08a6a,#743322)', 'linear-gradient(140deg,#d6b25e,#6b521c)', 'linear-gradient(140deg,#c97b3e,#5c2f0f)'];
+// A little sound-wave picture, the same for the same name.
+function waveSvg(name) {
+  let h = 7; for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) % 9973;
+  let bars = '';
+  for (let i = 0; i < 22; i++) { h = (h * 17 + 11) % 9973; const v = 4 + (h % 18); bars += '<rect x="' + (i * 3) + '" y="' + (12 - v / 2) + '" width="1.6" height="' + v + '" rx=".8"/>'; }
+  return '<svg class="wave" viewBox="0 0 66 24" preserveAspectRatio="none" fill="currentColor" aria-hidden="true">' + bars + '</svg>';
+}
+const ICON_SHUFFLE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 14 4 4-4 4"/><path d="m18 2 4 4-4 4"/><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-7.6a4 4 0 0 1 3.3-1.7H22"/><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2"/><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"/></svg>';
+const ICON_SHARE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+// A page's header: artwork, a wash of its colour behind, title, actions.
+// o: { cover: html, wash: css background, photoWash: bool, kicker, title, he, desc, meta, extra: html, play: js, noShuffle }
+function pageHeroHtml(o) {
+  return '<section class="page-hero"><div class="ph-wash' + (o.photoWash ? ' photo' : '') + '" style="background:' + o.wash + '"></div>'
+    + '<div class="ph-cover-wrap">' + o.cover + '</div>'
+    + (o.kicker ? '<div class="ph-kicker">' + esc(o.kicker) + '</div>' : '')
+    + '<h1 class="ph-title">' + esc(o.title) + (o.he ? ' <span class="ph-he" lang="he">' + esc(o.he) + '</span>' : '') + '</h1>'
+    + (o.desc ? '<p class="ph-desc">' + esc(o.desc) + '</p>' : '')
+    + (o.meta ? '<div class="ph-meta">' + esc(o.meta) + '</div>' : '')
+    + '<div class="ph-actions">' + (o.extra || '')
+      + (o.noShuffle ? '' : '<button class="icon-btn" onclick="playShuffled()" aria-label="Shuffle play" title="Shuffle">' + ICON_SHUFFLE + '</button>')
+      + '<button class="icon-btn" onclick="sharePage(' + esc(JSON.stringify(o.title)) + ')" aria-label="Share this page" title="Share">' + ICON_SHARE + '</button>'
+      + '<span class="spacer"></span>'
+      + (o.play === null ? '' : '<button class="play-all" onclick="' + (o.play || 'playPageAll()') + '" aria-label="Play">' + ICON_PLAY + '</button>')
+    + '</div></section>';
+}
+function artCoverHtml(key, bg, extra) { return '<div class="ph-cover ph-art" style="background:' + bg + '">' + svgArt(key) + (extra || '') + '</div>'; }
+function photoCoverHtml(url) { return '<div class="ph-cover" style="background-image:url(\'' + esc(url) + '\')"></div>'; }
+function photoWash(url) { return "url('" + esc(url) + "') center/cover"; }
+// Play the page's list in a random order.
+function playShuffled() {
+  rebuildOrder();
+  if (!currentOrder.length) return;
+  for (let i = currentOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [currentOrder[i], currentOrder[j]] = [currentOrder[j], currentOrder[i]]; }
+  playFromOrder(currentOrder[0]);
+  toast('Shuffling ' + currentOrder.length);
+}
+// Share the page you're on (its link).
+async function sharePage(title) {
+  const url = location.href;
+  if (navigator.share) {
+    try { await navigator.share({ title: title + ' · Ashreinu', url }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast('Link copied'); }
+  catch (e) { prompt('Copy this link:', url); }
+}
+
 // ── Niggunim: each niggun like a song, every time it was sung a recording ──
 let niggunList = null;
 async function loadNiggunList() {
@@ -1145,9 +1347,15 @@ async function loadNiggunList() {
   try {
     niggunList = (await (await fetch('/api/search?niggunim=1')).json()).niggunim || [];
     setTimeout(filterBrowse);
+    const open = n => 'closeBrowseSheet();openNiggun(\'' + esc(n.key) + '\')';
+    const az = [...niggunList].sort((a, b) => a.name.localeCompare(b.name));
     document.getElementById('browseNiggunim').innerHTML = niggunList.length
-      ? niggunList.map(n => '<div class="occasion" data-q="' + esc(filterKey(n.name)) + '" onclick="closeBrowseSheet();openNiggun(\'' + esc(n.key) + '\')"><strong>' + esc(n.name) + '</strong>'
-          + '<span>' + n.count + ' recordings' + (n.first ? ' · ' + (n.first === n.last ? n.first : n.first + '–' + String(n.last).slice(-2)) : '') + '</span></div>').join('')
+      ? '<h4 class="pane-sub filter-hide">Most sung</h4><div class="nig-featured filter-hide">' + niggunList.slice(0, 6).map((n, i) =>
+          '<div class="nig-tile" style="background:' + NIGGUN_BG[i % NIGGUN_BG.length] + '" onclick="' + open(n) + '">'
+          + '<strong>' + esc(n.name) + '</strong><span>' + n.count + ' recordings</span></div>').join('') + '</div>'
+        + '<h4 class="pane-sub filter-hide">All niggunim</h4>'
+        + az.map(n => '<div class="nig-row" data-q="' + esc(filterKey(n.name)) + '" onclick="' + open(n) + '">' + esc(n.name)
+          + '<span>' + n.count + (n.first ? ' · ' + (n.first === n.last ? n.first : n.first + '–' + String(n.last).slice(-2)) : '') + '</span></div>').join('')
       : '<div class="shelf-empty">No named niggunim yet.</div>';
   } catch (e) { niggunList = null; document.getElementById('browseNiggunim').innerHTML = '<div class="shelf-empty">Could not load niggunim.</div>'; }
 }
@@ -1172,11 +1380,16 @@ async function renderNiggun(key) {
     const j = await (await fetch('/api/search?niggun=' + encodeURIComponent(key))).json();
     if (j.error) throw new Error(j.error);
     const n = j.niggun;
+    const decades = [];
+    for (const r of j.results) {
+      const d = Math.floor((r.hebrew_year || 0) / 10) * 10, last = decades[decades.length - 1];
+      if (last && last.d === d) last.rows.push(r); else decades.push({ d, rows: [r] });
+    }
     document.getElementById('res').innerHTML =
-      '<section class="topic-hero" style="background:linear-gradient(140deg,#e0a04a,#7a4714)"><div class="kicker">Niggun</div><h2>' + esc(n.name) + '</h2>'
-        + '<div class="hero-foot"><div class="count">' + n.count + ' recordings' + (n.first ? ' · ' + n.first + (n.last !== n.first ? '–' + n.last : '') : '') + '</div>'
-        + '<button class="play-all" onclick="playPageAll()" aria-label="Play all, oldest first">' + ICON_PLAY + '</button></div></section>'
-      + j.results.map(r => niggunRecordingRowHtml(r, n.name)).join('');
+      pageHeroHtml({ cover: artCoverHtml('note', NIGGUN_BG[0], waveSvg(n.name)), wash: NIGGUN_BG[0], kicker: 'Niggun', title: n.name,
+        meta: n.count + ' recordings' + (n.first ? ' · ' + n.first + (n.last !== n.first ? '–' + n.last : '') : '') })
+      + decades.map(g => (decades.length > 1 ? '<div class="list-sub">' + (g.d ? g.d + 's · ' + (g.d - 3760) + 's' : 'Undated') + '</div>' : '')
+          + g.rows.map(r => niggunRecordingRowHtml(r, n.name)).join('')).join('');
     rebuildOrder();
   } catch (e) {
     document.getElementById('res').innerHTML = '<div class="empty">Could not load this niggun: ' + esc(e.message) + '</div>';
@@ -1201,11 +1414,17 @@ async function renderYear(year) {
       if (last && last.num === ev.hebrew_month) last.events.push(ev);
       else months.push({ num: ev.hebrew_month, name: ev.hebrew_month_name || 'Undated', events: [ev] });
     }
-    const farb = j.events.filter(e => e.type === 'Farbrengen').length;
+    const farbs = j.events.filter(e => e.type === 'Farbrengen');
+    const farb = farbs.length;
+    // A photo from that year when JEM has one; else the year itself as art.
+    const pic = farbs.find(e => e.photo) || j.events.find(e => e.photo);
     document.getElementById('res').innerHTML =
-      '<section class="topic-hero" style="background:' + ERA_BG[eraIndex(year)] + '">'
-        + '<div class="kicker">' + secularSpan(year) + '</div><h2>' + year + ' <span class="he" lang="he">' + hebrewYearLetters(year) + '</span></h2>'
-        + '<div class="count">' + j.events.length + ' events' + (farb ? ' · ' + farb + ' farbrengens' : '') + '</div></section>'
+      pageHeroHtml({
+        cover: pic ? photoCoverHtml(pic.photo_lg || pic.photo) : '<div class="ph-cover ph-art" style="background:' + ERA_BG[eraIndex(year)] + '"><span class="big-year">' + year + '</span></div>',
+        wash: pic ? photoWash(pic.photo) : ERA_BG[eraIndex(year)], photoWash: !!pic,
+        kicker: 'Year · ' + secularSpan(year), title: String(year), he: hebrewYearLetters(year),
+        meta: j.events.length + ' events' + (farb ? ' · ' + farb + ' farbrengen' + (farb !== 1 ? 's' : '') : '') })
+      + (farb >= 2 ? '<div class="home-section"><div class="home-section-head"><h3>Farbrengens</h3></div><div class="shelf">' + farbs.map(cardHtml).join('') + '</div></div>' : '')
       + (months.length > 1 ? '<div class="chip-scroll month-jump" style="margin:0 -16px 6px;--hdr:' + document.getElementById('appHeader').offsetHeight + 'px">' + months.map((m, i) =>
           '<button class="chip" onclick="document.getElementById(\'ym-' + i + '\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">' + esc(m.name) + '</button>').join('') + '</div>' : '')
       + months.map((m, i) => '<h3 class="res-heading month-head" id="ym-' + i + '">' + esc(m.name) + ' <span>' + m.events.length + '</span></h3>'
@@ -1320,6 +1539,32 @@ async function shareTrack(id) {
   try { await navigator.clipboard.writeText(url); toast('Link copied'); }
   catch (e) { prompt('Copy this link:', url); }
 }
+// History: everything you've played on this device, newest first, by day.
+function openHistory() { go({ p: 'history' }); }
+function renderHistory() {
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML = backChipHtml();
+  const list = getRecent();
+  const day = 864e5, startOfToday = new Date().setHours(0, 0, 0, 0);
+  const groupOf = t => !t ? 'Earlier' : t >= startOfToday ? 'Today' : t >= startOfToday - day ? 'Yesterday' : t >= startOfToday - 6 * day ? 'This week' : 'Earlier';
+  const groups = [];
+  for (const r of list) { const g = groupOf(r.played_at), last = groups[groups.length - 1]; if (last && last.g === g) last.rows.push(r); else groups.push({ g, rows: [r] }); }
+  document.getElementById('res').innerHTML =
+    pageHeroHtml({ cover: artCoverHtml('clock', 'linear-gradient(140deg,#8f9aa8,#363c45)'), wash: 'linear-gradient(140deg,#8f9aa8,#363c45)',
+      kicker: 'Your library', title: 'History', desc: 'Everything you\'ve played on this device.', meta: list.length + ' track' + (list.length !== 1 ? 's' : ''),
+      play: list.length ? undefined : null, noShuffle: list.length < 2,
+      extra: list.length ? '<button class="icon-btn" onclick="clearHistory()" aria-label="Clear history" title="Clear history">' + svgArt('trash') + '</button>' : '' })
+    + (list.length ? groups.map(g => '<div class="list-sub">' + g.g + '</div>' + g.rows.map(r => trackRowHtml(r, true, !!r.summary_en)).join('')).join('')
+      : '<div class="empty">Nothing played yet.</div>');
+  window.scrollTo(0, 0);
+  rebuildOrder();
+}
+function clearHistory() {
+  if (!confirm('Clear your listening history on this device? (Saved talks stay.)')) return;
+  writeJSON(RECENT_KEY, []);
+  renderHistory();
+}
+
 // The Saved page: every saved talk, newest first, ready to play in order.
 function openSaved() { go({ p: 'saved' }); }
 function renderSaved() {
@@ -1329,10 +1574,9 @@ function renderSaved() {
     backChipHtml();
   const list = getSaved();
   document.getElementById('res').innerHTML =
-    '<section class="topic-hero saved-hero tg-0"><div class="kicker">Your library</div><h2>Saved</h2>'
-      + '<p>Talks you\'ve saved with the ♡. They\'re kept on this device.</p>'
-      + '<div class="hero-foot"><div class="count">' + list.length + ' talk' + (list.length !== 1 ? 's' : '') + '</div>'
-      + (list.length ? '<button class="play-all" onclick="playPageAll()" aria-label="Play all saved">' + ICON_PLAY + '</button>' : '') + '</div></section>'
+    pageHeroHtml({ cover: artCoverHtml('heart', TG_BG[0]), wash: TG_BG[0], kicker: 'Your library', title: 'Saved',
+      desc: 'Talks you\'ve saved with the ♡. They\'re kept on this device.',
+      meta: list.length + ' talk' + (list.length !== 1 ? 's' : ''), play: list.length ? undefined : null, noShuffle: list.length < 2 })
     + (list.length
       ? list.map(r => trackRowHtml(r, true, !!r.summary_en)).join('')
       : '<div class="empty">Nothing saved yet. Tap the ♡ in the player to save a talk.</div>');
@@ -1359,10 +1603,11 @@ function playPageAll() {
 }
 
 function rememberPlay(row) {
-  const slim = Object.fromEntries(RECENT_FIELDS.map(k => [k, row[k] ?? null]));
+  const slim = { ...Object.fromEntries(RECENT_FIELDS.map(k => [k, row[k] ?? null])), played_at: Date.now() };
   const list = readJSON(RECENT_KEY, []).filter(r => String(r.id) !== String(row.id));
   list.unshift(slim);
-  writeJSON(RECENT_KEY, list.slice(0, 12));
+  writeJSON(RECENT_KEY, list.slice(0, 300)); // the full History page shows these
+  refreshJumpSection();
 }
 function getRecent() { return readJSON(RECENT_KEY, []); }
 function savedPosition(id) { return readJSON(POS_KEY, {})[id] || 0; }
@@ -1423,20 +1668,29 @@ function episodeCardHtml(row) {
 // Home answers one question: what to listen to now. At most four calm
 // sections, most personal first: your own listening, today, something new,
 // then topics. Browsing by type, year or occasion lives in the Browse sheet.
-async function showLanding() {
-  document.getElementById('rmeta').textContent = '';
+// "Jump back in": Saved first (like Spotify's Liked Songs), then what you
+// played last. Redrawn the moment you play something, not only on reload.
+function jumpSectionHtml() {
   const saved = getSaved();
   const recent = getRecent().slice(0, saved.length ? 5 : 6);
-  // Like Spotify's "Liked Songs" shortcut: the Saved tile leads the grid.
+  if (!recent.length && !saved.length) return '';
   const savedTile = saved.length
     ? '<div class="jump-card" onclick="openSaved()"><div class="jump-cover cover saved-tile">' + ROW_HEART.replace('row-heart', 'saved-heart') + '</div>'
       + '<div class="jump-title">Saved talks<small>' + saved.length + ' talk' + (saved.length !== 1 ? 's' : '') + '</small></div></div>'
     : '';
+  return '<div class="home-section-head"><h3>Jump back in</h3>' + (recent.length ? '<button class="see-all" onclick="openHistory()">History</button>' : '') + '</div>'
+    + '<div class="jump-grid">' + savedTile + recent.map(jumpCardHtml).join('') + '</div>';
+}
+function refreshJumpSection() {
+  const el = document.getElementById('jumpSection');
+  if (!el) return;
+  const html = jumpSectionHtml();
+  el.innerHTML = html; el.hidden = !html;
+}
+async function showLanding() {
+  document.getElementById('rmeta').textContent = '';
   document.getElementById('res').innerHTML =
-    (recent.length || saved.length
-      ? '<div class="home-section"><div class="home-section-head"><h3>Jump back in</h3></div>'
-        + '<div class="jump-grid">' + savedTile + recent.map(jumpCardHtml).join('') + '</div></div>'
-      : '')
+    '<div class="home-section" id="jumpSection"' + (jumpSectionHtml() ? '' : ' hidden') + '>' + jumpSectionHtml() + '</div>'
     + '<div class="home-section" id="todaySection" style="display:none"></div>'
     + '<div class="home-section" id="exploreSection" style="display:none">'
       + '<div class="home-section-head"><h3>Talks to explore</h3></div>'
@@ -1563,14 +1817,11 @@ async function renderTopic(slug) {
     if (j.error) throw new Error(j.error);
     const t = j.topic, parent = TOPIC_BY_SLUG[t.parent_slug];
     const total = j.main.length + j.related.length;
+    const gi = groupIndex(t.slug);
     document.getElementById('res').innerHTML =
-      '<section class="topic-hero tg-' + groupIndex(t.slug) + '">'
-        + '<div class="kicker">' + esc(parent ? parent.name_en : 'Topics') + '</div>'
-        + '<h2>' + esc(t.name_en) + '</h2>'
-        + (t.name_he ? '<div class="he" dir="rtl">' + esc(t.name_he) + '</div>' : '')
-        + (t.description ? '<p>' + esc(t.description) + '</p>' : '')
-        + '<div class="count">' + total + ' talk' + (total !== 1 ? 's' : '') + '</div>'
-      + '</section>'
+      pageHeroHtml({ cover: artCoverHtml(GROUP_ART[t.parent_slug || t.slug], TG_BG[gi]), wash: TG_BG[gi],
+        kicker: parent ? parent.name_en : 'Topic', title: t.name_en, he: t.name_he, desc: t.description,
+        meta: total + ' talk' + (total !== 1 ? 's' : ''), play: total ? undefined : null, noShuffle: !total })
       + (j.subtopics.length ? '<div class="chip-scroll" style="margin:0 -16px 8px">' + j.subtopics.map(topicChipHtml).join('') + '</div>' : '')
       + (parent ? '<div class="chip-scroll" style="margin:0 -16px 8px">' + topicChipHtml(parent) + '</div>' : '')
       + (j.main.length ? '<h3 class="res-heading">' + (t.parent_slug ? 'Mainly about ' + esc(t.name_en) : 'Talks') + '</h3>' + j.main.map(r => trackRowHtml(r, true, true)).join('') : '')
@@ -1599,7 +1850,20 @@ async function renderAlbum(fid) {
   document.getElementById('filterRow').classList.remove('active');
   document.getElementById('rmeta').innerHTML =
     backChipHtml();
-  document.getElementById('res').innerHTML = albumHtml(fid, head, []);
+  if (head) rowsById[String(fid)] = head;
+  const wash = head?.photo ? photoWash(head.photo) : ERA_BG[eraIndex(head?.hebrew_year)];
+  document.getElementById('res').innerHTML =
+    pageHeroHtml({
+      cover: head ? coverHtml('ph-cover', head, true) : artCoverHtml('people', ERA_BG[0]),
+      wash, photoWash: !!head?.photo,
+      kicker: head && head.type !== 'Farbrengen' ? typeLabel(head.type) : 'Farbrengen',
+      title: head ? trackTitle(head) : 'Farbrengen',
+      meta: head ? [hebDate(head), head.secular_year ? dstr(head).split(' · ').pop() : ''].filter(Boolean).join(' · ') : '',
+      extra: '<button class="icon-btn" id="readbtn-' + fid + '" onclick="openReader(\'' + fid + '\',' + fid + ')" aria-label="Read the farbrengen\'s text" title="Read the text">' + ICON_BOOK + '</button>'
+        + '<a class="icon-btn" href="https://ashreinu.app/player?parentEvent=' + fid + '" target="_blank" rel="noopener" aria-label="Open in Ashreinu" title="Open in Ashreinu">' + ICON_EXT + '</a>',
+      play: 'playAlbum(' + fid + ')' })
+    + '<section class="album" id="album-' + fid + '"><div id="album-tracks-' + fid + '"></div>'
+    + '<button class="show-tracks" id="album-more-' + fid + '" onclick="loadAlbumTracks(' + fid + ')">Show tracks</button></section>';
   window.scrollTo(0, 0);
   loadAlbumTracks(fid);
 }
@@ -1790,7 +2054,7 @@ function coverInner(row, withLabel, big) {
 // The cover element itself: `base` is its size class (shelf-cover, track-cover...).
 function coverHtml(base, row, withLabel, extra) {
   const spec = coverSpec(row);
-  const img = spec.kind === 'photo' ? ' style="background-image:url(\'' + esc(base === 'np-cover' ? row.photo_lg || row.photo : row.photo) + '\')"' : '';
+  const img = spec.kind === 'photo' ? ' style="background-image:url(\'' + esc(base === 'np-cover' || base === 'ph-cover' ? row.photo_lg || row.photo : row.photo) + '\')"' : '';
   return '<div class="' + base + ' cover ' + spec.cls + '"' + img + '>' + coverInner(row, withLabel, base === 'album-cover') + (extra || '') + '</div>';
 }
 function setCover(el, row, withLabel) {
@@ -2014,6 +2278,7 @@ function pageUrl(page) {
   else if (page.p === 'topic') u.set('topic', page.slug);
   else if (page.p === 'album') u.set('album', page.fid);
   else if (page.p === 'saved') u.set('saved', '1');
+  else if (page.p === 'history') u.set('history', '1');
   else if (page.p === 'occasion') u.set('occasion', COLLECTIONS[page.i]?.name || '');
   else if (page.p === 'niggun') u.set('niggun', page.key);
   const qs = u.toString();
@@ -2048,6 +2313,7 @@ async function renderPage(page) {
     case 'topic': return renderTopic(page.slug);
     case 'album': return renderAlbum(page.fid);
     case 'saved': return renderSaved();
+    case 'history': return renderHistory();
     case 'occasion': return renderOccasion(page.i);
     case 'niggun': return renderNiggun(page.key);
     case 'search':
@@ -2083,14 +2349,17 @@ document.addEventListener('keydown', e => {
 function enableDragToClose(sheetId, scrollerId, closeFn) {
   const sheet = document.getElementById(sheetId);
   const scroller = document.getElementById(scrollerId);
-  let startY = null, dy = 0, dragging = false;
+  let startY = null, startX = 0, dy = 0, dragging = false;
   sheet.addEventListener('touchstart', e => {
     startY = (scroller.scrollTop > 0 || e.target.closest('.seek, .fn-sheet')) ? null : e.touches[0].clientY;
+    startX = e.touches[0].clientX;
     dy = 0; dragging = false;
   }, { passive: true });
   sheet.addEventListener('touchmove', e => {
     if (startY === null) return;
     dy = e.touches[0].clientY - startY;
+    // A sideways swipe (changing tracks on the cover) isn't a pull-down.
+    if (!dragging && Math.abs(e.touches[0].clientX - startX) > Math.abs(dy)) { startY = null; return; }
     if (!dragging && dy > 8) { dragging = true; sheet.classList.add('dragging'); }
     if (dragging) {
       sheet.style.transform = 'translateY(' + Math.max(0, dy) + 'px)';
@@ -2106,6 +2375,52 @@ function enableDragToClose(sheetId, scrollerId, closeFn) {
   });
 }
 enableDragToClose('npOverlay', 'npScroll', closeNowPlaying);
+
+// Swipe the player's cover (or the mini player) sideways to change track,
+// like Spotify: left for the next, right for the previous. It follows your
+// finger, slides out, and the new track slides in.
+function enableTrackSwipe(el) {
+  let x0 = null, y0 = 0, dx = 0, sideways = false;
+  const reset = () => { el.style.transform = ''; el.style.opacity = ''; };
+  el.addEventListener('touchstart', e => {
+    if (e.target.closest('button')) { x0 = null; return; }
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; sideways = false; el.style.transition = 'none';
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (x0 === null) return;
+    dx = e.touches[0].clientX - x0;
+    const dy = e.touches[0].clientY - y0;
+    if (!sideways) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) sideways = true;
+      else if (Math.abs(dy) > 10) { x0 = null; return; }
+    }
+    if (sideways) {
+      el.style.transform = 'translateX(' + dx * 0.7 + 'px)';
+      el.style.opacity = String(1 - Math.min(0.5, Math.abs(dx) / 500));
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+  el.addEventListener('touchend', () => {
+    if (x0 === null) return;
+    x0 = null;
+    el.style.transition = 'transform .2s ease, opacity .2s ease';
+    if (!sideways) return;
+    el.dataset.swiped = '1'; setTimeout(() => { delete el.dataset.swiped; }, 400); // not a tap
+    const next = dx < 0;
+    const btn = document.getElementById(next ? 'npNextBtn' : 'npPrevBtn');
+    if (Math.abs(dx) < 70 || btn.disabled) { reset(); return; }
+    el.style.transform = 'translateX(' + (next ? -110 : 110) + '%)'; el.style.opacity = '0';
+    setTimeout(() => {
+      if (next) playNext();
+      else { const i = currentOrder.indexOf(currentTrackId); if (i > 0) playFromOrder(currentOrder[i - 1], true); } // a swipe always goes back a track
+      el.style.transition = 'none';
+      el.style.transform = 'translateX(' + (next ? 40 : -40) + 'px)';
+      requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = 'transform .22s ease, opacity .22s ease'; reset(); }));
+    }, 170);
+  });
+}
+enableTrackSwipe(document.getElementById('npCover'));
+enableTrackSwipe(document.getElementById('playerBar'));
 
 // Swipe up on the mini player opens the full view (tap works too).
 (function enableMiniSwipeUp() {
@@ -2491,6 +2806,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
     : params.get('niggun') ? { p: 'niggun', key: params.get('niggun') }
     : /^\d+$/.test(params.get('album') || '') ? { p: 'album', fid: +params.get('album') }
     : params.get('saved') ? { p: 'saved' }
+    : params.get('history') ? { p: 'history' }
     : occ >= 0 ? { p: 'occasion', i: occ }
     : params.get('q') || params.get('type') ? { p: 'search', q: params.get('q') || '', type: params.get('type') || '', year: params.get('year') || '' }
     : /^\d{4}$/.test(params.get('year') || '') ? { p: 'year', y: +params.get('year') }
