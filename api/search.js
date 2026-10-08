@@ -219,6 +219,50 @@ async function attachConfirmedTitles(supabase, rows, keep) {
   }
 }
 
+// ── JEM's curated playlists (imported by the pipeline page; see
+// supabase/005_playlists.sql). A clip is an excerpt of a recording with its
+// own human-written title; it plays from start_ms to end_ms. ──
+const PLAYLIST_LANGUAGE = new Set([352, 666, 885, 1969]); // English, Hebrew, Russian, French
+function playlistGroup(p) {
+  const n = p.name || '';
+  if (p.taxonomy === 'book') return 'Books';
+  if (p.taxonomy === 'timeline' || p.taxonomy === 'date_based_timeline') return 'Timelines';
+  if (p.taxonomy === 'interactive_article' || /^stories$/i.test(n)) return 'Stories & moments';
+  if (PLAYLIST_LANGUAGE.has(p.id)) return 'Languages';
+  if (/podcast/i.test(n)) return 'Podcasts';
+  if (/unknown dates|^current$/i.test(n)) return 'More';
+  if (!/[a-z]/i.test(n)) return 'In Hebrew';
+  if (/highlights|lessons|playlist|celebrations|nigunim|purim|pesach|shavuos|chanukah|sukkos|omer|tishrei|elul|kislev|shevat|nissan|tammuz|\bav\b|adar|teves|cheshvan|iyar|sivan/i.test(n)) return 'Seasons & occasions';
+  return 'Themes';
+}
+const PLAYLIST_GROUPS = ['Seasons & occasions', 'Themes', 'Stories & moments', 'Timelines', 'Podcasts', 'In Hebrew', 'Languages', 'Books', 'More'];
+// Clips as track rows the app can play: the clip's own title, the recording
+// it comes from, and (when we have that recording) its date and farbrengen.
+async function clipRows(supabase, clips, playlistName) {
+  const evIds = [...new Set(clips.map(c => c.event_id).filter(Boolean))];
+  const ev = {};
+  for (let i = 0; i < evIds.length; i += 200) {
+    const { data } = await supabase.from('ashreinu_events').select(ROW_FIELDS).in('id', evIds.slice(i, i + 200));
+    for (const e of data || []) ev[e.id] = e;
+  }
+  return clips.map(c => {
+    const e = ev[c.event_id] || {};
+    const start = c.start_ms || 0, end = c.end_ms || null;
+    return {
+      id: 'c' + c.clip_id, clip_id: c.clip_id, event_id: c.event_id || null, playlist_id: c.playlist_id, playlist_name: c.playlist_name || playlistName || null,
+      parent_id: e.parent_id || null, parent_name: e.parent_name || null, type: e.type || 'Clip',
+      name: e.name || c.playlist_name || playlistName || 'JEM playlist',
+      confirmed_title: c.name || e.name || 'Clip', title_source: 'jem',
+      hebrew_year: e.hebrew_year || null, hebrew_month: e.hebrew_month || null, hebrew_day: e.hebrew_day || null, hebrew_month_name: e.hebrew_month_name || null,
+      secular_year: e.secular_year || null, secular_month: e.secular_month || null, secular_day: e.secular_day || null,
+      audio_uri: c.audio_uri, start_ms: start, end_ms: end, duration_ms: end ? end - start : e.duration_ms || null,
+      photo: c.picture || null, photo_lg: c.picture ? c.picture.replace(/h_300,(.*?)w_300/, 'h_900,$1w_900') : null,
+      has_document: !!c.has_document,
+    };
+  });
+}
+const CLIP_FIELDS = 'playlist_id, position, clip_id, name, audio_uri, start_ms, end_ms, picture, event_id, has_document';
+
 export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
   const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '', parentId = '', occasion = '', toplevel = '' } = req.query;
@@ -258,6 +302,45 @@ export default async function handler(req, res) {
     const ids = [...good, ...(good.length < n ? unrated : [])].slice(0, n).map(r => r.ashreinu_event_id);
     res.setHeader('Cache-Control', 's-maxage=60');
     return res.status(200).json({ results: await rowsForIds(supabase, ids, {}) });
+  }
+
+  // JEM's playlists: the list (grouped), one playlist's clips, one clip, or a
+  // clip's written text (English summary and the original, split apart).
+  if (req.query.playlists) {
+    const { data, error } = await supabase.from('playlists').select('id, name, hebrew_name, taxonomy, picture, clip_count, total_ms, sort, extra')
+      .eq('published', true).gt('clip_count', 0).order('sort');
+    if (error) return res.status(200).json({ playlists: [], groups: [] }); // not imported yet
+    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=604800');
+    return res.status(200).json({ groups: PLAYLIST_GROUPS, playlists: data.map(p => ({ id: p.id, name: p.name, hebrew_name: p.hebrew_name, picture: p.picture,
+      count: p.clip_count, total_ms: p.total_ms, group: playlistGroup(p),
+      years: p.extra?.timeline_event_year_start ? [p.extra.timeline_event_year_start, p.extra.timeline_event_year_end] : null })) });
+  }
+  if (req.query.playlist) {
+    const id = parseInt(req.query.playlist, 10);
+    const [{ data: p }, { data: clips, error }] = await Promise.all([
+      supabase.from('playlists').select('id, name, hebrew_name, description, taxonomy, picture, clip_count, total_ms').eq('id', id).maybeSingle(),
+      supabase.from('playlist_clips').select(CLIP_FIELDS).eq('playlist_id', id).order('position'),
+    ]);
+    if (error || !p) return res.status(404).json({ error: 'Unknown playlist' });
+    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=604800');
+    return res.status(200).json({ playlist: { ...p, group: playlistGroup(p) }, results: await clipRows(supabase, clips, p.name) });
+  }
+  if (req.query.clip) {
+    const { data } = await supabase.from('playlist_clips').select(CLIP_FIELDS + ', playlists(name)').eq('clip_id', parseInt(req.query.clip, 10)).limit(1);
+    if (!data?.length) return res.status(200).json({ result: null });
+    const c = { ...data[0], playlist_name: data[0].playlists?.name };
+    res.setHeader('Cache-Control', 's-maxage=600');
+    return res.status(200).json({ result: (await clipRows(supabase, [c]))[0] });
+  }
+  if (req.query.clipdoc) {
+    const { data } = await supabase.from('playlist_clips').select('document').eq('clip_id', parseInt(req.query.clipdoc, 10)).not('document', 'is', null).limit(1);
+    const text = data?.[0]?.document || '';
+    // English paragraphs are JEM's summary; Hebrew/Yiddish ones the source.
+    const paras = text.split(/\n\s*\n|\n/).map(t => t.trim()).filter(Boolean);
+    const isHeb = t => (t.match(/[֐-׿]/g) || []).length > t.replace(/\s/g, '').length / 3;
+    const english = paras.filter(t => !isHeb(t) && !/^summary$/i.test(t)), hebrew = paras.filter(isHeb);
+    res.setHeader('Cache-Control', 's-maxage=3600');
+    return res.status(200).json({ summary: english.join('\n\n'), text: hebrew.join('\n\n') });
   }
 
   // One event's row by id (e.g. a farbrengen opened from one of its tracks).
@@ -553,11 +636,20 @@ export default async function handler(req, res) {
     : Promise.resolve({ talks: [], matchedTopics: [] });
 
   const niggunPromise = q ? loadNiggunim(supabase).then(n => matchNiggunim(n.groups, q)).catch(() => []) : Promise.resolve([]);
-  const [{ data, error, count }, { talks, matchedTopics, talksError }, matchedNiggunim] = await Promise.all([query, talksPromise, niggunPromise]);
+  // Moments from JEM's playlists whose own title matches ("every last child").
+  const clipsPromise = q && q.trim().length >= 3
+    ? supabase.from('playlist_clips').select(CLIP_FIELDS + ', playlists(name)').ilike('name', '%' + q.trim().replace(/[%_,()]/g, ' ') + '%').limit(24)
+      .then(({ data }) => {
+        const seen = new Set(); // a clip can sit in more than one playlist
+        const list = (data || []).filter(c => !seen.has(c.clip_id) && seen.add(c.clip_id)).slice(0, 10).map(c => ({ ...c, playlist_name: c.playlists?.name }));
+        return list.length ? clipRows(supabase, list) : [];
+      }).catch(() => [])
+    : Promise.resolve([]);
+  const [{ data, error, count }, { talks, matchedTopics, talksError }, matchedNiggunim, clips] = await Promise.all([query, talksPromise, niggunPromise, clipsPromise]);
   if (error) return res.status(500).json({ error: error.message });
 
   await attachConfirmedTitles(supabase, data);
 
   res.setHeader('Cache-Control', 's-maxage=30');
-  res.status(200).json({ results: data, count, talks, matchedTopics, matchedNiggunim, ...(talksError ? { talksError } : {}) });
+  res.status(200).json({ results: data, count, talks, matchedTopics, matchedNiggunim, clips, ...(talksError ? { talksError } : {}) });
 }
