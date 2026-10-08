@@ -88,11 +88,12 @@ Accuracy:
 Title (shown in a track list, like an episode title in a podcast app):
 - The goal: make someone WANT to tap, while saying truthfully what the talk teaches. Accurate and intriguing; neither alone is enough.
 - How: look at the talk's MAIN teaching and find what is surprising in it: the question it answers, the paradox it resolves, the claim that goes against expectation, or an image the teaching itself is built on. Name that.
+- Keep the concrete subject in the title: if the talk is about a named day, mitzvah, object or person (Tisha B'Av, the Sukkah, Chanukah lights, the Alter Rebbe), that name usually belongs in the title. It's what people recognise and search for. "Even Tisha B'Av Afternoon Has Joy", not "When Mourning Gives Way by Afternoon".
 - Main teaching, not a side story: a story, proof or example brought along the way (a verse, a passage of Gemara, an episode from history) supports the teaching; it is not the title. A talk teaching that the Sukkos water-pouring means serving G-d beyond reason, proven from King David's warriors, is "Water Beyond Reason", never "David's Water from Bethlehem".
-- Short: 2-6 words, at most ~40 characters. A title, not a sentence. Title Case. A short question is often the best title ("Why No Hallel on Purim?").
+- Short: 2-6 words and never more than 40 characters. A title, not a sentence, and no "X vs. Y" constructions. Title Case. A short question is often the best title ("Why No Hallel on Purim?").
 - Avoid bland templates that could fit any talk: "The Importance of…", "The Meaning of…", "The Significance of…", "Lessons from…", "Understanding…", "A Lesson in…", "The Power of…", "X and Y". Also avoid a hook with no subject ("A Wave of the Hand").
 - Tone: warm, intelligent and reverent, like a great teacher's class title. Never clickbait, never a news headline.
-- Plain words someone with a basic Jewish background knows (Moshiach, Shabbos, mitzvah, tzedakah, the Rebbe are fine); no unexplained insider terms ("Dira Betachtonim", "Hiskashrus").
+- Plain words someone with a basic Jewish background knows (Moshiach, Shabbos, mitzvah, tzedakah, Sukkah, the Rebbe are fine). No insider terms or sayings a casual listener wouldn't know: halachic terms ("eruv", "muktzeh"), Chassidic terms ("Dira Betachtonim", "Hiskashrus"), or titles that depend on knowing a saying ("Gam Zu L'tovah" vs. "Kol D'avid"). Say the idea in plain English instead.
 - If the outline has its own heading, it tells you the subject; still phrase the English title freshly. If the track covers several unrelated subjects, title the main one.
 - Bland → better: "The Importance of Joy" → "Joy That Breaks Every Barrier"; "Lessons from Purim" → "Why No Hallel on Purim?"; "The Meaning of the Water Libation" → "Water Beyond Reason"; "Our Children Are Our Guarantors" → "Why G-d Took Children as Guarantors".
 - Titles that work: "The Inner Six-Day War", "Why a Second Pesach?", "Bread of Shame", "Two Ways to Bring the Rain", "Spend First, Then Raise the Funds", "Entering the King's Court Uninvited".
@@ -198,7 +199,7 @@ function checkEntry(m, budget) {
   const warnings = [];
   const titleWords = m.title_en.trim().split(/\s+/).length;
   if (m.title_en.length > 45 || titleWords > 7) warnings.push(`Title is long (${titleWords} words, ${m.title_en.length} chars)`);
-  if (/^(the (importance|meaning|significance|power) of|lessons? (from|in|of)|understanding|a lesson in)\b/i.test(m.title_en.trim())) warnings.push('Title uses a bland template');
+  if (BLAND_TITLE.test(m.title_en.trim())) warnings.push('Title uses a bland template');
   const sumWords = m.summary_en.trim().split(/\s+/).length;
   if (sumWords > budget.summaryWords * 1.25) warnings.push(`Summary is ${sumWords} words (limit ${budget.summaryWords})`);
   if (budget.points <= 1 && m.key_points.length > 1) warnings.push(`${m.key_points.length} key points for a one-point outline`);
@@ -416,9 +417,11 @@ async function writeTitles(supabase, id, note, count) {
     ev?.hebrew_day ? `Date: ${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` + (occ.length ? ` (${occ.join(', ')})` : '') : null,
     tm.outline_he ? `\n<outline>\n${tm.outline_he}\n</outline>` : tm.transcript ? `\n<hanacha_opening>\n${tm.transcript.slice(0, 1500)}\n</hanacha_opening>` : null,
     tm.summary_en ? `\n<what_the_talk_teaches>\n${tm.summary_en}${(tm.key_points || []).length ? '\n- ' + tm.key_points.join('\n- ') : ''}\n</what_the_talk_teaches>` : null,
-    `\nTASK: write ${count === 1 ? 'one new English title' : count + ' alternative English titles'} for this talk, following the title rules.`
+    `\nTASK: write ${count === 1 ? 'your best 3 English titles for this talk, best first' : count + ' alternative English titles for this talk'}, following the title rules.`
       + (count > 1 ? ' Make them genuinely different from each other (different angles on the main teaching, a question, a short phrase), not rewordings.' : '')
-      + (tm.title_en ? ` The current title is «${tm.title_en}»; don't repeat or merely reword it.` : '')
+      + (count === 1
+          ? (tm.title_en ? ` The current title is «${tm.title_en}». If it already does the job well (clear subject, plain words, short, makes you want to listen), you may keep it: return it as one of the three.` : '')
+          : (tm.title_en ? ` The current title is «${tm.title_en}»; don't repeat or merely reword it.` : ''))
       + (note ? ` The editor's note on what they want: «${note}».` : ''),
   ].filter(Boolean).join('\n');
   const response = await new Anthropic().beta.messages.create({
@@ -428,7 +431,7 @@ async function writeTitles(supabase, id, note, count) {
     fallbacks: 'default',
     output_config: { effort: 'low', format: { type: 'json_schema', schema: {
       type: 'object', additionalProperties: false, required: ['titles'],
-      properties: { titles: { type: 'array', items: { type: 'string' }, description: count === 1 ? 'Exactly 1 title' : `Exactly ${count} alternative titles` } },
+      properties: { titles: { type: 'array', items: { type: 'string' }, description: count === 1 ? 'Exactly 3 titles, best first' : `Exactly ${count} alternative titles` } },
     } } },
     system: TITLE_SYSTEM,
     messages: [{ role: 'user', content: material }],
@@ -436,15 +439,22 @@ async function writeTitles(supabase, id, note, count) {
   if (response.stop_reason === 'refusal') throw new Error('Claude declined this track (refusal)');
   const text = response.content.find(b => b.type === 'text')?.text;
   if (!text) throw new Error('No text in Claude response');
-  const titles = [...new Set(JSON.parse(text).titles.map(t => String(t).trim()).filter(Boolean))].slice(0, Math.max(count, 1) + 1);
+  const titles = [...new Set(JSON.parse(text).titles.map(t => String(t).trim()).filter(Boolean))].slice(0, count === 1 ? 3 : count + 1);
   const u = response.usage || {};
   const cost = +((u.input_tokens || 0) / 1e6 * PRICE_IN + (u.output_tokens || 0) / 1e6 * PRICE_OUT).toFixed(4);
   return { tm, titles, usage: u, cost };
 }
+// The firm rules, checked in code rather than trusted to the prompt.
+const BLAND_TITLE = /^(the (importance|meaning|significance|power) of|lessons? (from|in|of)|understanding|a lesson in)\b/i;
+function titlePasses(t) {
+  t = String(t || '').trim();
+  return t.length > 0 && t.length <= 42 && t.split(/\s+/).length <= 7 && !BLAND_TITLE.test(t) && !/\bvs\.?\s/i.test(t);
+}
 // Five options for a person to choose from. Nothing is saved.
 async function suggestTitles(supabase, id, note) {
   const r = await writeTitles(supabase, id, note, 5);
-  return { id, current: r.tm.title_en, titles: r.titles, usage: r.usage, cost: r.cost };
+  const good = r.titles.filter(titlePasses);
+  return { id, current: r.tm.title_en, titles: good.length ? good : r.titles, usage: r.usage, cost: r.cost };
 }
 // Replace just the title (summary, topics etc. stay). Skips entries a person
 // locked unless they asked with a note.
@@ -453,8 +463,11 @@ async function retitle(supabase, id, note) {
   if (!lock || lock.status !== 'enriched') throw new Error(`Track ${id} isn't catalogued yet`);
   if (lock.locked && !note) return { id, skipped: 'locked (edited by a person), so re-runs leave it alone' };
   const r = await writeTitles(supabase, id, note, 1);
-  const title = r.titles[0];
+  // The first of Claude's three that passes the firm rules (short, not a
+  // bland template); if none does, keep the current title.
+  const title = r.titles.find(titlePasses) || r.tm.title_en;
   if (!title) throw new Error('No title came back');
+  if (title === r.tm.title_en) return { id, saved: true, kept: true, title, previous_title: r.tm.title_en, cost: r.cost };
   const { error } = await supabase.from('track_metadata').update({ title_en: title, locked: false, updated_at: new Date().toISOString() }).eq('ashreinu_event_id', id);
   if (error) throw new Error(error.message);
   const { data: row } = await supabase.from('track_metadata')

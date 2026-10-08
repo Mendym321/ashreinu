@@ -133,6 +133,7 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
       <button class="btn" id="stopBtn" onclick="stopRequested = true" disabled>Stop</button>
     </div>
     <div class="log" id="prodLog"></div>
+    <div class="row"><button class="btn" id="undoBatch" onclick="undoTitleBatch()" hidden>Undo</button></div>
   </section>
 
   <section style="margin:0 0 34px">
@@ -323,10 +324,12 @@ async function retitleOne(id) {
   try {
     const r = await api({ mode: 'retitle', id, ...(note ? { note } : {}) });
     if (r.skipped) { out.textContent = 'This one is locked (you set its title). Add a note to replace it anyway.'; return; }
+    if (r.kept) { out.textContent = 'Claude kept the current title: it judged it already good. Add a note to push for a change.'; return; }
     plog('✓ #' + id + ' ' + r.title + (r.previous_title ? '   (was: ' + r.previous_title + ')' : '') + ' · $' + (r.cost || 0).toFixed(3));
     results[id] = { ...results[id], metadata: { ...results[id].metadata, title_en: r.title }, locked: false };
     rerenderReviewCard(id);
-    document.getElementById('fixout-' + id).textContent = 'New title. Was: ' + (r.previous_title || '—');
+    if (r.previous_title) document.getElementById('fixout-' + id).innerHTML = 'New title. Was: <b>' + esc(r.previous_title) + '</b> '
+      + '<button class="btn" data-t="' + esc(r.previous_title) + '" onclick="pickTitle(' + id + ', this.dataset.t)">Undo</button>';
   } catch (e) { out.textContent = 'Error: ' + e.message; }
 }
 // Redo one entry, telling Claude what was wrong with the last one.
@@ -401,6 +404,16 @@ async function loadTopicReport() {
 }
 // New titles only: Claude reads the entry's summary and the outline, not the
 // whole hanacha, so it costs about a fifth of a full redo.
+let lastTitleBatch = [];
+// Put back the titles from the last batch (they come back locked, as yours).
+async function undoTitleBatch() {
+  const list = lastTitleBatch; lastTitleBatch = [];
+  document.getElementById('undoBatch').hidden = true;
+  for (const { id, title } of list) {
+    try { await api({ mode: 'settitle', id, title }); plog('↩ #' + id + ' back to: ' + title); if (results[id]?.metadata) { results[id].metadata.title_en = title; results[id].locked = true; rerenderReviewCard(id); } }
+    catch (e) { plog('✗ #' + id + ' undo failed: ' + e.message); }
+  }
+}
 async function retitleTracks(ids) {
   if (busy) return;
   if (!ids.length) { plog('Type or tick the track ids first.'); return; }
@@ -408,20 +421,25 @@ async function retitleTracks(ids) {
   if (!confirm('New titles for ' + ids.length + ' track' + (ids.length > 1 ? 's' : '') + ' (about $' + (0.015 * ids.length).toFixed(2) + ')? Summaries and topics stay as they are.')) return;
   setBusy(true);
   plog('New titles for ' + ids.length + ' tracks…');
-  const queue = [...ids]; let ok = 0, fail = 0, spent = 0;
+  const queue = [...ids], changed = []; let ok = 0, fail = 0, spent = 0;
   await Promise.all([0, 1, 2].map(async () => {
     while (queue.length && !stopRequested) {
       const id = queue.shift();
       try {
         const r = await api({ mode: 'retitle', id, ...(note ? { note } : {}) });
         if (r.skipped) { plog('– #' + id + ' skipped: ' + r.skipped); continue; }
-        ok++; spent += r.cost || 0;
+        spent += r.cost || 0;
+        if (r.kept) { plog('= #' + id + ' kept: ' + r.title); continue; }
+        ok++; changed.push({ id, title: r.previous_title });
         plog('✓ #' + id + ' ' + r.title + (r.previous_title ? '   (was: ' + r.previous_title + ')' : ''));
         if (results[id]?.metadata) { results[id].metadata.title_en = r.title; rerenderReviewCard(id); }
       } catch (e) { fail++; plog('✗ #' + id + ' ' + e.message); }
     }
   }));
-  plog((stopRequested ? 'Stopped' : 'Done') + ': ' + ok + ' new titles, ' + fail + ' failed · $' + spent.toFixed(3) + ' (about $' + (ok ? spent / ok : 0).toFixed(3) + ' each)');
+  plog((stopRequested ? 'Stopped' : 'Done') + ': ' + ok + ' new title' + (ok === 1 ? '' : 's') + ', ' + fail + ' failed · $' + spent.toFixed(3) + ' (about $' + (ids.length ? spent / ids.length : 0).toFixed(3) + ' each)');
+  lastTitleBatch = changed;
+  const u = document.getElementById('undoBatch');
+  u.hidden = !changed.length; u.textContent = changed.length === 1 ? 'Undo this new title' : 'Undo these ' + changed.length + ' new titles';
   document.querySelectorAll('.redo-box:checked').forEach(b => { b.checked = false; }); syncRedoChecked();
   setBusy(false);
 }
