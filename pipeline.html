@@ -129,6 +129,7 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
       <button class="btn" id="collectBtn" onclick="collectAll()">Collect all (free)</button>
       <button class="btn" onclick="enrichBatch(20, true)">Retry errors</button>
       <button class="btn" onclick="enrichBatch(50, false, true)" title="Re-run entries made with older instructions (locked entries are skipped)">Upgrade older entries</button>
+      <button class="btn" onclick="rateAll()" title="Claude rates each catalogued talk 1-5 for how well it works featured on the home page (well under a cent each). New entries are rated automatically.">Rate talks for featuring</button>
       <button class="btn" onclick="reindexAll()" title="After editing entries or topic aliases in Supabase: rebuild what search looks at (free)">Rebuild search index</button>
       <button class="btn" id="stopBtn" onclick="stopRequested = true" disabled>Stop</button>
     </div>
@@ -327,13 +328,17 @@ async function runEnrich(ids, note) {
 function decorateReviewCard(id) {
   const e = results[id], div = document.getElementById('card-' + id);
   const link = '/index.html?track=' + id + '&f=' + (e.source.parent_id || id);
-  div.querySelector('.card-head').insertAdjacentHTML('beforeend', '<a class="pill" href="' + link + '" target="_blank" style="text-decoration:none">OPEN IN APP ↗</a>' + (e.locked ? '<span class="pill">LOCKED</span>' : '')
+  div.querySelector('.card-head').insertAdjacentHTML('beforeend', '<a class="pill" href="' + link + '" target="_blank" style="text-decoration:none">OPEN IN APP ↗</a>' + (e.locked ? '<span class="pill">LOCKED</span>' : '') + featureHtml(id, e)
     + (e.locked ? '' : '<label class="redo-check"><input type="checkbox" class="redo-box" value="' + id + '" onchange="syncRedoChecked()"> Select</label>'));
   div.insertAdjacentHTML('beforeend', '<div class="fixbar">'
     + '<input class="field" id="fixnote-' + id + '" placeholder="What\'s wrong? e.g. tone is off; name the main teaching, not the story">'
     + '<button class="btn" onclick="redoWithNote(' + id + ')" title="Claude sees this entry and your note, and writes a different one">Redo with note</button>'
     + '<button class="btn primary" onclick="retitleOne(' + id + ')" title="A new title for this entry, right away (about $0.01). Uses your note if you typed one.">New title</button>'
     + '<button class="btn" onclick="suggestTitlesFor(' + id + ')" title="5 alternative titles to choose from (nothing changes until you pick one)">Suggest titles</button>'
+    + (e.featured === true || (e.featured !== false && e.evergreen >= 4)
+        ? '<button class="btn" onclick="setFeatured(' + id + ', \'no\')" title="Keep it off the home page\'s Talks to explore shelf (free)">Don\'t feature</button>'
+        : '<button class="btn" onclick="setFeatured(' + id + ', \'yes\')" title="Allow it on the home page\'s Talks to explore shelf (free)">★ Feature</button>')
+    + (e.featured != null ? '<button class="btn" onclick="setFeatured(' + id + ', \'auto\')" title="Let Claude\'s rating decide again">Use rating</button>' : '')
     + '<button class="btn" onclick="editTitle(' + id + ')" title="Type the title yourself. Free: no AI, saved straight away and locked.">Edit title</button>'
     + '<div class="fix-out" id="fixout-' + id + '"></div></div>');
 }
@@ -459,6 +464,45 @@ async function undoTitleBatch() {
     try { await api({ mode: 'settitle', id, title }); plog('↩ #' + id + ' back to: ' + title); if (results[id]?.metadata) { results[id].metadata.title_en = title; results[id].locked = true; rerenderReviewCard(id); } }
     catch (e) { plog('✗ #' + id + ' undo failed: ' + e.message); }
   }
+}
+// Featuring: Claude's 1-5 rating of how well a talk works on the home
+// page's "Talks to explore" shelf (4-5 are shown), and a person's override.
+async function rateAll() {
+  if (busy) return;
+  let ids;
+  try { ids = (await api({ mode: 'unrated' })).ids; } catch (e) { plog('✗ ' + e.message); return; }
+  if (!ids.length) { plog('Every catalogued talk is already rated for featuring.'); return; }
+  if (!confirm('Rate ' + ids.length + ' talk' + (ids.length > 1 ? 's' : '') + ' for featuring (about $' + Math.max(0.01, 0.004 * ids.length).toFixed(2) + ')?')) return;
+  setBusy(true);
+  plog('Rating ' + ids.length + ' talks for featuring…');
+  const queue = [...ids], count = {}; let fail = 0, spent = 0;
+  await Promise.all([0, 1, 2, 3].map(async () => {
+    while (queue.length && !stopRequested) {
+      const id = queue.shift();
+      try {
+        const r = await apiRetry({ mode: 'rate', id });
+        spent += r.cost || 0; count[r.evergreen] = (count[r.evergreen] || 0) + 1;
+        plog((r.evergreen >= 4 ? '★' : '·') + ' ' + r.evergreen + '/5 #' + id + ' ' + r.title + ' (' + r.reason + ')');
+        if (results[id]) { results[id].evergreen = r.evergreen; results[id].evergreen_reason = r.reason; rerenderReviewCard(id); }
+      } catch (e) { fail++; plog('✗ #' + id + ' ' + e.message); }
+    }
+  }));
+  const shown = (count[4] || 0) + (count[5] || 0);
+  plog((stopRequested ? 'Stopped' : 'Done') + ': ' + shown + ' can be featured (4-5), ' + ((count[1] || 0) + (count[2] || 0) + (count[3] || 0)) + ' not (1-3), ' + fail + ' failed · $' + spent.toFixed(3));
+  setBusy(false);
+}
+async function setFeatured(id, value) {
+  const out = document.getElementById('fixout-' + id);
+  try {
+    const r = await api({ mode: 'setfeatured', id, value });
+    if (results[id]) { results[id].featured = r.featured; rerenderReviewCard(id); }
+    plog('✓ #' + id + (r.featured === true ? ' will be featured' : r.featured === false ? ' will never be featured' : ' featuring back to the rating'));
+  } catch (e) { out.textContent = 'Error: ' + e.message; }
+}
+function featureHtml(id, e) {
+  const g = e.evergreen, f = e.featured;
+  const state = f === true ? 'FEATURED (your pick)' : f === false ? 'NOT FEATURED (your pick)' : g == null ? 'NOT RATED FOR FEATURING' : g >= 4 ? '★ FEATURED ' + g + '/5' : 'NOT FEATURED ' + g + '/5';
+  return '<span class="pill" title="' + esc(e.evergreen_reason || 'Can the home page feature it? Claude rates 1-5; 4-5 are shown.') + '">' + state + '</span>';
 }
 async function retitleTracks(ids) {
   if (busy) return;

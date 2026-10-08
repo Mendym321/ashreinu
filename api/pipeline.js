@@ -56,7 +56,7 @@ function buildSchema(topicSlugs) {
     type: 'object',
     additionalProperties: false,
     required: ['title_en', 'title_he', 'summary_en', 'key_points', 'main_topic', 'other_topics', 'suggested_new_topics',
-               'occasions', 'parsha', 'people', 'sources', 'phrases', 'confidence', 'confidence_reason'],
+               'occasions', 'parsha', 'people', 'sources', 'phrases', 'confidence', 'confidence_reason', 'evergreen', 'evergreen_reason'],
     properties: {
       title_en: { type: 'string', description: 'Short, catchy English title, like an episode title: 2-6 words, at most ~40 characters. A title, not a sentence.' },
       title_he: { type: 'string', description: 'Short Hebrew heading (the outline\'s own heading when it has one)' },
@@ -72,9 +72,22 @@ function buildSchema(topicSlugs) {
       phrases: { type: 'array', items: { type: 'string' }, description: 'Famous sayings the talk quotes or centres on (often empty)' },
       confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
       confidence_reason: { type: 'string', description: 'One short sentence: why this confidence' },
+      ...EVERGREEN_PROPS,
     },
   };
 }
+// How well a talk would work featured on the home page for anyone (see
+// EVERGREEN_RULES). Shared by the full entry and the rating-only pass.
+const EVERGREEN_PROPS = {
+  evergreen: { type: 'integer', enum: [1, 2, 3, 4, 5], description: 'How well this talk works featured for any listener today (see the evergreen rules)' },
+  evergreen_reason: { type: 'string', description: 'One short sentence: why this score' },
+};
+const EVERGREEN_RULES = `evergreen (1-5): would this talk work FEATURED on the home page, for any listener today who knows nothing about its background? Judge the talk's message, not the quality of the material.
+- 5: a universal, striking message anyone can take into their life (on faith, joy, purpose, struggle, family, how to treat others, serving G-d in daily life), and it stands on its own.
+- 4: a clear, broadly relevant lesson; little background needed. A talk tied to a festival or parsha can be a 4 or 5 if its lesson is universal.
+- 3: interesting, but needs background, or mainly about one occasion's details or a scholarly point.
+- 2: tied to a specific event, campaign, institution, group or moment in time (a particular gathering, a call to action of that year, words to one yeshiva or group).
+- 1: technical, administrative or fragmentary (thanks, announcements, instructions, a brief remark, a niche halachic or textual detail).`;
 
 const SYSTEM = `You catalogue recordings of the Lubavitcher Rebbe's talks (sichos, ma'amarim) for a searchable audio archive. The listeners are a wide crowd: many have a basic Jewish background but don't know Chassidic terminology. For ONE audio track you get the archive's own material for it: a Hebrew outline (תוכן) written in dense editorial shorthand, and/or a hanacha (a transcript written down from the talk, in Hebrew or Yiddish). Write the English catalogue entry for that track.
 
@@ -119,7 +132,9 @@ Classification. These power browsing and search, so consistency matters more tha
 - sources: at most 4 works the talk actually builds on, at book level ("Tanya", "Zohar", "Rambam, Hilchos Teshuvah", "Bamidbar"). Not every citation or footnote, and not standard commentaries mentioned in passing (Rashi on a verse).
 - phrases: famous sayings or expressions the talk quotes or centres on, as people remember them ("lechatchila ariber", "nahama dekisufa", "ufaratzta"). Usually empty.
 
-confidence: high if the material clearly covers the talk; medium if brief or partial; low if very thin or unclear.`;
+confidence: high if the material clearly covers the talk; medium if brief or partial; low if very thin or unclear.
+
+${EVERGREEN_RULES}`;
 
 function htmlToText(html) {
   return String(html || '')
@@ -382,11 +397,17 @@ async function enrichStored(supabase, id, note) {
       main_topic: m.main_topic, topics: m.other_topics, suggested_new_topics: m.suggested_new_topics,
       occasions: m.occasions, parsha: m.parsha, people: m.people, sources: m.sources, phrases: m.phrases,
       audience, keywords: [], confidence: m.confidence, confidence_reason: m.confidence_reason,
+      evergreen: m.evergreen ?? null, evergreen_reason: m.evergreen_reason || null,
       ...buildSearchLayers(m, tm.outline_he, topics, audience), model: r.model,
       input_tokens: r.usage.input_tokens, output_tokens: r.usage.output_tokens,
       enriched_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from('track_metadata').update(row).eq('ashreinu_event_id', id);
+    let { error } = await supabase.from('track_metadata').update(row).eq('ashreinu_event_id', id);
+    // Before supabase/004_featured.sql is run there are no evergreen columns.
+    if (error && /evergreen/.test(error.message)) {
+      delete row.evergreen; delete row.evergreen_reason;
+      ({ error } = await supabase.from('track_metadata').update(row).eq('ashreinu_event_id', id));
+    }
     if (error) throw new Error(error.message);
     return { id, saved: true, metadata: m, previous_title: tm.status === 'enriched' ? tm.title_en : null, audience, warnings: r.warnings, usage: r.usage };
   } catch (e) {
@@ -460,6 +481,50 @@ async function suggestTitles(supabase, id, note) {
 }
 // Replace just the title (summary, topics etc. stay). Skips entries a person
 // locked unless they asked with a note.
+// Rating only (for entries made before ratings existed): how well the talk
+// works featured on the home page. Reads just the entry, so it costs well
+// under a cent.
+const NO_FEATURE_COLUMNS = 'The featuring columns are missing: run supabase/004_featured.sql in Supabase first';
+async function rateEvergreen(supabase, id) {
+  const { data: tm, error: e1 } = await supabase.from('track_metadata')
+    .select('status, title_en, summary_en, key_points, occasions, outline_he').eq('ashreinu_event_id', id).maybeSingle();
+  if (e1) throw new Error(e1.message);
+  if (tm?.status !== 'enriched') throw new Error(`Track ${id} isn't catalogued yet`);
+  const material = [
+    `Title: ${tm.title_en}`,
+    `Summary: ${tm.summary_en}`,
+    (tm.key_points || []).length ? 'Key points:\n- ' + tm.key_points.join('\n- ') : null,
+    (tm.occasions || []).length ? `Occasions: ${tm.occasions.join(', ')}` : null,
+    tm.outline_he ? `\n<outline>\n${tm.outline_he.slice(0, 1500)}\n</outline>` : null,
+    '\nTASK: rate this talk for featuring, following the evergreen rules.',
+  ].filter(Boolean).join('\n');
+  const response = await new Anthropic().beta.messages.create({
+    model: MODEL, max_tokens: 300,
+    betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default',
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: {
+      type: 'object', additionalProperties: false, required: ['evergreen', 'evergreen_reason'], properties: EVERGREEN_PROPS,
+    } } },
+    system: `You help curate an archive of the Lubavitcher Rebbe's recorded talks for a wide audience.\n\n${EVERGREEN_RULES}`,
+    messages: [{ role: 'user', content: material }],
+  });
+  if (response.stop_reason === 'refusal') throw new Error('Claude declined this track (refusal)');
+  const text = response.content.find(b => b.type === 'text')?.text;
+  if (!text) throw new Error('No text in Claude response');
+  const r = JSON.parse(text);
+  const { error } = await supabase.from('track_metadata').update({ evergreen: r.evergreen, evergreen_reason: r.evergreen_reason }).eq('ashreinu_event_id', id);
+  if (error) throw new Error(/evergreen/.test(error.message) ? NO_FEATURE_COLUMNS : error.message);
+  const u = response.usage || {};
+  const cost = +((u.input_tokens || 0) / 1e6 * PRICE_IN + (u.output_tokens || 0) / 1e6 * PRICE_OUT).toFixed(4);
+  return { id, evergreen: r.evergreen, reason: r.evergreen_reason, title: tm.title_en, cost };
+}
+// A person's call: 'yes' always may be featured, 'no' never, 'auto' = the rating decides.
+async function setFeatured(supabase, id, value) {
+  const featured = value === 'yes' ? true : value === 'no' ? false : null;
+  const { error } = await supabase.from('track_metadata').update({ featured }).eq('ashreinu_event_id', id).eq('status', 'enriched');
+  if (error) throw new Error(/featured/.test(error.message) ? NO_FEATURE_COLUMNS : error.message);
+  return { id, featured };
+}
+
 async function retitle(supabase, id, note) {
   const { data: lock } = await supabase.from('track_metadata').select('locked, status').eq('ashreinu_event_id', id).maybeSingle();
   if (!lock || lock.status !== 'enriched') throw new Error(`Track ${id} isn't catalogued yet`);
@@ -704,7 +769,7 @@ export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
   const { mode, id } = req.query;
-  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'fix', 'setfix', 'settext'].includes(mode);
+  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'fix', 'setfix', 'settext', 'rate', 'setfeatured'].includes(mode);
   if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit || '30', 10) || 30, 100));
 
@@ -742,6 +807,17 @@ export default async function handler(req, res) {
       return res.status(200).json(await suggestTitles(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
     }
     if (mode === 'settitle') return res.status(200).json(await setTitle(supa(), parseInt(id, 10), req.query.title));
+    if (mode === 'rate') {
+      if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+      return res.status(200).json(await rateEvergreen(supa(), parseInt(id, 10)));
+    }
+    if (mode === 'setfeatured') return res.status(200).json(await setFeatured(supa(), parseInt(id, 10), String(req.query.value || 'auto')));
+    if (mode === 'unrated') {
+      // Catalogued talks with no featuring rating yet (made before ratings existed).
+      const rows = await allRows(() => supa().from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').is('evergreen', null).order('ashreinu_event_id'))
+        .catch(e => { throw new Error(/evergreen/.test(e.message) ? NO_FEATURE_COLUMNS : e.message); });
+      return res.status(200).json({ ids: rows.map(r => r.ashreinu_event_id) });
+    }
     if (mode === 'retitle') {
       if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
       return res.status(200).json(await retitle(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
@@ -787,6 +863,7 @@ export default async function handler(req, res) {
               main_topic: r.main_topic, other_topics: r.topics || [], suggested_new_topics: r.suggested_new_topics || [],
               occasions: r.occasions || [], parsha: r.parsha, people: r.people || [], sources: r.sources || [], phrases: r.phrases || [],
               confidence: r.confidence, confidence_reason: r.confidence_reason },
+            evergreen: r.evergreen ?? null, evergreen_reason: r.evergreen_reason || null, featured: r.featured ?? null,
             audience: r.audience || [], locked: r.locked, model: r.model,
             usage: { input_tokens: r.input_tokens || 0, output_tokens: r.output_tokens || 0 },
           };

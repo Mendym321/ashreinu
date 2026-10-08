@@ -224,17 +224,28 @@ export default async function handler(req, res) {
   // A random handful of catalogued talks (home "Talks to explore"), so the
   // home page feels fresh on each visit.
   if (req.query.explore) {
+    // Only talks that work for anyone: rated 4-5 for featuring by Claude
+    // (evergreen), or chosen by a person (featured = true); never ones a
+    // person ruled out. Talks not rated yet only fill in if too few are rated.
     const n = Math.max(1, Math.min(parseInt(req.query.explore, 10) || 12, 40));
-    const ids = [];
+    const rows = [];
+    let rated = true;
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').order('ashreinu_event_id').range(from, from + 999);
+      let { data, error } = await supabase.from('track_metadata').select('ashreinu_event_id, evergreen, featured').eq('status', 'enriched').order('ashreinu_event_id').range(from, from + 999);
+      if (error && rated) { // no featuring columns yet (supabase/004_featured.sql): every talk counts
+        rated = false;
+        ({ data, error } = await supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').order('ashreinu_event_id').range(from, from + 999));
+      }
       if (error) return res.status(200).json({ results: [] }); // catalogue not set up yet
-      ids.push(...data.map(r => r.ashreinu_event_id));
+      rows.push(...data);
       if (data.length < 1000) break;
     }
-    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const good = shuffle(rows.filter(r => r.featured === true || (r.featured !== false && r.evergreen >= 4)));
+    const unrated = shuffle(rows.filter(r => r.featured == null && r.evergreen == null));
+    const ids = [...good, ...(good.length < n ? unrated : [])].slice(0, n).map(r => r.ashreinu_event_id);
     res.setHeader('Cache-Control', 's-maxage=60');
-    return res.status(200).json({ results: await rowsForIds(supabase, ids.slice(0, n), {}) });
+    return res.status(200).json({ results: await rowsForIds(supabase, ids, {}) });
   }
 
   // One event's row by id (e.g. a farbrengen opened from one of its tracks).
