@@ -79,6 +79,23 @@ async function loadNiggunim(supabase) {
     tracks.push(...data);
     if (data.length < 1000) break;
   }
+  // Tracks a person marked as a niggun in the pipeline page ("Fix a track"),
+  // which Ashreinu filed as something else. Renamed ones take the new name;
+  // ones marked "not a talk" (silence, a broken recording) leave the list.
+  const { data: fixList } = await supabase.from('track_fixes').select('ashreinu_event_id, kind, title');
+  const fixes = new Map((fixList || []).map(f => [f.ashreinu_event_id, f]));
+  for (let i = tracks.length - 1; i >= 0; i--) {
+    const f = fixes.get(tracks[i].id);
+    if (f?.kind === 'not_a_talk') tracks.splice(i, 1);
+    else if (f?.title) tracks[i] = { ...tracks[i], name: f.title, description: '' };
+  }
+  const known = new Set(tracks.map(t => t.id));
+  const extra = [...fixes.values()].filter(f => f.kind === 'niggun' && f.title && !known.has(f.ashreinu_event_id));
+  if (extra.length) {
+    const { data } = await supabase.from('ashreinu_events').select('id, hebrew_year').in('id', extra.map(f => f.ashreinu_event_id));
+    const yearById = new Map((data || []).map(r => [r.id, r.hebrew_year]));
+    for (const f of extra) if (yearById.has(f.ashreinu_event_id)) tracks.push({ id: f.ashreinu_event_id, name: f.title, description: '', hebrew_year: yearById.get(f.ashreinu_event_id) });
+  }
   const yearOf = new Map(tracks.map(t => [t.id, t.hebrew_year]));
   const groups = groupNiggunim(tracks).map(g => {
     const years = g.ids.map(id => yearOf.get(id)).filter(Boolean);
@@ -156,10 +173,12 @@ async function attachConfirmedTitles(supabase, rows) {
   if (!rows.length) return;
   attachPhotos(rows);
   const ids = rows.map(r => r.id);
-  const [{ data: links }, { data: catalogue }] = await Promise.all([
+  const [{ data: links }, { data: catalogue }, { data: fixList }] = await Promise.all([
     supabase.from('audio_text_links').select('ashreinu_event_id, title_en').in('ashreinu_event_id', ids),
     supabase.from('track_metadata').select('ashreinu_event_id, title_en, summary_en, main_topic, topics').eq('status', 'enriched').in('ashreinu_event_id', ids),
+    supabase.from('track_fixes').select('ashreinu_event_id, kind, title').in('ashreinu_event_id', ids), // no table yet → no fixes
   ]);
+  const fixes = Object.fromEntries((fixList || []).map(f => [f.ashreinu_event_id, f]));
   const verified = Object.fromEntries((links || []).filter(l => l.title_en).map(l => [l.ashreinu_event_id, l.title_en]));
   const cat = Object.fromEntries((catalogue || []).filter(c => c.title_en).map(c => [c.ashreinu_event_id, c]));
   for (const row of rows) {
@@ -167,6 +186,12 @@ async function attachConfirmedTitles(supabase, rows) {
     const niggun = /nigun/i.test(row.type || '') ? niggunTitle(row.name, row.desc) : null;
     row.confirmed_title = verified[row.id] || cat[row.id]?.title_en || niggun || null;
     row.title_source = verified[row.id] ? 'verified' : cat[row.id] ? 'catalogue' : niggun ? 'ashreinu' : null;
+    // A fix made by hand in the pipeline page wins over everything.
+    const fix = fixes[row.id];
+    if (fix) {
+      if (fix.kind === 'niggun') row.type = 'Nigun';
+      if (fix.title) { row.confirmed_title = fix.title; row.title_source = 'fixed'; }
+    }
     if (cat[row.id]) { row.summary_en = cat[row.id].summary_en; row.main_topic = cat[row.id].main_topic; row.other_topics = cat[row.id].topics; }
   }
 }
