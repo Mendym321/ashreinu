@@ -203,6 +203,17 @@ async function pipelineFetch(query) {
   if (r.status === 401) r = await fetch('/api/pipeline?' + query, { headers: { 'x-pipeline-key': pipelineKey(true) } });
   return r;
 }
+// For long text (a whole sicha), which doesn't fit in a web address.
+async function apiPost(params, body) {
+  const send = (force) => fetch('/api/pipeline?' + new URLSearchParams(params), { method: 'POST',
+    headers: { 'x-pipeline-key': pipelineKey(force), 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  let r = await send(false);
+  if (r.status === 401) r = await send(true);
+  const text = await r.text();
+  let j; try { j = JSON.parse(text); } catch (e) { throw new Error('Server error: ' + text.slice(0, 120)); }
+  if (j.error) throw new Error(j.error);
+  return j;
+}
 async function api(params) {
   const r = await pipelineFetch(new URLSearchParams(params));
   const text = await r.text();
@@ -508,10 +519,58 @@ async function lookupFix() {
       + '<button class="btn primary" onclick="saveFix(' + id + ')">Save fix</button>'
       + (r.fix ? '<button class="btn" onclick="removeFix(' + id + ')">Remove fix</button>' : '')
       + '<a class="btn" href="/index.html?play=' + id + '" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center">Listen ↗</a></div>'
-      + '<div class="fix-out" id="fixMsg"></div></div>';
+      + '<div class="fix-out" id="fixMsg"></div>'
+      + sourceTextHtml(id, r.catalogue) + '</div>';
     document.getElementById('fixTitle').value = r.fix?.same_as || r.fix?.title || '';
     syncFixKind();
   } catch (e) { panel.innerHTML = '<p class="lead">' + esc(e.message) + '</p>'; }
+}
+// Source text: what Claude catalogues the track from. Copy Ashreinu's
+// outline/hanacha from another track, and/or paste text (e.g. a Likkutei Sichos).
+function sourceTextHtml(id, c) {
+  const has = c && (c.outline_chars || c.text_chars);
+  return '<div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">'
+    + '<div style="font-weight:800">Source text</div>'
+    + '<p class="lead" style="font-size:13px;margin:4px 0 8px">What Claude catalogues this track from. Use it when Ashreinu attached the text to the wrong track, or when you have the text from elsewhere.</p>'
+    + (has
+      ? '<div class="lead" style="font-size:13px">Now: ' + [c.outline_chars ? 'outline (' + c.outline_chars + ' characters)' : '', c.text_chars ? esc(c.text_kind || 'hanacha') + ' (' + c.text_chars + ' characters)' : ''].filter(Boolean).join(' + ')
+        + (c.status === 'enriched' ? ' · catalogued as <b>' + esc(c.title || '') + '</b>' : ' · waiting for Claude') + '</div>'
+        + (c.text ? '<div class="lead" style="font-size:12.5px;margin-top:4px;white-space:pre-wrap">' + esc(c.text) + (c.text_chars > 300 ? '…' : '') + '</div>' : '')
+      : '<div class="lead" style="font-size:13px">Now: none.</div>')
+    + '<div class="row" style="margin-top:10px"><span class="row-label">Copy from</span>'
+    + '<input class="field" id="textFrom" placeholder="track number with the outline, e.g. 8385" style="flex:1;min-width:200px" inputmode="numeric"></div>'
+    + '<textarea class="field" id="textPaste" placeholder="Or paste the text here (Hebrew, Yiddish or English)" style="width:100%;height:140px;padding:12px 14px;border-radius:16px;margin-top:8px;resize:vertical"></textarea>'
+    + '<div class="row" style="margin-top:8px"><span class="row-label">What it is</span>'
+    + '<input class="field" id="textKind" value="Likkutei Sichos (edited), English translation" style="flex:1;min-width:200px"></div>'
+    + '<div class="row" style="margin-top:10px">'
+    + '<button class="btn" onclick="saveText(' + id + ')">Save text (free)</button>'
+    + (has ? '<button class="btn primary" onclick="catalogueNow(' + id + ')">' + (c.status === 'enriched' ? 'Re-catalogue with Claude' : 'Catalogue with Claude') + ' (about $0.07)</button>' : '')
+    + '</div><div class="fix-out" id="textMsg"></div></div>';
+}
+async function saveText(id) {
+  const from = parseIds(document.getElementById('textFrom').value)[0];
+  const text = document.getElementById('textPaste').value.trim();
+  const kind = document.getElementById('textKind').value.trim();
+  const msg = document.getElementById('textMsg');
+  if (!from && !text) { msg.textContent = 'Type a track number to copy from, or paste some text.'; return; }
+  msg.textContent = 'Saving…';
+  try {
+    const r = await apiPost({ mode: 'settext', id }, { ...(from ? { from } : {}), ...(text ? { text, kind } : {}) });
+    plog('✓ #' + id + ' source text saved' + (from ? ' (copied from #' + from + ')' : '') + ': outline ' + r.outline_chars + ' + text ' + r.text_chars + ' characters');
+    await lookupFix();
+    document.getElementById('textMsg').textContent = 'Saved. Now press "' + (r.already_catalogued ? 'Re-catalogue' : 'Catalogue') + ' with Claude" to write its entry.';
+  } catch (e) { msg.textContent = 'Error: ' + e.message; }
+}
+async function catalogueNow(id) {
+  const msg = document.getElementById('textMsg');
+  msg.textContent = 'Claude is reading it (about 30 seconds)…';
+  try {
+    const r = await api({ mode: 'enrich', id });
+    if (r.skipped) { msg.textContent = 'This entry is locked (you edited it). Use "Redo with note" in Review to replace it.'; return; }
+    plog('✓ #' + id + ' catalogued: ' + r.metadata.title_en);
+    await lookupFix();
+    document.getElementById('textMsg').innerHTML = 'Catalogued as <b>' + esc(r.metadata.title_en) + '</b>. Find it in Review (type ' + id + ') to check it, or use Edit title.';
+  } catch (e) { msg.textContent = 'Error: ' + e.message; }
 }
 function fixKind() { return document.querySelector('input[name=fixKind]:checked')?.value || 'niggun'; }
 function syncFixKind() {

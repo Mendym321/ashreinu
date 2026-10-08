@@ -506,12 +506,46 @@ async function getFix(supabase, id) {
   const [{ data: ev, error: e1 }, { data: fix, error }, { data: tm }] = await Promise.all([
     supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month_name, hebrew_year, duration_ms, description:raw_data->>description').eq('id', id).maybeSingle(),
     supabase.from('track_fixes').select('*').eq('ashreinu_event_id', id).maybeSingle(),
-    supabase.from('track_metadata').select('status, title_en').eq('ashreinu_event_id', id).maybeSingle(),
+    supabase.from('track_metadata').select('status, title_en, outline_he, transcript, transcript_kind').eq('ashreinu_event_id', id).maybeSingle(),
   ]);
   if (e1) throw new Error(e1.message);
   if (error) throw new Error(fixTableError(error));
   if (!ev) throw new Error(`No track #${id} in the archive`);
-  return { id, track: ev, fix: fix || null, catalogue: tm ? { status: tm.status, title: tm.title_en } : null };
+  return { id, track: ev, fix: fix || null, catalogue: tm ? { status: tm.status, title: tm.title_en,
+    outline: (tm.outline_he || '').slice(0, 300), outline_chars: (tm.outline_he || '').length,
+    text: (tm.transcript || '').slice(0, 300), text_chars: (tm.transcript || '').length, text_kind: tm.transcript_kind } : null };
+}
+// Give a track its source text by hand: Ashreinu's outline/hanacha copied
+// from another track (when Ashreinu attached it to the wrong one), and/or
+// text pasted in (e.g. the edited sicha from Likkutei Sichos). Free; then
+// "Catalogue" runs Claude on it as usual.
+async function setText(supabase, id, body) {
+  const from = parseInt(body.from, 10) || null;
+  const text = String(body.text || '').trim().slice(0, 60000);
+  const kind = String(body.kind || '').trim().slice(0, 120) || 'Pasted text';
+  if (!from && !text) throw new Error('Give a track number to copy from, or paste some text');
+  if (from === id) throw new Error("Can't copy a track's text onto itself");
+  const [{ data: ev }, { data: tm }] = await Promise.all([
+    supabase.from('ashreinu_events').select('id, audio_uri').eq('id', id).maybeSingle(),
+    supabase.from('track_metadata').select('status, outline_he, transcript, transcript_kind').eq('ashreinu_event_id', id).maybeSingle(),
+  ]);
+  if (!ev?.audio_uri) throw new Error(`Track #${id} isn't a recording in the archive`);
+  if (tm?.status === 'skipped') throw new Error(`Track #${id} is fixed as not a talk; remove that fix first`);
+  const row = { outline_he: tm?.outline_he || null, transcript: tm?.transcript || null, transcript_kind: tm?.transcript_kind || null };
+  if (from) {
+    const { data: src } = await supabase.from('track_metadata').select('outline_he, transcript, transcript_kind').eq('ashreinu_event_id', from).maybeSingle();
+    if (!src || (!src.outline_he && !src.transcript)) throw new Error(`Track #${from} has no outline or hanacha to copy`);
+    if (src.outline_he) row.outline_he = src.outline_he;
+    if (src.transcript) { row.transcript = src.transcript; row.transcript_kind = src.transcript_kind; }
+  }
+  if (text) { row.transcript = text; row.transcript_kind = kind; }
+  // A new source means the entry should be (re)written: it waits for Claude.
+  const now = new Date().toISOString();
+  const { error } = tm
+    ? await supabase.from('track_metadata').update({ ...row, ...(tm.status === 'enriched' ? {} : { status: 'collected', error: null }), updated_at: now }).eq('ashreinu_event_id', id)
+    : await supabase.from('track_metadata').insert({ ashreinu_event_id: id, ...row, status: 'collected', updated_at: now });
+  if (error) throw new Error(error.message);
+  return { id, saved: true, outline_chars: (row.outline_he || '').length, text_chars: (row.transcript || '').length, text_kind: row.transcript_kind, already_catalogued: tm?.status === 'enriched' };
 }
 // Put back a catalogue entry a fix had taken out (or, if Claude never wrote
 // one, let the track be catalogued like any other).
@@ -670,7 +704,7 @@ export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
   const { mode, id } = req.query;
-  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'fix', 'setfix'].includes(mode);
+  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'fix', 'setfix', 'settext'].includes(mode);
   if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit || '30', 10) || 30, 100));
 
@@ -711,6 +745,11 @@ export default async function handler(req, res) {
     if (mode === 'retitle') {
       if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
       return res.status(200).json(await retitle(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
+    }
+    if (mode === 'settext') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
+      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      return res.status(200).json(await setText(supa(), parseInt(id, 10), body));
     }
     if (mode === 'fix') return res.status(200).json(await getFix(supa(), parseInt(id, 10)));
     if (mode === 'setfix') return res.status(200).json(await setFix(supa(), parseInt(id, 10), String(req.query.kind || ''), req.query.title, req.query.note, req.query.same_as));
