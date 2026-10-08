@@ -155,12 +155,16 @@ async function searchTalks(supabase, q, topics, filters) {
   const precise = await call(u.all);
   if (precise.error) throw new Error(precise.error.message);
   let hits = precise.data || [];
+  const loose = new Set(); // matched only some of the words: shown apart, as "related"
   if (hits.length < 8 && u.any && u.any !== u.all) {
     const wide = await call(u.any);
     const seen = new Set(hits.map(h => h.ashreinu_event_id));
-    hits = [...hits, ...(wide.data || []).filter(h => !seen.has(h.ashreinu_event_id))];
+    const more = (wide.data || []).filter(h => !seen.has(h.ashreinu_event_id));
+    more.forEach(h => loose.add(h.ashreinu_event_id));
+    hits = [...hits, ...more];
   }
   const talks = await rowsForIds(supabase, hits.map(h => h.ashreinu_event_id), filters);
+  for (const t of talks) if (loose.has(t.id)) t.loose = true;
   const matchedTopics = topics.filter(t => u.topicSlugs.includes(t.slug));
   return { talks: talks.slice(0, 40), matchedTopics };
 }
@@ -655,6 +659,22 @@ export default async function handler(req, res) {
 
   await attachConfirmedTitles(supabase, data);
 
+  // "Top result": whatever's TITLE (ours, Claude's, JEM's clip title) or
+  // Ashreinu's description contains the whole phrase typed, wherever it came
+  // from: "Every Jew is a Soldier" finds that talk first, not talks that
+  // merely mention Jews. Only for real phrases (two words or more).
+  const norm = t => String(t || '').toLowerCase().replace(/[’‘`']/g, '').replace(/[^a-z0-9\u0590-\u05ff]+/g, ' ').trim();
+  const phrase = norm(q);
+  let top = [];
+  if (phrase.split(' ').length >= 2) {
+    const seen = new Set();
+    top = [...(talks || []), ...(clips || []), ...(data || [])]
+      .map(r => ({ r, inTitle: norm(r.confirmed_title).includes(phrase), inDesc: norm(r.ashreinu_desc).includes(phrase) }))
+      .filter(x => (x.inTitle || x.inDesc) && !seen.has(String(x.r.id)) && seen.add(String(x.r.id)))
+      .sort((a, b) => b.inTitle - a.inTitle)
+      .slice(0, 3).map(x => (x.inTitle ? x.r : { ...x.r, matched_desc: true }));
+  }
+
   res.setHeader('Cache-Control', 's-maxage=30');
-  res.status(200).json({ results: data, count, talks, matchedTopics, matchedNiggunim, clips, ...(talksError ? { talksError } : {}) });
+  res.status(200).json({ results: data, count, top, talks, matchedTopics, matchedNiggunim, clips, ...(talksError ? { talksError } : {}) });
 }

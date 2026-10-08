@@ -321,13 +321,18 @@ function candidateQuery(supabase, columns, opts) {
 // Search text in four weighted layers (see supabase/002_topics_and_search.sql):
 // A titles + phrases, B classification (topic names + aliases, occasions,
 // parsha, people, sources, audience), C summary + key points, D outline.
-function buildSearchLayers(m, outline, topics, audience) {
+// description: Ashreinu's own English line for the track. Its "Title:" part
+// counts like a title (layer A), the whole line like a summary (layer C), so
+// searching Ashreinu's wording finds the talk even after Claude retitled it.
+function buildSearchLayers(m, outline, topics, audience, description) {
   const topicWords = [m.main_topic, ...m.other_topics].map(slug => topics.bySlug[slug])
     .filter(Boolean).flatMap(t => [t.name_en, t.name_he, ...(t.aliases || [])]);
+  const d = String(description || '').trim();
+  const head = (d.match(/^([^:]{3,45}):\s*\S/) || [])[1] || '';
   const layers = {
-    search_a: normalize([m.title_en, m.title_he, ...m.phrases].join(' \n ')),
+    search_a: normalize([m.title_en, m.title_he, head, ...m.phrases].join(' \n ')),
     search_b: normalize([...topicWords, ...m.occasions, m.parsha, ...m.people, ...m.sources, ...audience].filter(Boolean).join(' \n ')),
-    search_c: normalize([m.summary_en, ...m.key_points].join(' \n ')),
+    search_c: normalize([m.summary_en, ...m.key_points, d].join(' \n ')),
     search_d: hebrewSearchForms(normalize(outline || '')),
   };
   // search_text (all layers in one) is kept for simple substring search.
@@ -401,7 +406,7 @@ async function enrichStored(supabase, id, note) {
       occasions: m.occasions, parsha: m.parsha, people: m.people, sources: m.sources, phrases: m.phrases,
       audience, keywords: [], confidence: m.confidence, confidence_reason: m.confidence_reason,
       evergreen: m.evergreen ?? null, evergreen_reason: m.evergreen_reason || null,
-      ...buildSearchLayers(m, tm.outline_he, topics, audience), model: r.model,
+      ...buildSearchLayers(m, tm.outline_he, topics, audience, src.description), model: r.model,
       input_tokens: r.usage.input_tokens, output_tokens: r.usage.output_tokens,
       enriched_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
@@ -728,14 +733,26 @@ async function reindex(supabase, offset) {
     .select('ashreinu_event_id, title_en, title_he, summary_en, key_points, main_topic, topics, occasions, parsha, people, sources, phrases, audience, outline_he')
     .eq('status', 'enriched').order('ashreinu_event_id').range(offset, offset + 199);
   if (error) throw new Error(error.message);
-  for (const r of data) await reindexRow(supabase, topics, r);
+  const desc = await descriptionsFor(supabase, data.map(r => r.ashreinu_event_id));
+  for (const r of data) await reindexRow(supabase, topics, { ...r, description: desc[r.ashreinu_event_id] || '' });
   return { reindexed: data.length, next_offset: data.length === 200 ? offset + 200 : null };
+}
+// Ashreinu's English description of each track (none for niggunim, where it
+// lists the niggunim's names instead).
+async function descriptionsFor(supabase, ids) {
+  const out = {};
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await supabase.from('ashreinu_events').select('id, type, description:raw_data->>description').in('id', ids.slice(i, i + 200));
+    for (const e of data || []) if (!/nigun/i.test(e.type || '') && e.description) out[e.id] = e.description.trim();
+  }
+  return out;
 }
 async function reindexRow(supabase, topics, r) {
   const m = { ...r, key_points: r.key_points || [], other_topics: r.topics || [], occasions: r.occasions || [],
               people: r.people || [], sources: r.sources || [], phrases: r.phrases || [] };
+  const description = r.description ?? (await descriptionsFor(supabase, [r.ashreinu_event_id]))[r.ashreinu_event_id];
   const { error } = await supabase.from('track_metadata')
-    .update({ ...buildSearchLayers(m, r.outline_he, topics, r.audience || []), updated_at: new Date().toISOString() })
+    .update({ ...buildSearchLayers(m, r.outline_he, topics, r.audience || [], description), updated_at: new Date().toISOString() })
     .eq('ashreinu_event_id', r.ashreinu_event_id);
   if (error) throw new Error(error.message);
 }

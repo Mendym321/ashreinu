@@ -480,6 +480,8 @@ body.audio-paused .eq i{animation-play-state:paused}
 .pl-tile span{position:relative;font-size:12px;opacity:.88;margin-top:3px}
 .pl-tile.skel-cover{width:auto;height:auto;cursor:default}
 .pl-tile.skel-cover::before{display:none}
+.top-hits{background:var(--hover);border-radius:14px;padding:4px 12px;margin:0 -4px 6px}
+.res-note{font-size:12.5px;color:var(--ink-light);margin:-6px 0 6px}
 .pl-credit{font-size:12.5px;color:var(--ink-light);margin:18px 2px 4px}
 .nig-letter{font-size:13px;font-weight:800;color:var(--gold);padding:14px 4px 2px;border-bottom:1px solid var(--border-soft)}
 .nig-kinds{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
@@ -1161,10 +1163,19 @@ async function search(fromHistory) {
       return;
     }
 
-    const results = j.results || [];
-    const talks = j.talks || [];
+    // Best first, nothing twice: the top result (the whole phrase in a
+    // title or Ashreinu's description), then talks matching every word, JEM
+    // moments, talks matching only some words, then tracks by name or date.
+    const shownIds = new Set();
+    const fresh = r => !shownIds.has(String(r.id)) && shownIds.add(String(r.id));
+    const top = (j.top || []).filter(fresh);
+    const talks = (j.talks || []).filter(t => !t.loose).filter(fresh);
+    const clipHits = (j.clips || []).filter(fresh);
+    const related = (j.talks || []).filter(t => t.loose).filter(fresh).slice(0, 10);
+    const results = (j.results || []).filter(r => r.type === 'Farbrengen' || !shownIds.has(String(r.id)));
     const collectionName = currentDates ? document.getElementById('rmeta').dataset.collectionName : null;
-    const summary = (talks.length ? talks.length + ' talk' + (talks.length !== 1 ? 's' : '') + ' · ' : '') +
+    const nTalks = top.length + talks.length + clipHits.length + related.length;
+    const summary = (nTalks ? nTalks + ' talk' + (nTalks !== 1 ? 's' : '') + ' · ' : '') +
       results.length + ' track' + (results.length !== 1 ? 's' : '') + ' by name or date' +
       (results.length >= 200 ? ' (first 200)' : '') +
       (collectionName ? ' for ' + collectionName : (q ? ' for "' + q + '"' : ''));
@@ -1180,8 +1191,10 @@ async function search(fromHistory) {
     const occasionHits = qk.length >= 3 ? COLLECTIONS.map((c, i) => [c, i]).filter(([c]) => filterKey(c.name + ' ' + c.sub).includes(qk)).slice(0, 3)
       .map(([c, i]) => '<button class="chip occasion-chip" onclick="browseByCollection(' + i + ')">' + esc(c.name) + ' <span>' + esc(c.sub.split(' · ')[0]) + '</span></button>').join('') : '';
     const before = (topicHits.length || niggunHits || occasionHits ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + occasionHits + niggunHits + topicHits.map(topicChipHtml).join('') + '</div>' : '')
+      + (top.length ? '<h3 class="res-heading">Top result' + (top.length > 1 ? 's' : '') + '</h3><div class="top-hits">' + top.map(t => trackRowHtml(t.matched_desc ? { ...t, summary_en: t.ashreinu_desc } : t, true, true)).join('') + '</div>' : '')
       + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '')
-      + ((j.clips || []).length ? '<h3 class="res-heading">Moments from JEM\'s playlists</h3>' + j.clips.map(c => trackRowHtml(c, true, false)).join('') : '');
+      + (clipHits.length ? '<h3 class="res-heading">Moments from JEM\'s playlists</h3>' + clipHits.map(c => trackRowHtml(c, true, false)).join('') : '')
+      + (related.length ? '<h3 class="res-heading">Related talks</h3><div class="res-note">Mention some of your words</div>' + related.map(t => trackRowHtml(t, true, true)).join('') : '');
     renderCards(results, before);
   } catch (e) {
     document.getElementById('searchIcon').classList.remove('loading');
