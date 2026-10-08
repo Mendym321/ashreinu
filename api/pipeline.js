@@ -656,6 +656,70 @@ async function setFix(supabase, id, kind, title, note, sameAs) {
   return { id, saved: true, kind, title: title || null, same_as: same, took_out_of_catalogue: kind !== 'title' && tm?.status === 'enriched' };
 }
 
+// ── JEM's curated playlists (supabase/005_playlists.sql) ──
+// Step 1 saves the list; step 2 runs once per playlist (each fits in one
+// request): its clips, their written texts, and which of our tracks holds
+// each clip's recording. Free, no AI; re-running refreshes everything.
+const NO_PLAYLIST_TABLES = 'The playlist tables are missing: run supabase/005_playlists.sql in Supabase first';
+const playlistError = (e) => /playlist/.test(e.message) && /does not exist|schema cache|could not find/i.test(e.message) ? NO_PLAYLIST_TABLES : e.message;
+const picOf = (urls) => urls?.['300px'] || urls?.['900px'] || null;
+async function importPlaylistList(supabase) {
+  const list = (await getJson(`${ASHREINU}/playlists`))?.data;
+  if (!Array.isArray(list)) throw new Error("Couldn't read Ashreinu's playlists");
+  const rows = list.map((p, i) => ({ id: p.id, name: p.name, hebrew_name: p.hebrew_name || null, description: p.description || null,
+    taxonomy: p.taxonomy, published: p.published !== false, sort: i, updated_at: new Date().toISOString() }));
+  const { error } = await supabase.from('playlists').upsert(rows, { onConflict: 'id' });
+  if (error) throw new Error(playlistError(error));
+  // Playlists Ashreinu no longer has are removed (their clips go with them).
+  const { data: ours } = await supabase.from('playlists').select('id');
+  const gone = (ours || []).map(r => r.id).filter(id => !rows.some(r => r.id === id));
+  if (gone.length) await supabase.from('playlists').delete().in('id', gone);
+  return { ids: rows.filter(r => r.published).map(r => r.id), removed: gone.length };
+}
+async function importPlaylist(supabase, id) {
+  const p = (await getJson(`${ASHREINU}/playlist/${id}`))?.data;
+  if (!p) throw new Error(`Ashreinu has no playlist ${id}`);
+  const clips = p.clips || [];
+  // Written texts, four at a time.
+  const docs = {};
+  const queue = clips.filter(c => c.has_document).map(c => c.id);
+  await Promise.all([0, 1, 2, 3].map(async () => {
+    while (queue.length) {
+      const cid = queue.shift();
+      const d = (await getJson(`${ASHREINU}/clip/${cid}/document`))?.data;
+      if (d) docs[cid] = htmlToText(d);
+    }
+  }));
+  // Our track for each recording, matched by its audio file.
+  const uris = [...new Set(clips.map(c => c.audio_recording?.assets?.[0]?.uri).filter(Boolean))];
+  const eventOf = {};
+  for (let i = 0; i < uris.length; i += 100) {
+    const { data } = await supabase.from('ashreinu_events').select('id, audio_uri').in('audio_uri', uris.slice(i, i + 100));
+    for (const e of data || []) eventOf[e.audio_uri] = e.id;
+  }
+  const rows = clips.map((c, i) => {
+    const rec = c.audio_recording || {}, uri = rec.assets?.[0]?.uri || null;
+    const start = c.start_time || 0, end = c.end_time || rec.duration || null;
+    return { playlist_id: id, position: i, clip_id: c.id, name: c.title || c.name || rec.name || null, description: c.description || null,
+      recording_id: rec.id || null, audio_uri: uri, start_ms: start, end_ms: end, picture: picOf(c.picture_urls),
+      event_id: uri ? eventOf[uri] || null : null, document: docs[c.id] || null };
+  });
+  const del = await supabase.from('playlist_clips').delete().eq('playlist_id', id);
+  if (del.error) throw new Error(playlistError(del.error));
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await supabase.from('playlist_clips').insert(rows.slice(i, i + 200));
+    if (error) throw new Error(playlistError(error));
+  }
+  const { id: _i, name: _n, description: _d, taxonomy: _t, hebrew_name: _h, published: _p, clips: _c, ...extra } = p;
+  const total = rows.reduce((a, r) => a + Math.max(0, (r.end_ms || 0) - (r.start_ms || 0)), 0);
+  const { error } = await supabase.from('playlists').update({
+    clip_count: rows.length, total_ms: total, extra: Object.keys(extra).length ? extra : null, updated_at: new Date().toISOString(),
+    picture: picOf(p.background_picture_urls) || rows.find(r => r.picture)?.picture || null,
+  }).eq('id', id);
+  if (error) throw new Error(playlistError(error));
+  return { id, name: p.name, clips: rows.length, matched: rows.filter(r => r.event_id).length, documents: Object.keys(docs).length };
+}
+
 // Rebuild the search layers from what's stored now: after a person edits an
 // entry in the table editor, or a topic's names/aliases change. No AI.
 async function reindex(supabase, offset) {
@@ -772,7 +836,7 @@ export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
   const { mode, id } = req.query;
-  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'fix', 'setfix', 'settext', 'rate', 'setfeatured'].includes(mode);
+  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'fix', 'setfix', 'settext', 'rate', 'setfeatured', 'playlist'].includes(mode);
   if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit || '30', 10) || 30, 100));
 
@@ -810,6 +874,8 @@ export default async function handler(req, res) {
       return res.status(200).json(await suggestTitles(supa(), parseInt(id, 10), String(req.query.note || '').trim().slice(0, 500)));
     }
     if (mode === 'settitle') return res.status(200).json(await setTitle(supa(), parseInt(id, 10), req.query.title));
+    if (mode === 'playlists') return res.status(200).json(await importPlaylistList(supa()));
+    if (mode === 'playlist') return res.status(200).json(await importPlaylist(supa(), parseInt(id, 10)));
     if (mode === 'rate') {
       if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
       return res.status(200).json(await rateEvergreen(supa(), parseInt(id, 10)));

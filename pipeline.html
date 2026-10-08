@@ -129,6 +129,7 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
       <button class="btn" id="collectBtn" onclick="collectAll()">Collect all (free)</button>
       <button class="btn" onclick="enrichBatch(20, true)">Retry errors</button>
       <button class="btn" onclick="enrichBatch(50, false, true)" title="Re-run entries made with older instructions (locked entries are skipped)">Upgrade older entries</button>
+      <button class="btn" onclick="importPlaylists()" title="Copy JEM's own curated playlists (2,000+ titled clips) from Ashreinu into the app. Free, no AI. Run again any time to pick up new ones.">Import JEM playlists (free)</button>
       <button class="btn" onclick="rateAll()" title="Claude rates each catalogued talk 1-5 for how well it works featured on the home page (well under a cent each). New entries are rated automatically.">Rate talks for featuring</button>
       <button class="btn" onclick="reindexAll()" title="After editing entries or topic aliases in Supabase: rebuild what search looks at (free)">Rebuild search index</button>
       <button class="btn" id="stopBtn" onclick="stopRequested = true" disabled>Stop</button>
@@ -464,6 +465,30 @@ async function undoTitleBatch() {
     try { await api({ mode: 'settitle', id, title }); plog('↩ #' + id + ' back to: ' + title); if (results[id]?.metadata) { results[id].metadata.title_en = title; results[id].locked = true; rerenderReviewCard(id); } }
     catch (e) { plog('✗ #' + id + ' undo failed: ' + e.message); }
   }
+}
+// JEM's playlists: the list first, then each playlist (its clips, their
+// texts, and which of our tracks holds each clip's recording).
+async function importPlaylists() {
+  if (busy) return;
+  setBusy(true);
+  plog("Importing JEM's playlists from Ashreinu…");
+  try {
+    const { ids, removed } = await api({ mode: 'playlists' });
+    const queue = [...ids]; let clips = 0, matched = 0, docs = 0, fail = 0, done = 0;
+    await Promise.all([0, 1, 2].map(async () => {
+      while (queue.length && !stopRequested) {
+        const id = queue.shift();
+        try {
+          const r = await apiRetry({ mode: 'playlist', id });
+          clips += r.clips; matched += r.matched; docs += r.documents;
+          if (++done % 20 === 0) plog('… ' + done + ' of ' + ids.length + ' playlists');
+        } catch (e) { fail++; plog('✗ playlist ' + id + ': ' + e.message); }
+      }
+    }));
+    plog((stopRequested ? 'Stopped: ' : '✓ ') + done + ' playlists · ' + clips + ' clips (' + matched + ' matched to our tracks) · ' + docs + ' with a written text'
+      + (fail ? ' · ' + fail + ' failed' : '') + (removed ? ' · ' + removed + ' removed' : '') + '. The app shows them within about 10 minutes.');
+  } catch (e) { plog('✗ ' + e.message); }
+  setBusy(false);
 }
 // Featuring: Claude's 1-5 rating of how well a talk works on the home
 // page's "Talks to explore" shelf (4-5 are shown), and a person's override.

@@ -471,6 +471,16 @@ body.audio-paused .eq i{animation-play-state:paused}
 .pane-sub{font-size:15px;font-weight:800;color:var(--ink);margin:4px 0 8px}
 .nig-row{display:flex;flex-direction:column;gap:2px;padding:10px 4px;border-bottom:1px solid var(--border-soft);cursor:pointer;font-size:15px;font-weight:600;color:var(--ink)}
 .nig-row span{font-size:12.5px;color:var(--ink-light);font-weight:500}
+.pl-cover{display:flex;align-items:center;justify-content:center;color:#fff}
+.pl-cover .pl-art{width:44%;height:44%;opacity:.8}
+.pl-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.pl-tile{position:relative;overflow:hidden;border-radius:12px;min-height:100px;padding:12px 14px;color:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-end}
+.pl-tile::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.02) 20%,rgba(0,0,0,.75))}
+.pl-tile strong{position:relative;font-size:15px;font-weight:800;line-height:1.2}
+.pl-tile span{position:relative;font-size:12px;opacity:.88;margin-top:3px}
+.pl-tile.skel-cover{width:auto;height:auto;cursor:default}
+.pl-tile.skel-cover::before{display:none}
+.pl-credit{font-size:12.5px;color:var(--ink-light);margin:18px 2px 4px}
 .nig-letter{font-size:13px;font-weight:800;color:var(--gold);padding:14px 4px 2px;border-bottom:1px solid var(--border-soft)}
 .nig-kinds{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
 .nig-kind{display:inline-flex;align-items:baseline;gap:6px;padding:8px 13px;border-radius:18px;background:var(--hover);color:var(--ink);font-size:13.5px;font-weight:700;cursor:pointer}
@@ -798,11 +808,13 @@ body.audio-paused .eq i{animation-play-state:paused}
       <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
       <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
       <button class="chip" data-pane="niggunim" onclick="switchBrowseTab('niggunim')">Niggunim</button>
+      <button class="chip" data-pane="playlists" onclick="switchBrowseTab('playlists')">Playlists</button>
     </div>
     <div class="browse-pane active" id="pane-topics"><div class="tile-grid" id="browseTopics"></div><div class="chip-wrap" id="browseTopicMatches" hidden></div></div>
     <div class="browse-pane" id="pane-collections"><div id="occNext"></div><div class="occ-grid" id="browseCollectionsGrid"></div></div>
     <div class="browse-pane" id="pane-years"><div id="browseYears"><div class="shelf-empty">Loading…</div></div></div>
     <div class="browse-pane" id="pane-niggunim"><div id="browseNiggunim"><div class="shelf-empty">Loading…</div></div></div>
+    <div class="browse-pane" id="pane-playlists"><div id="browsePlaylists"></div></div>
   </div>
 </div>
 
@@ -894,9 +906,13 @@ function typeLabel(t) {
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function lnk(row) {
-  const parentId = row.parent_id || row.id;
-  return 'https://ashreinu.app/player?parentEvent='+parentId+'&event='+row.id;
+  if (row.clip_id && !row.event_id) return 'https://ashreinu.app/';
+  const eid = row.clip_id ? row.event_id : row.id;
+  return 'https://ashreinu.app/player?parentEvent=' + farbIdOf(row) + '&event=' + eid;
 }
+// The farbrengen (or standalone event) a row belongs to. A clip from a JEM
+// playlist belongs to the recording's event when we have it, else none (0).
+function farbIdOf(row) { return row.parent_id || (row.clip_id ? row.event_id || 0 : row.id); }
 
 const clockIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>';
 const calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
@@ -980,6 +996,7 @@ function openBrowseSheet(tab) {
   switchBrowseTab(tab || (TOPICS.length ? 'topics' : 'collections'));
   loadBrowseSheetContent();
   fetchNiggunList().catch(() => {}); // ready before the Niggunim tab is tapped
+  getPlaylists().catch(() => {});
 }
 function closeBrowseSheet(fromBackButton) {
   if (!browseIsOpen()) return;
@@ -1021,8 +1038,9 @@ function filterBrowse() {
 }
 function switchBrowseTab(pane) {
   if (pane === 'niggunim') loadNiggunList();
+  if (pane === 'playlists') loadPlaylistPane();
   const f = document.getElementById('browseFilter');
-  f.placeholder = { topics: 'Find a topic', collections: 'Find an occasion or date', years: 'Find a year: 5747, 1987 or Hebrew', niggunim: 'Find a niggun' }[pane] || 'Find';
+  f.placeholder = { topics: 'Find a topic', collections: 'Find an occasion or date', years: 'Find a year: 5747, 1987 or Hebrew', niggunim: 'Find a niggun', playlists: 'Find a playlist' }[pane] || 'Find';
   setTimeout(filterBrowse);
   document.querySelectorAll('.browse-tabs .chip').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
   document.querySelectorAll('.browse-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + pane));
@@ -1162,7 +1180,8 @@ async function search(fromHistory) {
     const occasionHits = qk.length >= 3 ? COLLECTIONS.map((c, i) => [c, i]).filter(([c]) => filterKey(c.name + ' ' + c.sub).includes(qk)).slice(0, 3)
       .map(([c, i]) => '<button class="chip occasion-chip" onclick="browseByCollection(' + i + ')">' + esc(c.name) + ' <span>' + esc(c.sub.split(' · ')[0]) + '</span></button>').join('') : '';
     const before = (topicHits.length || niggunHits || occasionHits ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + occasionHits + niggunHits + topicHits.map(topicChipHtml).join('') + '</div>' : '')
-      + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '');
+      + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '')
+      + ((j.clips || []).length ? '<h3 class="res-heading">Moments from JEM\'s playlists</h3>' + j.clips.map(c => trackRowHtml(c, true, false)).join('') : '');
     renderCards(results, before);
   } catch (e) {
     document.getElementById('searchIcon').classList.remove('loading');
@@ -1228,11 +1247,20 @@ async function renderOccasion(idx) {
     document.getElementById('res').innerHTML =
       pageHeroHtml({ cover: artCoverHtml(OCC_ART[c.name], bg), wash: bg, kicker: 'Occasion · ' + date, title: c.name, desc: note || '', meta: counts,
         play: rows.length ? undefined : null, noShuffle: rows.length < 2 })
+      + '<div class="home-section" id="occPlaylists" hidden></div>'
       + (talks.length ? '<div class="home-section"><div class="home-section-head"><h3>Talks about ' + esc(c.name) + '</h3></div><div class="shelf">' + talks.slice(0, 20).map(episodeCardHtml).join('') + '</div></div>' : '')
       + (farbs.length ? '<div class="home-section"><div class="home-section-head"><h3>Farbrengens</h3></div><div class="shelf">' + farbs.slice(0, 24).map(cardHtml).join('') + '</div></div>' : '')
       + (rows.length ? '<h3 class="res-heading">All recordings</h3>' + years.map(g => '<div class="list-sub">' + (g.y || 'Undated') + (g.y ? ' · ' + secularSpan(g.y) : '') + '</div>' + g.rows.map(eventRowHtml).join('')).join('')
         : '<div class="empty">No recordings for ' + esc(c.name) + ' yet.</div>');
     rebuildOrder();
+    // JEM's own playlists for this occasion ("Lag B'Omer Highlights"), on top.
+    getPlaylists().then(({ playlists }) => {
+      const box = document.getElementById('occPlaylists');
+      const mine = (playlists || []).filter(p => occasionOfPlaylist(p) === idx);
+      if (!box || !mine.length) return;
+      box.innerHTML = '<div class="home-section-head"><h3>From JEM\'s playlists</h3></div><div class="shelf">' + mine.map(playlistCardHtml).join('') + '</div>';
+      box.hidden = false;
+    }).catch(() => {});
   } catch (e) {
     document.getElementById('res').innerHTML = '<div class="empty">Could not load ' + esc(c.name) + ': ' + esc(e.message) + '</div>';
   }
@@ -1434,6 +1462,114 @@ async function renderNiggun(key) {
   }
 }
 
+// ── JEM's playlists: hand-picked clips (an excerpt of a recording with its
+// own title, chosen by JEM's editors), like a music app's editorial
+// playlists. The list is kept on the phone and refreshed quietly. ──
+const PLAYLIST_KEY = 'ashreinu-playlists';
+let playlistData = readJSON(PLAYLIST_KEY, null), playlistFetch = null;
+function fetchPlaylists() {
+  if (!playlistFetch) playlistFetch = fetch('/api/search?playlists=1').then(r => r.json()).then(j => {
+    if (!j.playlists) throw new Error(j.error || 'No playlists');
+    playlistData = j; writeJSON(PLAYLIST_KEY, j);
+    return j;
+  }).catch(e => { playlistFetch = null; throw e; });
+  return playlistFetch;
+}
+// The saved copy at once (refreshing it quietly), or the network the first time.
+function getPlaylists() {
+  if (playlistData?.playlists?.length) { fetchPlaylists().catch(() => {}); return Promise.resolve(playlistData); }
+  return fetchPlaylists();
+}
+function fmtHours(ms) {
+  const m = Math.round((ms || 0) / 60000);
+  return m >= 60 ? Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '') : m + ' min';
+}
+const PL_BG = 'linear-gradient(140deg,#5b6f8f,#26324a)';
+function playlistBg(p) { return p.picture ? "url('" + esc(p.picture) + "') center/cover" : PL_BG; }
+function playlistCardHtml(p) {
+  return '<div class="shelf-card" onclick="openPlaylist(' + p.id + ')">'
+    + '<div class="shelf-cover cover pl-cover" style="background:' + playlistBg(p) + '">' + (p.picture ? '' : svgArt('note', 'pl-art')) + '</div>'
+    + '<div class="shelf-title" dir="auto">' + esc(p.name) + '</div>'
+    + '<div class="shelf-sub">' + p.count + ' clip' + (p.count === 1 ? '' : 's') + ' · JEM</div></div>';
+}
+// Which occasion a playlist belongs to, from its name ("Lag B'Omer
+// Highlights" → Lag BaOmer, "י"ט כסלו תשכ"ה" → Yud-Tes Kislev). The longest
+// match wins, so "Pesach Sheini Lessons" goes to Pesach Sheini, not Pesach.
+const OCC_PLAYLIST_NAMES = {
+  "Lag BaOmer": ["lag b'omer"], "Yud-Alef Nissan": ['11 nissan', 'יא ניסן'], "Chof-Beis Shevat": ['22 shevat', 'כב שבט'],
+  "Tu BiShvat": ['15th shevat', '15 shevat'], "Yud Shevat": ['10 shevat', 'י שבט'], "Yud-Tes Kislev": ['19 kislev', 'יט כסלו', 'liberation of the alter rebbe'],
+  "Yud-Beis Tammuz": ['12 tammuz', 'יב תמוז'], "Vov Tishrei": ['ו תשרי'], "Chof Av": ['כ אב'], "Hei Teves": ['didan notzach'],
+  "Sukkos": ['דחג הסוכות', 'שמחת בית השואבה'], "Sefiras HaOmer": ['ספירת העומר'], "Purim": ['פורים'],
+};
+let occOfPlaylist = null;
+function occasionOfPlaylist(p) {
+  if (!occOfPlaylist) occOfPlaylist = {};
+  if (p.id in occOfPlaylist) return occOfPlaylist[p.id];
+  const hay = ' ' + filterKey(p.name + ' ' + (p.hebrew_name || '')) + ' ';
+  let best = -1, len = 0;
+  COLLECTIONS.forEach((c, i) => {
+    for (const n of [c.name, ...(OCC_PLAYLIST_NAMES[c.name] || [])]) {
+      const k = filterKey(n);
+      if (k && k.length > len && hay.includes(' ' + k + ' ')) { best = i; len = k.length; }
+    }
+  });
+  return (occOfPlaylist[p.id] = best);
+}
+// Home: JEM's playlists for the occasions coming up first, then a mix.
+async function loadPlaylistShelf() {
+  try {
+    const { playlists } = await getPlaylists();
+    const section = document.getElementById('playlistSection');
+    if (!section || !playlists?.length) return;
+    const soon = getUpcomingCollections(6).map(c => COLLECTIONS.findIndex(x => x.name === c.name));
+    const seasonal = soon.flatMap(i => playlists.filter(p => occasionOfPlaylist(p) === i));
+    const rest = playlists.filter(p => ['Themes', 'Stories & moments', 'Timelines'].includes(p.group) && !seasonal.includes(p));
+    for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+    const list = [...new Set([...seasonal.slice(0, 6), ...rest])].slice(0, 12);
+    section.innerHTML = '<div class="home-section-head"><h3>From JEM\'s playlists</h3><button class="see-all" onclick="openBrowseSheet(\'playlists\')">See all</button></div>'
+      + '<div class="shelf">' + list.map(playlistCardHtml).join('') + '</div>';
+    section.style.display = 'block';
+  } catch (e) { /* not imported yet */ }
+}
+// Browse → Playlists: every playlist, by group.
+async function loadPlaylistPane() {
+  const box = document.getElementById('browsePlaylists');
+  if (!playlistData) box.innerHTML = '<div class="pl-grid">' + '<div class="pl-tile skel-cover"></div>'.repeat(6) + '</div>';
+  try {
+    const { playlists, groups } = await getPlaylists();
+    box.innerHTML = playlists.length ? (groups || []).map(g => {
+      const ps = playlists.filter(p => p.group === g);
+      return ps.length ? '<h4 class="pane-sub filter-hide">' + esc(g) + '</h4><div class="pl-grid">' + ps.map(p =>
+        '<div class="pl-tile" data-q="' + esc(filterKey(p.name + ' ' + (p.hebrew_name || '') + ' ' + g)) + '" style="background:' + playlistBg(p) + '" onclick="closeBrowseSheet();openPlaylist(' + p.id + ')">'
+        + '<strong dir="auto">' + esc(p.name) + '</strong><span>' + p.count + ' clip' + (p.count === 1 ? '' : 's') + (p.years ? ' · ' + p.years.filter(Boolean).join('–') : '') + '</span></div>').join('') + '</div>' : '';
+    }).join('') + '<p class="pl-credit">Curated by JEM for Ashreinu.</p>' : '<div class="shelf-empty">No playlists yet.</div>';
+    setTimeout(filterBrowse);
+  } catch (e) { box.innerHTML = '<div class="shelf-empty">Could not load playlists. <a href="#" onclick="loadPlaylistPane();return false">Try again</a></div>'; }
+}
+function openPlaylist(id) { go({ p: 'playlist', id: +id }); }
+async function renderPlaylist(id) {
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML = backChipHtml();
+  window.scrollTo(0, 0);
+  showSkeletons();
+  try {
+    const j = await (await fetch('/api/search?playlist=' + id)).json();
+    if (j.error) throw new Error(j.error);
+    const p = j.playlist, rows = j.results || [];
+    document.getElementById('res').innerHTML =
+      pageHeroHtml({ cover: p.picture ? photoCoverHtml(p.picture) : artCoverHtml('note', PL_BG), wash: p.picture ? photoWash(p.picture) : PL_BG, photoWash: !!p.picture,
+        kicker: 'JEM playlist · ' + p.group, title: p.name, he: p.hebrew_name && p.hebrew_name !== p.name ? p.hebrew_name : '', desc: p.description || '',
+        meta: rows.length + ' clip' + (rows.length === 1 ? '' : 's') + (p.total_ms ? ' · ' + fmtHours(p.total_ms) : ''), noShuffle: rows.length < 2 })
+      // On its own playlist's page a clip needn't repeat the playlist's name.
+      + rows.map(r => trackRowHtml(r.event_id ? r : { ...r, name: '' }, true, false)).join('')
+      + '<p class="pl-credit">Clips and titles chosen by JEM for Ashreinu.</p>';
+    for (const r of rows) rowsById[r.id] = r; // the player shows the full row (with the playlist's name)
+    rebuildOrder();
+  } catch (e) {
+    document.getElementById('res').innerHTML = '<div class="empty">Could not load this playlist: ' + esc(e.message) + '</div>';
+  }
+}
+
 function openYear(year) { go({ p: 'year', y: +year }); }
 async function renderYear(year) {
   closeReader(); closeNowPlaying(); closeBrowseSheet();
@@ -1521,7 +1657,7 @@ function occasionHeading(c) {
 // Stored only on this device (localStorage). Every read/write is wrapped,
 // because storage can be blocked (private browsing) — the app must still work.
 const RECENT_KEY = 'ashreinu-recent', POS_KEY = 'ashreinu-pos';
-const RECENT_FIELDS = ['id','name','type','ashreinu_desc','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
+const RECENT_FIELDS = ['id','name','type','ashreinu_desc','clip_id','event_id','start_ms','end_ms','has_document','playlist_id','playlist_name','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
   'secular_year','secular_month','secular_day','duration_ms','audio_uri','confirmed_title','main_topic','summary_en','photo','photo_lg'];
 function readJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
@@ -1625,8 +1761,8 @@ function renderSaved() {
 // (Browsers don't allow audio to start by itself, so it waits for the tap.)
 async function showShared(id) {
   try {
-    const get = async (n) => (await (await fetch('/api/search?event=' + n)).json()).result;
-    let row = await get(id);
+    const get = async (n) => (await (await fetch(/^c\d+$/.test(n) ? '/api/search?clip=' + n.slice(1) : '/api/search?event=' + n)).json()).result;
+    let row = await get(String(id));
     // A link to a duplicate copy plays the original recording.
     if (row?.same_as) row = await get(row.same_as) || row;
     if (!row) return;
@@ -1669,6 +1805,8 @@ function shelfSkeleton(n) {
   return html;
 }
 function progressPct(row) {
+  const w = clipWindow(row);
+  if (w) { const len = (w.end || 0) - w.start, at = savedPosition(row.id) - w.start; return len > 0 && at > 0 ? Math.min(100, at / len * 100) : 0; }
   const total = row.duration_ms ? row.duration_ms / 1000 : 0;
   return total ? Math.min(100, savedPosition(row.id) / total * 100) : 0;
 }
@@ -1736,6 +1874,7 @@ async function showLanding() {
   document.getElementById('res').innerHTML =
     '<div class="home-section" id="jumpSection"' + (jumpSectionHtml() ? '' : ' hidden') + '>' + jumpSectionHtml() + '</div>'
     + '<div class="home-section" id="todaySection" style="display:none"></div>'
+    + '<div class="home-section" id="playlistSection" style="display:none"></div>'
     + '<div class="home-section" id="exploreSection" style="display:none">'
       + '<div class="home-section-head"><h3>Talks to explore</h3></div>'
       + '<div class="shelf" id="exploreShelf"></div>'
@@ -1746,6 +1885,7 @@ async function showLanding() {
         + '<div class="shelf topic-shelf">' + topicTilesHtml(true) + '</div></div>'
       : '');
   loadToday();
+  loadPlaylistShelf();
   loadExplore();
 }
 
@@ -1946,7 +2086,7 @@ function trackRowHtml(row, loose, withSummary) {
   const rid = String(row.id);
   rowsById[rid] = row;
   const playable = !!getAudioUrl(row);
-  const farbrengenId = row.parent_id || row.id;
+  const farbrengenId = farbIdOf(row);
   const label = row.confirmed_title ? row.name : typeLabel(row.type);
   const sub = withSummary
     ? [row.main_topic ? topicName(row.main_topic) : label, row.parent_id && row.parent_name ? row.parent_name : hebDate(row), dur(row.duration_ms)]
@@ -1963,7 +2103,7 @@ function trackRowHtml(row, loose, withSummary) {
             ? farbrengenLinkHtml(row) : esc(part)).join(' · ') + '</div>'
         + (withSummary && row.summary_en ? '<div class="track-summary">' + esc(row.summary_en) + '</div>' : '')
       + '</div>'
-      + (isNigun ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
+      + (isNigun || (row.clip_id && !row.has_document && !row.event_id) ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
     + '</div>';
 }
 
@@ -2126,14 +2266,17 @@ function playTrack(id, url, title) {
 
   const row = rowsById[id];
   currentTrackId = id;
+  audioFallbackFor = null;
   audioEl.src = url;
   audioEl.playbackRate = playbackSpeed;
   // Resume where you left off, unless you'd barely started or nearly finished.
+  // A clip starts at its own start time (and resumes only inside the clip).
   const resumeAt = savedPosition(id);
+  const w = clipWindow(row);
   const total = row && row.duration_ms ? row.duration_ms / 1000 : 0;
-  if (resumeAt > 10 && (!total || resumeAt < total - 15)) {
-    audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = resumeAt; }, { once: true });
-  }
+  pendingStart = w ? (resumeAt > w.start + 10 && (!w.end || resumeAt < w.end - 15) ? resumeAt : w.start)
+    : resumeAt > 10 && (!total || resumeAt < total - 15) ? resumeAt : 0;
+  lastStartAt = pendingStart;
   audioEl.play().catch(e => console.log('play error', e));
   if (row) rememberPlay(row);
 
@@ -2182,15 +2325,39 @@ function closePlayer() {
 // .opus file and report it as Infinity. The archive already knows every
 // track's exact length (duration_ms), so fall back to that.
 function trackDuration() {
-  if (isFinite(audioEl.duration) && audioEl.duration > 0) return audioEl.duration;
+  const full = isFinite(audioEl.duration) && audioEl.duration > 0 ? audioEl.duration : 0;
+  const w = clipWindow();
+  if (w) return Math.max(0, (w.end || full) - w.start);
+  if (full) return full;
   const row = rowsById[currentTrackId];
   return row && row.duration_ms ? row.duration_ms / 1000 : 0;
 }
+// A clip from a JEM playlist plays only its part of the recording: the
+// player's clock, bar and skips count from the clip's start.
+function clipWindow(row) {
+  row = row || rowsById[currentTrackId];
+  return row && row.clip_id ? { start: (row.start_ms || 0) / 1000, end: row.end_ms ? row.end_ms / 1000 : null } : null;
+}
+function posNow() { const w = clipWindow(); return audioEl.currentTime - (w ? w.start : 0); }
+function setPos(t) { const w = clipWindow(); audioEl.currentTime = (w ? w.start : 0) + t; }
 function skipBy(seconds) {
   const total = trackDuration();
   if (!total) return;
-  audioEl.currentTime = Math.max(0, Math.min(total, audioEl.currentTime + seconds));
+  setPos(Math.max(0, Math.min(total, posNow() + seconds)));
 }
+// Where to start once the audio has loaded (a resume point, or a clip's start).
+let pendingStart = 0, lastStartAt = 0, audioFallbackFor = null;
+audioEl.addEventListener('loadedmetadata', () => { if (pendingStart) { audioEl.currentTime = pendingStart; pendingStart = 0; } });
+// If the compact .opus file can't be played (not every recording has one,
+// and some browsers can't play it), try the .mp3 once.
+audioEl.addEventListener('error', () => {
+  const src = audioEl.getAttribute('src') || '';
+  if (!currentTrackId || audioFallbackFor === currentTrackId || !/\.opus$/.test(src)) return;
+  audioFallbackFor = currentTrackId;
+  pendingStart = lastStartAt;
+  audioEl.src = src.replace(/\.opus$/, '.mp3');
+  audioEl.play().catch(() => {});
+});
 
 // ── Playback speed (remembered on this device) ──
 const SPEEDS = [1, 1.25, 1.5, 1.75, 2, 0.75];
@@ -2228,7 +2395,12 @@ function renderProgress(time) {
 }
 let lastPositionSave = 0;
 audioEl.addEventListener('timeupdate', () => {
-  if (!isSeeking) renderProgress(audioEl.currentTime);
+  // A clip ends at its own end time, not the recording's.
+  const w = clipWindow();
+  if (w && w.end && !pendingStart && audioEl.currentTime >= w.end - 0.25) {
+    audioEl.pause(); savePosition(currentTrackId, 0); setPlayIcon(false); playNext(); return;
+  }
+  if (!isSeeking) renderProgress(posNow());
   // Save your place every few seconds, for "Continue listening".
   if (currentTrackId && Date.now() - lastPositionSave > 5000) {
     lastPositionSave = Date.now();
@@ -2252,7 +2424,7 @@ audioEl.addEventListener('durationchange', renderDuration);
     pending = timeAt(e); renderProgress(pending);
   });
   bar.addEventListener('pointermove', e => { if (isSeeking) { pending = timeAt(e); renderProgress(pending); } });
-  const finish = () => { if (!isSeeking) return; isSeeking = false; audioEl.currentTime = pending; };
+  const finish = () => { if (!isSeeking) return; isSeeking = false; setPos(pending); };
   bar.addEventListener('pointerup', finish);
   bar.addEventListener('pointercancel', finish);
 })();
@@ -2325,6 +2497,7 @@ function pageUrl(page) {
   else if (page.p === 'history') u.set('history', '1');
   else if (page.p === 'occasion') u.set('occasion', COLLECTIONS[page.i]?.name || '');
   else if (page.p === 'niggun') u.set('niggun', page.key);
+  else if (page.p === 'playlist') u.set('playlist', page.id);
   const qs = u.toString();
   return location.pathname + (qs ? '?' + qs : '');
 }
@@ -2360,6 +2533,7 @@ async function renderPage(page) {
     case 'history': return renderHistory();
     case 'occasion': return renderOccasion(page.i);
     case 'niggun': return renderNiggun(page.key);
+    case 'playlist': return renderPlaylist(page.id);
     case 'search':
       currentDates = null; currentType = page.type || '';
       document.getElementById('q').value = page.q || '';
@@ -2490,7 +2664,7 @@ function playNext() {
 function playPrev() {
   // Like every music app: "previous" restarts the track if you're more
   // than a few seconds in, and only goes back a track near the start.
-  if (audioEl.currentTime > 5) { audioEl.currentTime = 0; return; }
+  if (posNow() > 5) { setPos(0); return; }
   const idx = currentOrder.indexOf(currentTrackId);
   if (idx <= 0) return;
   playFromOrder(currentOrder[idx - 1], true);
@@ -2614,6 +2788,20 @@ const FOOTNOTES = {};
 // ── Fetching (cached per farbrengen + track) ──
 const textCache = {};
 async function fetchSourceText(farbrengenId, eventId) {
+  // A clip from a JEM playlist: its own written text when it has one (JEM's
+  // English summary + the original), else its recording's text.
+  const clip = rowsById[String(eventId)];
+  if (clip?.clip_id) {
+    if (clip.has_document) {
+      const key = 'clip:' + clip.clip_id;
+      if (!textCache[key]) textCache[key] = fetch('/api/search?clipdoc=' + clip.clip_id).then(r => r.json())
+        .then(d => ({ hasText: true, jem: true, segments: [{ title_en: clip.confirmed_title, summary_en: d.summary || '', source_text: d.text || null }] }))
+        .catch(e => { delete textCache[key]; throw e; });
+      return textCache[key];
+    }
+    if (!clip.event_id) return { hasText: false };
+    return fetchSourceText(farbrengenId || clip.event_id, clip.event_id);
+  }
   const key = farbrengenId + ':' + (eventId || '');
   if (!textCache[key]) {
     textCache[key] = fetch('/api/get-farbrengen-text?farbrengenId=' + farbrengenId + (eventId ? '&eventId=' + eventId : ''))
@@ -2629,7 +2817,7 @@ async function loadTextPreview(rid) {
   const row = rowsById[rid];
   const el = document.getElementById('npReadContent');
   if (!row) return;
-  const fid = row.parent_id || row.id;
+  const fid = farbIdOf(row);
   if (typeKey(row.type) === 'niggun') {
     el.innerHTML = '<p class="pv-note">Niggunim have no written text.</p>';
     return;
@@ -2664,6 +2852,7 @@ async function loadTextPreview(rid) {
 // Where an entry came from: a human confirmed it, or Claude wrote it from
 // Ashreinu's own outline for this track.
 function sourceBadge(j, long) {
+  if (j.jem) return '<span class="rd-badge neutral">' + (long ? 'Written by JEM for this clip' : 'From JEM') + '</span>';
   if (j.precise) return '<span class="rd-badge">' + ICON_CHECK + (long ? 'Verified match for this track' : 'Verified match') + '</span>';
   if (j.catalogued) return '<span class="rd-badge neutral">' + (long ? 'Summary written with AI from Ashreinu\'s outline' : 'AI summary of Ashreinu\'s outline') + '</span>';
   return '';
@@ -2851,6 +3040,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   const occ = COLLECTIONS.findIndex(c => c.name === params.get('occasion'));
   const page = params.get('topic') ? { p: 'topic', slug: params.get('topic') }
     : params.get('niggun') ? { p: 'niggun', key: params.get('niggun') }
+    : /^\d+$/.test(params.get('playlist') || '') ? { p: 'playlist', id: +params.get('playlist') }
     : /^\d+$/.test(params.get('album') || '') ? { p: 'album', fid: +params.get('album') }
     : params.get('saved') ? { p: 'saved' }
     : params.get('history') ? { p: 'history' }
@@ -2862,7 +3052,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   else history.replaceState({ page, depth: 0 }, '');
   await renderPage(page);
   if (params.get('track') && params.get('f')) openReader(params.get('track'), parseInt(params.get('f'), 10));
-  if (/^\d+$/.test(params.get('play') || '')) showShared(params.get('play'));
+  if (/^c?\d+$/.test(params.get('play') || '')) showShared(params.get('play'));
 })();
 </script>
 </body>
