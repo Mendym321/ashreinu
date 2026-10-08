@@ -139,9 +139,18 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
   </section>
 
   <section style="margin:0 0 34px">
+    <h2 style="font-size:18px;font-weight:800">Topics report</h2>
+    <p class="lead" style="margin-bottom:12px">How the topic list fits the talks catalogued so far: how many talks each topic holds (as the main topic, and as a secondary one), and the new topics Claude suggested. Use it to merge empty topics, split crowded ones, or add a missing one.</p>
+    <div class="row"><button class="btn" onclick="loadTopicReport()">Show topics report (free)</button></div>
+    <div id="topicReport"></div>
+  </section>
+
+  <section style="margin:0 0 34px">
     <h2 style="font-size:18px;font-weight:800">Review catalogued</h2>
     <p class="lead" style="margin-bottom:12px">The latest entries saved to the database, each next to its outline. "Open in app" shows it the way listeners will.</p>
-    <div class="row"><button class="btn primary" onclick="loadReview(0)">Show latest 20</button><button class="btn" id="reviewMore" onclick="loadReview(reviewOffset)" style="display:none">Show 20 more</button>
+    <div class="row"><input class="field" id="reviewFind" placeholder="Find: track numbers (47, 2203) or words in a title" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter')loadReview(0)" aria-label="Find catalogued tracks">
+      <button class="btn" onclick="loadReview(0)">Find</button></div>
+    <div class="row"><button class="btn primary" onclick="document.getElementById('reviewFind').value='';loadReview(0)">Show latest 20</button><button class="btn" id="reviewMore" onclick="loadReview(reviewOffset)" style="display:none">Show 20 more</button>
       <button class="btn" id="redoChecked" onclick="redoTracks([...document.querySelectorAll('.redo-box:checked')].map(b => +b.value))" style="display:none">Redo ticked</button></div>
     <div id="reviewCards" style="margin-top:16px"></div>
   </section>
@@ -357,6 +366,17 @@ async function redoTracks(ids) {
   await refreshStats();
   setBusy(false);
 }
+async function loadTopicReport() {
+  const box = document.getElementById('topicReport');
+  box.innerHTML = '<p class="lead">Counting…</p>';
+  try {
+    const j = await api({ mode: 'topicreport' });
+    const row = t => '<tr><td>' + esc(t.name) + '</td><td>' + t.main + '</td><td>' + t.also + '</td></tr>';
+    box.innerHTML = '<p class="lead">' + j.talks + ' catalogued talks.</p><div style="overflow-x:auto"><table class="cov"><tr><th>Topic</th><th>Main topic of</th><th>Also in</th></tr>'
+      + j.groups.map(g => '<tr class="total"><td colspan="3">' + esc(g.name) + '</td></tr>' + g.topics.map(row).join('')).join('') + '</table></div>'
+      + (j.suggested.length ? '<h3 style="font-size:15px;margin:16px 0 6px">Topics Claude suggested adding</h3><p class="lead">' + j.suggested.map(x => esc(x.name) + ' (' + x.count + ')').join(' · ') + '</p>' : '');
+  } catch (e) { box.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+}
 async function loadCoverage() {
   const box = document.getElementById('coverage');
   box.innerHTML = '<p class="lead">Counting every track in the archive…</p>';
@@ -387,10 +407,11 @@ async function reindexAll() {
 let reviewOffset = 0;
 async function loadReview(offset) {
   try {
-    const j = await api({ mode: 'list', limit: 20, offset });
+    const find = document.getElementById('reviewFind').value.trim();
+    const j = await api({ mode: 'list', limit: 20, offset, ...(find ? { find } : {}) });
     const box = document.getElementById('reviewCards');
     if (offset === 0) box.innerHTML = '';
-    if (!j.entries.length && offset === 0) { box.innerHTML = '<p class="lead">Nothing catalogued yet.</p>'; return; }
+    if (!j.entries.length && offset === 0) { box.innerHTML = '<p class="lead">' + (find ? 'Nothing catalogued matches “' + esc(find) + '”.' : 'Nothing catalogued yet.') + '</p>'; return; }
     for (const e of j.entries) {
       e.topicNames = j.topicNames;
       const id = e.source.id;

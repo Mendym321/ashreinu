@@ -139,6 +139,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .chip-scroll{display:flex;gap:8px;overflow-x:auto;margin:0 -16px;padding:0 16px 2px;scrollbar-width:none}
 .chip-scroll::-webkit-scrollbar{display:none}
 .chip-wrap{display:flex;flex-wrap:wrap;gap:8px}
+#rmeta{position:relative;z-index:2}
 .back-link{display:inline-flex;align-items:center;gap:2px;padding-left:10px}
 .back-link svg{width:18px;height:18px}
 
@@ -415,7 +416,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 /* ═══ Page header (topic, occasion, year, niggun, farbrengen, Saved):
    artwork, a wash of its colour fading into the page, title, actions ═══ */
 .page-hero{position:relative;isolation:isolate;margin:-6px -16px 12px;padding:18px 16px 6px}
-.ph-wash{position:absolute;inset:-60px 0 0 0;z-index:-1;opacity:var(--wash-op);background-size:cover;background-position:center;
+.ph-wash{position:absolute;inset:-60px 0 0 0;z-index:-1;pointer-events:none;opacity:var(--wash-op);background-size:cover;background-position:center;
   -webkit-mask-image:linear-gradient(#000 25%,transparent 96%);mask-image:linear-gradient(#000 25%,transparent 96%)}
 .ph-wash.photo{filter:blur(30px) saturate(1.4);transform:scale(1.15)}
 .ph-cover-wrap{display:flex;justify-content:center;margin:4px 0 18px}
@@ -444,7 +445,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 .tile-art{position:absolute;right:-10px;bottom:-12px;width:64px;height:64px;transform:rotate(-14deg);opacity:.32;color:#fff;stroke-width:1.5}
 .occ-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 @media (min-width:560px){.occ-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.occ-tile{position:relative;overflow:hidden;border-radius:12px;min-height:96px;padding:12px 14px;color:#fff;cursor:pointer;transition:transform .15s;-webkit-tap-highlight-color:transparent}
+.occ-tile{position:relative;overflow:hidden;border-radius:12px;min-height:76px;padding:12px 14px;color:#fff;cursor:pointer;transition:transform .15s;-webkit-tap-highlight-color:transparent}
 .occ-tile:active{transform:scale(.97)}
 .occ-tile strong{display:block;font-size:15.5px;font-weight:800;letter-spacing:-.01em;line-height:1.2;position:relative;max-width:88%}
 .occ-tile span{display:block;font-size:12px;opacity:.9;margin-top:3px;position:relative}
@@ -455,9 +456,9 @@ body.audio-paused .eq i{animation-play-state:paused}
 .occ-next span{display:block;font-size:13px;opacity:.9;margin-top:4px;position:relative}
 .occ-next .tile-art{width:110px;height:110px;right:-14px;bottom:-20px;opacity:.3}
 .year-tile{position:relative;overflow:hidden;background-size:cover;background-position:center}
-.year-tile{min-height:96px;display:flex;flex-direction:column;justify-content:flex-end}
+.year-tile{min-height:78px;display:flex;flex-direction:column;justify-content:flex-end}
 .nig-featured{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}
-.nig-tile{position:relative;overflow:hidden;border-radius:12px;min-height:104px;padding:12px 14px;color:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between}
+.nig-tile{position:relative;overflow:hidden;border-radius:12px;min-height:88px;padding:12px 14px;color:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between}
 .nig-tile strong{font-size:16px;font-weight:800;letter-spacing:-.01em;line-height:1.2;position:relative}
 .nig-tile span{font-size:12px;opacity:.9;position:relative}
 .nig-tile .wave{position:absolute;left:12px;right:12px;bottom:30px;height:22px;opacity:.28}
@@ -659,7 +660,7 @@ body.audio-paused .eq i{animation-play-state:paused}
   <div id="res"></div>
 </div>
 
-<div class="mini-player" id="playerBar" onclick="openNowPlaying()">
+<div class="mini-player" id="playerBar" onclick="if (!this.dataset.swiped) openNowPlaying()">
   <div class="mini-cover cover" id="miniCover"></div>
   <div class="mini-info">
     <div class="mini-title" id="playerTitle"></div>
@@ -1027,7 +1028,7 @@ async function loadBrowseSheetContent() {
     document.getElementById('browseCollectionsGrid').innerHTML = COLLECTIONS.map((c, i) => {
       const [date, note] = c.sub.split(' · ');
       return '<div class="occ-tile" data-q="' + esc(filterKey(c.name + ' ' + c.sub + ' ' + (c.tag || ''))) + '" style="background:' + occasionBg(c) + '" onclick="closeBrowseSheet();browseByCollection(' + i + ')">'
-        + '<strong>' + esc(c.name) + '</strong><span>' + esc(date) + '</span>' + (note ? '<em>' + esc(note) + '</em>' : '') + svgArt(OCC_ART[c.name], 'tile-art') + '</div>';
+        + '<strong>' + esc(c.name) + '</strong><span>' + esc(date) + '</span></div>';
     }).join('');
     // The nearest occasion, big, at the top.
     const next = getUpcomingCollections(1)[0];
@@ -1046,7 +1047,7 @@ async function loadBrowseSheetContent() {
   const years = await getYears();
   document.getElementById('browseYears').innerHTML = years.length
     ? '<div class="year-grid">' + years.map(y =>
-          '<button class="year-tile era-' + eraIndex(y) + (yearPhotos[y] ? ' has-photo' : '') + '"' + (yearPhotos[y] ? ' style="background-image:linear-gradient(to top,rgba(0,0,0,.72),rgba(0,0,0,.08) 75%),url(\'' + esc(yearPhotos[y]) + '\')"' : '') + ' data-q="' + esc(filterKey(y + ' ' + hebrewYearLetters(y) + ' ' + (y - 3761) + ' ' + (y - 3760))) + '" onclick="closeBrowseSheet();openYear(' + y + ')"><strong>' + y + ' <em lang="he">' + hebrewYearLetters(y) + '</em></strong>'
+          '<button class="year-tile era-' + eraIndex(y) + '" data-q="' + esc(filterKey(y + ' ' + hebrewYearLetters(y) + ' ' + (y - 3761) + ' ' + (y - 3760))) + '" onclick="closeBrowseSheet();openYear(' + y + ')"><strong>' + y + ' <em lang="he">' + hebrewYearLetters(y) + '</em></strong>'
           + '<span>' + secularSpan(y) + '</span>' + (yearCounts[y] ? '<span>' + yearCounts[y] + ' event' + (yearCounts[y] !== 1 ? 's' : '') + '</span>' : '') + '</button>').join('')
         + '</div>'
     : '<div class="shelf-empty">No years indexed yet.</div>';
@@ -1257,6 +1258,8 @@ const ART = {
   people: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   megaphone: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
   home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>',
   calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
   globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
 };
@@ -1348,7 +1351,7 @@ async function loadNiggunList() {
     const az = [...niggunList].sort((a, b) => a.name.localeCompare(b.name));
     document.getElementById('browseNiggunim').innerHTML = niggunList.length
       ? '<h4 class="pane-sub filter-hide">Most sung</h4><div class="nig-featured filter-hide">' + niggunList.slice(0, 6).map((n, i) =>
-          '<div class="nig-tile" style="background:' + NIGGUN_BG[i % NIGGUN_BG.length] + '" onclick="' + open(n) + '">' + waveSvg(n.name)
+          '<div class="nig-tile" style="background:' + NIGGUN_BG[i % NIGGUN_BG.length] + '" onclick="' + open(n) + '">'
           + '<strong>' + esc(n.name) + '</strong><span>' + n.count + ' recordings</span></div>').join('') + '</div>'
         + '<h4 class="pane-sub filter-hide">All niggunim</h4>'
         + az.map(n => '<div class="nig-row" data-q="' + esc(filterKey(n.name)) + '" onclick="' + open(n) + '">' + esc(n.name)
@@ -1536,6 +1539,32 @@ async function shareTrack(id) {
   try { await navigator.clipboard.writeText(url); toast('Link copied'); }
   catch (e) { prompt('Copy this link:', url); }
 }
+// History: everything you've played on this device, newest first, by day.
+function openHistory() { go({ p: 'history' }); }
+function renderHistory() {
+  document.getElementById('filterRow').classList.remove('active');
+  document.getElementById('rmeta').innerHTML = backChipHtml();
+  const list = getRecent();
+  const day = 864e5, startOfToday = new Date().setHours(0, 0, 0, 0);
+  const groupOf = t => !t ? 'Earlier' : t >= startOfToday ? 'Today' : t >= startOfToday - day ? 'Yesterday' : t >= startOfToday - 6 * day ? 'This week' : 'Earlier';
+  const groups = [];
+  for (const r of list) { const g = groupOf(r.played_at), last = groups[groups.length - 1]; if (last && last.g === g) last.rows.push(r); else groups.push({ g, rows: [r] }); }
+  document.getElementById('res').innerHTML =
+    pageHeroHtml({ cover: artCoverHtml('clock', 'linear-gradient(140deg,#8f9aa8,#363c45)'), wash: 'linear-gradient(140deg,#8f9aa8,#363c45)',
+      kicker: 'Your library', title: 'History', desc: 'Everything you\'ve played on this device.', meta: list.length + ' track' + (list.length !== 1 ? 's' : ''),
+      play: list.length ? undefined : null, noShuffle: list.length < 2,
+      extra: list.length ? '<button class="icon-btn" onclick="clearHistory()" aria-label="Clear history" title="Clear history">' + svgArt('trash') + '</button>' : '' })
+    + (list.length ? groups.map(g => '<div class="list-sub">' + g.g + '</div>' + g.rows.map(r => trackRowHtml(r, true, !!r.summary_en)).join('')).join('')
+      : '<div class="empty">Nothing played yet.</div>');
+  window.scrollTo(0, 0);
+  rebuildOrder();
+}
+function clearHistory() {
+  if (!confirm('Clear your listening history on this device? (Saved talks stay.)')) return;
+  writeJSON(RECENT_KEY, []);
+  renderHistory();
+}
+
 // The Saved page: every saved talk, newest first, ready to play in order.
 function openSaved() { go({ p: 'saved' }); }
 function renderSaved() {
@@ -1574,10 +1603,11 @@ function playPageAll() {
 }
 
 function rememberPlay(row) {
-  const slim = Object.fromEntries(RECENT_FIELDS.map(k => [k, row[k] ?? null]));
+  const slim = { ...Object.fromEntries(RECENT_FIELDS.map(k => [k, row[k] ?? null])), played_at: Date.now() };
   const list = readJSON(RECENT_KEY, []).filter(r => String(r.id) !== String(row.id));
   list.unshift(slim);
-  writeJSON(RECENT_KEY, list.slice(0, 12));
+  writeJSON(RECENT_KEY, list.slice(0, 300)); // the full History page shows these
+  refreshJumpSection();
 }
 function getRecent() { return readJSON(RECENT_KEY, []); }
 function savedPosition(id) { return readJSON(POS_KEY, {})[id] || 0; }
@@ -1638,20 +1668,29 @@ function episodeCardHtml(row) {
 // Home answers one question: what to listen to now. At most four calm
 // sections, most personal first: your own listening, today, something new,
 // then topics. Browsing by type, year or occasion lives in the Browse sheet.
-async function showLanding() {
-  document.getElementById('rmeta').textContent = '';
+// "Jump back in": Saved first (like Spotify's Liked Songs), then what you
+// played last. Redrawn the moment you play something, not only on reload.
+function jumpSectionHtml() {
   const saved = getSaved();
   const recent = getRecent().slice(0, saved.length ? 5 : 6);
-  // Like Spotify's "Liked Songs" shortcut: the Saved tile leads the grid.
+  if (!recent.length && !saved.length) return '';
   const savedTile = saved.length
     ? '<div class="jump-card" onclick="openSaved()"><div class="jump-cover cover saved-tile">' + ROW_HEART.replace('row-heart', 'saved-heart') + '</div>'
       + '<div class="jump-title">Saved talks<small>' + saved.length + ' talk' + (saved.length !== 1 ? 's' : '') + '</small></div></div>'
     : '';
+  return '<div class="home-section-head"><h3>Jump back in</h3>' + (recent.length ? '<button class="see-all" onclick="openHistory()">History</button>' : '') + '</div>'
+    + '<div class="jump-grid">' + savedTile + recent.map(jumpCardHtml).join('') + '</div>';
+}
+function refreshJumpSection() {
+  const el = document.getElementById('jumpSection');
+  if (!el) return;
+  const html = jumpSectionHtml();
+  el.innerHTML = html; el.hidden = !html;
+}
+async function showLanding() {
+  document.getElementById('rmeta').textContent = '';
   document.getElementById('res').innerHTML =
-    (recent.length || saved.length
-      ? '<div class="home-section"><div class="home-section-head"><h3>Jump back in</h3></div>'
-        + '<div class="jump-grid">' + savedTile + recent.map(jumpCardHtml).join('') + '</div></div>'
-      : '')
+    '<div class="home-section" id="jumpSection"' + (jumpSectionHtml() ? '' : ' hidden') + '>' + jumpSectionHtml() + '</div>'
     + '<div class="home-section" id="todaySection" style="display:none"></div>'
     + '<div class="home-section" id="exploreSection" style="display:none">'
       + '<div class="home-section-head"><h3>Talks to explore</h3></div>'
@@ -1760,7 +1799,7 @@ function topicChipHtml(t) {
 function topicTilesHtml(onlyWithTalks) {
   return topicGroups().filter(g => !onlyWithTalks || topicCount(g) > 0).map(g =>
     '<div class="topic-tile tg-' + groupIndex(g.slug) + '" onclick="openTopic(\'' + g.slug + '\')"><strong>' + esc(g.name_en) + '</strong>'
-    + '<span>' + (topicCount(g) ? topicCount(g) + ' talks' : esc(g.description || '')) + '</span>' + svgArt(GROUP_ART[g.slug], 'tile-art') + '</div>').join('');
+    + '<span>' + (topicCount(g) ? topicCount(g) + ' talks' : esc(g.description || '')) + '</span></div>').join('');
 }
 
 // A topic page, like a genre page: header, sub-topics, then the talks
@@ -2239,6 +2278,7 @@ function pageUrl(page) {
   else if (page.p === 'topic') u.set('topic', page.slug);
   else if (page.p === 'album') u.set('album', page.fid);
   else if (page.p === 'saved') u.set('saved', '1');
+  else if (page.p === 'history') u.set('history', '1');
   else if (page.p === 'occasion') u.set('occasion', COLLECTIONS[page.i]?.name || '');
   else if (page.p === 'niggun') u.set('niggun', page.key);
   const qs = u.toString();
@@ -2273,6 +2313,7 @@ async function renderPage(page) {
     case 'topic': return renderTopic(page.slug);
     case 'album': return renderAlbum(page.fid);
     case 'saved': return renderSaved();
+    case 'history': return renderHistory();
     case 'occasion': return renderOccasion(page.i);
     case 'niggun': return renderNiggun(page.key);
     case 'search':
@@ -2308,14 +2349,17 @@ document.addEventListener('keydown', e => {
 function enableDragToClose(sheetId, scrollerId, closeFn) {
   const sheet = document.getElementById(sheetId);
   const scroller = document.getElementById(scrollerId);
-  let startY = null, dy = 0, dragging = false;
+  let startY = null, startX = 0, dy = 0, dragging = false;
   sheet.addEventListener('touchstart', e => {
     startY = (scroller.scrollTop > 0 || e.target.closest('.seek, .fn-sheet')) ? null : e.touches[0].clientY;
+    startX = e.touches[0].clientX;
     dy = 0; dragging = false;
   }, { passive: true });
   sheet.addEventListener('touchmove', e => {
     if (startY === null) return;
     dy = e.touches[0].clientY - startY;
+    // A sideways swipe (changing tracks on the cover) isn't a pull-down.
+    if (!dragging && Math.abs(e.touches[0].clientX - startX) > Math.abs(dy)) { startY = null; return; }
     if (!dragging && dy > 8) { dragging = true; sheet.classList.add('dragging'); }
     if (dragging) {
       sheet.style.transform = 'translateY(' + Math.max(0, dy) + 'px)';
@@ -2331,6 +2375,52 @@ function enableDragToClose(sheetId, scrollerId, closeFn) {
   });
 }
 enableDragToClose('npOverlay', 'npScroll', closeNowPlaying);
+
+// Swipe the player's cover (or the mini player) sideways to change track,
+// like Spotify: left for the next, right for the previous. It follows your
+// finger, slides out, and the new track slides in.
+function enableTrackSwipe(el) {
+  let x0 = null, y0 = 0, dx = 0, sideways = false;
+  const reset = () => { el.style.transform = ''; el.style.opacity = ''; };
+  el.addEventListener('touchstart', e => {
+    if (e.target.closest('button')) { x0 = null; return; }
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; sideways = false; el.style.transition = 'none';
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (x0 === null) return;
+    dx = e.touches[0].clientX - x0;
+    const dy = e.touches[0].clientY - y0;
+    if (!sideways) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3) sideways = true;
+      else if (Math.abs(dy) > 10) { x0 = null; return; }
+    }
+    if (sideways) {
+      el.style.transform = 'translateX(' + dx * 0.7 + 'px)';
+      el.style.opacity = String(1 - Math.min(0.5, Math.abs(dx) / 500));
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+  el.addEventListener('touchend', () => {
+    if (x0 === null) return;
+    x0 = null;
+    el.style.transition = 'transform .2s ease, opacity .2s ease';
+    if (!sideways) return;
+    el.dataset.swiped = '1'; setTimeout(() => { delete el.dataset.swiped; }, 400); // not a tap
+    const next = dx < 0;
+    const btn = document.getElementById(next ? 'npNextBtn' : 'npPrevBtn');
+    if (Math.abs(dx) < 70 || btn.disabled) { reset(); return; }
+    el.style.transform = 'translateX(' + (next ? -110 : 110) + '%)'; el.style.opacity = '0';
+    setTimeout(() => {
+      if (next) playNext();
+      else { const i = currentOrder.indexOf(currentTrackId); if (i > 0) playFromOrder(currentOrder[i - 1], true); } // a swipe always goes back a track
+      el.style.transition = 'none';
+      el.style.transform = 'translateX(' + (next ? 40 : -40) + 'px)';
+      requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = 'transform .22s ease, opacity .22s ease'; reset(); }));
+    }, 170);
+  });
+}
+enableTrackSwipe(document.getElementById('npCover'));
+enableTrackSwipe(document.getElementById('playerBar'));
 
 // Swipe up on the mini player opens the full view (tap works too).
 (function enableMiniSwipeUp() {
@@ -2716,6 +2806,7 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
     : params.get('niggun') ? { p: 'niggun', key: params.get('niggun') }
     : /^\d+$/.test(params.get('album') || '') ? { p: 'album', fid: +params.get('album') }
     : params.get('saved') ? { p: 'saved' }
+    : params.get('history') ? { p: 'history' }
     : occ >= 0 ? { p: 'occasion', i: occ }
     : params.get('q') || params.get('type') ? { p: 'search', q: params.get('q') || '', type: params.get('type') || '', year: params.get('year') || '' }
     : /^\d{4}$/.test(params.get('year') || '') ? { p: 'year', y: +params.get('year') }

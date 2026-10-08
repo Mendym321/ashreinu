@@ -30,7 +30,7 @@ const MODEL = 'claude-opus-5-5';
 
 // Bump when the prompt or schema changes meaningfully; entries made with an
 // older version can then be re-run ("upgrade") without touching locked ones.
-const PROMPT_VERSION = 5;
+const PROMPT_VERSION = 6;
 
 // Topics come from the `topics` table (editable in Supabase), so the menu
 // can change without a code change. Cached briefly between requests.
@@ -85,21 +85,17 @@ Accuracy:
 - You MAY briefly explain a concept so a newcomer understands it (e.g. "'bread of shame', the discomfort of receiving what you didn't earn"). Explaining a term is fine; adding content is not.
 - If part of the material is unclear, leave it out rather than guess.
 
-Title (shown in a track list, like a song title in a music app):
-- SHORT: 2-6 words, at most ~40 characters. Shorter is better. The summary does the explaining; the title only has to name the idea and make someone want to tap.
-- It must read like a TITLE (an episode or chapter name), not a sentence: no full claims with a verb chain ("The Rebbe Explains Why Every Jew Must…"), no "How X Leads to Y Through Z". Use a punchy noun phrase or a short question.
-- Title Case.
-- The title names the talk's MAIN TEACHING, in this talk's own words and angle. A story, proof or example the Rebbe brings along the way (a verse, a passage of Gemara, an episode from history) supports the teaching; it is not the title. A talk teaching that the Sukkos water-pouring means serving G-d beyond reason, with joy, and proving it from King David's warriors, is "Water Beyond Reason" or "The Joy of Accepting G-d's Will", never "David's Water from Bethlehem".
-- Within that, be specific rather than generic: a title that could fit fifty different talks ("The Rebbe Still Leads", "Tests That Lift Us Up") is too vague, and so is one with no subject at all ("A Wave of the Hand", "Holding All Three Keys"). A listener should know what the talk teaches.
-- Tone: warm and dignified, like the title of a respected teacher's class on Torah. Not a news, history-magazine or pop-psychology headline.
-- Someone with a basic Jewish background should understand it at a glance. Widely known words are fine (Moshiach, Shabbos, Pesach, mitzvah, tzedakah, Torah, the Rebbe); avoid unexplained insider terms (e.g. "Dira Betachtonim", "Mesirus Nefesh", "Hiskashrus") in the title.
-- Not clinical or abstract ("Festivals and Ordinary Weekdays" says nothing), not a bare list of terms, no filler ("A Sicha on…", "The Rebbe Explains…").
-- A question is fine when the talk itself asks it ("Why…?").
-- If the outline has its own heading, it tells you the subject; still phrase the English title naturally.
-- If the track covers several unrelated subjects, title the main one.
-- Generic → distinctive: "Our Children Are Our Guarantors" → "Why G-d Took Children as Guarantors"; "Counting from the Day After Shabbos" → "Which 'Shabbos' Starts the Omer?" (only if that's the talk's angle).
-- Good: "The Inner Six-Day War", "Why a Second Pesach?", "Light in the Darkest Hour", "The Power of One Mitzvah", "Bread of Shame".
-- Bad (too long, sentence-like): "How the Six-Day War Teaches Us to Fight Our Inner Battles Every Day" → "The Inner Six-Day War".
+Title (shown in a track list, like an episode title in a podcast app):
+- The goal: make someone WANT to tap, while saying truthfully what the talk teaches. Accurate and intriguing; neither alone is enough.
+- How: look at the talk's MAIN teaching and find what is surprising in it: the question it answers, the paradox it resolves, the claim that goes against expectation, or an image the teaching itself is built on. Name that.
+- Main teaching, not a side story: a story, proof or example brought along the way (a verse, a passage of Gemara, an episode from history) supports the teaching; it is not the title. A talk teaching that the Sukkos water-pouring means serving G-d beyond reason, proven from King David's warriors, is "Water Beyond Reason", never "David's Water from Bethlehem".
+- Short: 2-6 words, at most ~40 characters. A title, not a sentence. Title Case. A short question is often the best title ("Why No Hallel on Purim?").
+- Avoid bland templates that could fit any talk: "The Importance of…", "The Meaning of…", "The Significance of…", "Lessons from…", "Understanding…", "A Lesson in…", "The Power of…", "X and Y". Also avoid a hook with no subject ("A Wave of the Hand").
+- Tone: warm, intelligent and reverent, like a great teacher's class title. Never clickbait, never a news headline.
+- Plain words someone with a basic Jewish background knows (Moshiach, Shabbos, mitzvah, tzedakah, the Rebbe are fine); no unexplained insider terms ("Dira Betachtonim", "Hiskashrus").
+- If the outline has its own heading, it tells you the subject; still phrase the English title freshly. If the track covers several unrelated subjects, title the main one.
+- Bland → better: "The Importance of Joy" → "Joy That Breaks Every Barrier"; "Lessons from Purim" → "Why No Hallel on Purim?"; "The Meaning of the Water Libation" → "Water Beyond Reason"; "Our Children Are Our Guarantors" → "Why G-d Took Children as Guarantors".
+- Titles that work: "The Inner Six-Day War", "Why a Second Pesach?", "Bread of Shame", "Two Ways to Bring the Rain", "Spend First, Then Raise the Funds", "Entering the King's Court Uninvited".
 
 Summary: 1-3 natural sentences (up to 4 for long multi-point outlines), within the word limit given. Start with the substance, not "In this sicha" or "The Rebbe explains that".
 
@@ -202,6 +198,7 @@ function checkEntry(m, budget) {
   const warnings = [];
   const titleWords = m.title_en.trim().split(/\s+/).length;
   if (m.title_en.length > 45 || titleWords > 7) warnings.push(`Title is long (${titleWords} words, ${m.title_en.length} chars)`);
+  if (/^(the (importance|meaning|significance|power) of|lessons? (from|in|of)|understanding|a lesson in)\b/i.test(m.title_en.trim())) warnings.push('Title uses a bland template');
   const sumWords = m.summary_en.trim().split(/\s+/).length;
   if (sumWords > budget.summaryWords * 1.25) warnings.push(`Summary is ${sumWords} words (limit ${budget.summaryWords})`);
   if (budget.points <= 1 && m.key_points.length > 1) warnings.push(`${m.key_points.length} key points for a one-point outline`);
@@ -545,6 +542,27 @@ async function coverage(supabase) {
   return { kinds };
 }
 
+// How the topic list fits the talks actually catalogued: talks per topic
+// (as main topic and as a secondary one) and the new topics Claude asked for.
+async function topicReport(supabase) {
+  const [rows, topics] = await Promise.all([
+    allRows(() => supabase.from('track_metadata').select('main_topic, topics, suggested_new_topics').eq('status', 'enriched').order('ashreinu_event_id')),
+    loadTopics(supabase),
+  ]);
+  const main = {}, also = {}, suggested = {};
+  for (const r of rows) {
+    if (r.main_topic) main[r.main_topic] = (main[r.main_topic] || 0) + 1;
+    for (const t of r.topics || []) also[t] = (also[t] || 0) + 1;
+    for (const t of r.suggested_new_topics || []) { const k = String(t).trim(); if (k) suggested[k] = (suggested[k] || 0) + 1; }
+  }
+  return {
+    talks: rows.length,
+    groups: topics.all.filter(t => !t.parent_slug).map(g => ({ name: g.name_en, topics: topics.leaves.filter(t => t.parent_slug === g.slug)
+      .map(t => ({ slug: t.slug, name: t.name_en, main: main[t.slug] || 0, also: also[t.slug] || 0 })) })),
+    suggested: Object.entries(suggested).sort((a, b) => b[1] - a[1]).slice(0, 40).map(([name, count]) => ({ name, count })),
+  };
+}
+
 export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
@@ -589,12 +607,18 @@ export default async function handler(req, res) {
     if (mode === 'settitle') return res.status(200).json(await setTitle(supa(), parseInt(id, 10), req.query.title));
     if (mode === 'stats') return res.status(200).json(await stats(supa()));
     if (mode === 'coverage') return res.status(200).json(await coverage(supa()));
+    if (mode === 'topicreport') return res.status(200).json(await topicReport(supa()));
     if (mode === 'list') {
       const supabase = supa();
       const offset = Math.max(0, parseInt(req.query.offset || '0', 10) || 0);
+      // Optional find: track numbers ("47, 2203") or words in the title/summary.
+      const find = String(req.query.find || '').trim().slice(0, 100);
+      const findIds = find.match(/^[\d,\s]+$/) ? find.split(/[^\d]+/).filter(Boolean).map(Number) : null;
+      let q = supabase.from('track_metadata').select('*').eq('status', 'enriched');
+      if (findIds) q = q.in('ashreinu_event_id', findIds);
+      else if (find) { const w = find.replace(/[%,()]/g, ' '); q = q.or(`title_en.ilike.%${w}%,summary_en.ilike.%${w}%`); }
       const [{ data, error }, topics] = await Promise.all([
-        supabase.from('track_metadata').select('*').eq('status', 'enriched')
-          .order('enriched_at', { ascending: false }).range(offset, offset + limit - 1),
+        q.order('enriched_at', { ascending: false }).range(offset, offset + limit - 1),
         loadTopics(supabase),
       ]);
       if (error) throw new Error(error.message);
