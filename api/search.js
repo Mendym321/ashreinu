@@ -309,8 +309,13 @@ export default async function handler(req, res) {
   if (req.query.playlists) {
     const { data, error } = await supabase.from('playlists').select('id, name, hebrew_name, taxonomy, picture, clip_count, total_ms, sort, extra')
       .eq('published', true).gt('clip_count', 0).order('sort');
-    if (error) return res.status(200).json({ playlists: [], groups: [] }); // not imported yet
-    res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=604800');
+    // Not set up or not imported yet: say so, and never keep that empty
+    // answer in Vercel's cache (it would hide the playlists once imported).
+    if (error || !data.length) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ playlists: [], groups: [], setup: error ? 'tables missing: run supabase/005_playlists.sql' : 'no playlists imported yet: use Import JEM playlists in the pipeline page' });
+    }
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=604800');
     return res.status(200).json({ groups: PLAYLIST_GROUPS, playlists: data.map(p => ({ id: p.id, name: p.name, hebrew_name: p.hebrew_name, picture: p.picture,
       count: p.clip_count, total_ms: p.total_ms, group: playlistGroup(p),
       years: p.extra?.timeline_event_year_start ? [p.extra.timeline_event_year_start, p.extra.timeline_event_year_end] : null })) });
