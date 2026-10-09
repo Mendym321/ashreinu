@@ -1658,6 +1658,10 @@ function markHeard(id) {
   all[id] = Date.now(); writeJSON(HEARD_KEY, all);
   document.querySelectorAll('[data-rid="' + id + '"] .track-title').forEach(t => { if (!t.querySelector('.heard-tick')) t.insertAdjacentHTML('beforeend', HEARD_TICK); });
 }
+// What following a year counts: the farbrengens (about 50 a year), not
+// davening, rallies, audiences, Brachah Klolis and the like (those stay on
+// the year page, they just don't count).
+function isFollowItem(e) { return e.type === 'Farbrengen' && (e.talk_ids || []).length > 0; }
 function eventHeard(ev) {
   if (readJSON(MARKED_KEY, {})[ev.id]) return true; // ticked by hand
   const ids = ev.talk_ids || [];
@@ -1689,7 +1693,7 @@ function weekStartOrd() {
 // Joined partway through the year? Tick every farbrengen before this week.
 async function markEarlier(year) {
   const start = weekStartOrd();
-  const earlier = (await fetchYearEvents(year)).filter(e => (e.talk_ids || []).length && e.hebrew_month * 31 + e.hebrew_day < start && !eventHeard(e));
+  const earlier = (await fetchYearEvents(year)).filter(e => isFollowItem(e) && e.hebrew_month * 31 + e.hebrew_day < start && !eventHeard(e));
   if (!earlier.length) return;
   if (!confirm('Mark the ' + earlier.length + ' farbrengens before this week in ' + year + ' as heard? You can un-tick any of them on the year page.')) return;
   const all = readJSON(MARKED_KEY, {});
@@ -1700,14 +1704,14 @@ async function markEarlier(year) {
 }
 function earlierUnheardCount(events) {
   const start = weekStartOrd();
-  return events.filter(e => (e.talk_ids || []).length && e.hebrew_month * 31 + e.hebrew_day < start && !eventHeard(e)).length;
+  return events.filter(e => isFollowItem(e) && e.hebrew_month * 31 + e.hebrew_day < start && !eventHeard(e)).length;
 }
 // Keep the year page's "N of M heard" in step with ticks.
 function refreshYearProgress() {
   const el = document.getElementById('yearProgress');
   if (!el) return;
-  const evs = Object.values(rowsById).filter(r => r.hebrew_year === +el.dataset.year && !r.parent_id && (r.talk_ids || []).length);
-  el.textContent = evs.filter(eventHeard).length + ' of ' + evs.length + ' heard';
+  const evs = Object.values(rowsById).filter(r => r.hebrew_year === +el.dataset.year && isFollowItem(r));
+  el.textContent = evs.filter(eventHeard).length + ' of ' + evs.length + ' farbrengens heard';
 }
 const HEARD_TICK = '<span class="heard-tick" title="Heard">✓</span>';
 function followedYear() { const y = readJSON(FOLLOW_KEY, null); return Number.isInteger(y) ? y : null; }
@@ -1729,7 +1733,7 @@ async function loadFollowSection() {
   const year = followedYear(), box = document.getElementById('followSection');
   if (!year || !box || !todayHebrew?.month) return;
   try {
-    const events = (await fetchYearEvents(year)).filter(e => (e.talk_ids || []).length);
+    const events = (await fetchYearEvents(year)).filter(isFollowItem);
     const cy = todayHebrew.year, dow = new Date().getDay();
     const keyOf = (m, d) => m + '-' + d;
     const days = (from, to) => { const k = new Set(); for (let i = from; i <= to; i++) { const h = hebAddDays(cy, todayHebrew.month, todayHebrew.day, i); k.add(keyOf(h.m, h.d)); } return k; };
@@ -1755,7 +1759,7 @@ async function loadFollowSection() {
     };
     const weekRows = thisWeek.slice(0, 4), catchRows = missed.filter(e => !weekRows.includes(e)).slice(0, Math.max(0, Math.min(2, 4 - weekRows.length)));
     box.innerHTML = '<div class="follow-panel">'
-      + '<div class="fp-head"><div><div class="fp-kicker">Following ' + year + '</div><div class="fp-sub">' + heard + ' of ' + events.length + ' heard'
+      + '<div class="fp-head"><div><div class="fp-kicker">Following ' + year + '</div><div class="fp-sub">' + heard + ' of ' + events.length + ' farbrengens heard'
         + (sameCalendar(year, cy) ? ' · same calendar as this year' : '') + '</div></div>'
         + '<button class="see-all" onclick="openYear(' + year + ')">See all</button></div>'
       + '<div class="fp-bar"><i style="width:' + (events.length ? (heard / events.length * 100).toFixed(1) : 0) + '%"></i></div>'
@@ -1778,14 +1782,14 @@ async function renderYear(year) {
   showSkeletons();
   try {
     const j = { events: await fetchYearEvents(year) };
-    const talksEvents = j.events.filter(e => (e.talk_ids || []).length), heardN = talksEvents.filter(eventHeard).length;
+    const talksEvents = j.events.filter(isFollowItem), heardN = talksEvents.filter(eventHeard).length;
     const same = todayHebrew?.year && year !== todayHebrew.year && sameCalendar(year, todayHebrew.year);
     const following = followedYear() === year;
     const months = [];
     for (const ev of j.events) {
       ev._dayCover = true;
       ev._heard = eventHeard(ev);
-      ev._mark = following && (ev.talk_ids || []).length > 0;
+      ev._mark = following && isFollowItem(ev);
       const last = months[months.length - 1];
       if (last && last.num === ev.hebrew_month) last.events.push(ev);
       else months.push({ num: ev.hebrew_month, name: ev.hebrew_month_name || 'Undated', events: [ev] });
@@ -1801,8 +1805,8 @@ async function renderYear(year) {
         kicker: 'Year · ' + secularSpan(year) + (same ? ' · Same calendar as this year' : ''), title: String(year), he: hebrewYearLetters(year),
         meta: j.events.length + ' events' + (farb ? ' · ' + farb + ' farbrengen' + (farb !== 1 ? 's' : '') : '')
           + '',
-        extra: '<button class="follow-btn' + (following ? ' on' : '') + '" id="followBtn" onclick="toggleFollowYear(' + year + ')" title="Listen along with this year, week by week, on your home page">' + (following ? '✓ Following' : 'Follow') + '</button>' })
-      + (following || heardN ? '<div class="year-progress"><span id="yearProgress" data-year="' + year + '">' + heardN + ' of ' + talksEvents.length + ' heard</span>'
+        extra: !talksEvents.length && !following ? '' : '<button class="follow-btn' + (following ? ' on' : '') + '" id="followBtn" onclick="toggleFollowYear(' + year + ')" title="Listen along with this year, week by week, on your home page">' + (following ? '✓ Following' : 'Follow') + '</button>' })
+      + (following || heardN ? '<div class="year-progress"><span id="yearProgress" data-year="' + year + '">' + heardN + ' of ' + talksEvents.length + ' farbrengens heard</span>'
           + (following ? ' · tap ○ to tick ones you\'ve heard' + (earlierUnheardCount(j.events) ? ' · <button class="see-all" onclick="markEarlier(' + year + ')">Mark everything before this week</button>' : '') : '') + '</div>' : '')
       + (farb >= 2 ? '<div class="home-section"><div class="home-section-head"><h3>Farbrengens</h3></div><div class="shelf">' + farbs.map(cardHtml).join('') + '</div></div>' : '')
       + (months.length > 1 ? '<div class="chip-scroll month-jump" style="margin:0 -16px 6px;--hdr:' + document.getElementById('appHeader').offsetHeight + 'px">' + months.map((m, i) =>
