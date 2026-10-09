@@ -6,6 +6,20 @@ function supa() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 }
 
+// Ashreinu types some tracks INSIDE a farbrengen as "Farbrengen" (the type
+// for the whole event): mostly niggunim and "End of Farbrengen". Give those
+// the right type by name; the same rule as supabase/007_fix_track_types.sql.
+function trackType(name, type, parentId) {
+  if (parentId == null || type !== 'Farbrengen') return type || null;
+  const n = name || '';
+  if (/k.?ein sicha/i.test(n)) return 'Ma’amar K’ein Sicha';
+  if (/^sicha/i.test(n)) return 'Farbrengen – Sicha';
+  if (/ma.?amar/i.test(n)) return 'Farbrengen – Ma’amar';
+  if (/end of farbrengen/i.test(n)) return 'End of Farbrengen';
+  if (/report|conversation|magbis|brach|blessing/i.test(n)) return 'Other';
+  return 'Nigun';
+}
+
 function toRow(ev, parentId, parentName) {
   const d = ev.dates?.[0] || {};
   const audio = ev.audio_recordings?.[0];
@@ -15,7 +29,7 @@ function toRow(ev, parentId, parentName) {
     parent_id: parentId ?? ev.parent_id ?? null,
     parent_name: parentName ?? null,
     name: ev.name || null,
-    type: ev.type || null,
+    type: trackType(ev.name, ev.type, parentId ?? ev.parent_id),
     hebrew_year: d.hebrew_year ?? null,
     hebrew_month: d.hebrew_month ?? null,
     hebrew_day: d.hebrew_day ?? null,
