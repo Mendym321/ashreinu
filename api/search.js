@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { understandQuery } from '../lib/searchQuery.js';
 import { groupNiggunim, niggunKey, niggunTitle, niggunNames, niggunKind } from '../lib/niggunim.js';
+import { textQuery } from '../lib/hebrewTerms.js';
 
 // Fields the app needs for a track row (not raw_data, which is large).
 const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri, has_transcript, has_ld:raw_data->>has_long_description, pics:raw_data->pictures, desc:raw_data->>description';
@@ -670,7 +671,24 @@ export default async function handler(req, res) {
         return list.length ? clipRows(supabase, list) : [];
       }).catch(() => [])
     : Promise.resolve([]);
-  const [{ data, error, count }, { talks, matchedTopics, talksError }, matchedNiggunim, clips] = await Promise.all([query, talksPromise, niggunPromise, clipsPromise]);
+  // Inside Ashreinu's own texts (outlines, hanachos; supabase/006_text_search.sql):
+  // Hebrew as typed, English through the term dictionary ("ahavas yisroel" →
+  // אהבת ישראל). Each hit comes with a snippet around the match.
+  const textPromise = q && q.trim().length >= 2
+    ? loadTopics(supabase).then(async topics => {
+        const tq = textQuery(q, topics);
+        if (!tq) return null;
+        let { data: hits, error: e } = await supabase.rpc('search_texts', { q: tq.tsq, max_results: 20 });
+        if (e) return null; // not set up yet
+        if ((hits || []).length < 3 && tq.anyTsq) hits = (await supabase.rpc('search_texts', { q: tq.anyTsq, max_results: 20 })).data || hits;
+        if (!hits?.length) return { rows: [], terms: tq.terms, typed: tq.typed };
+        const snip = Object.fromEntries(hits.map(h => [h.ashreinu_event_id, h.snippet]));
+        const rows = await rowsForIds(supabase, hits.map(h => h.ashreinu_event_id), { type, year, month, dates });
+        for (const r of rows) r.text_snippet = String(snip[r.id] || '').replace(/\s+/g, ' ').trim();
+        return { rows, terms: tq.terms, typed: tq.typed };
+      }).catch(() => null)
+    : Promise.resolve(null);
+  const [{ data, error, count }, { talks, matchedTopics, talksError }, matchedNiggunim, clips, textHits] = await Promise.all([query, talksPromise, niggunPromise, clipsPromise, textPromise]);
   if (error) return res.status(500).json({ error: error.message });
 
   await attachConfirmedTitles(supabase, data);
@@ -692,5 +710,5 @@ export default async function handler(req, res) {
   }
 
   res.setHeader('Cache-Control', 's-maxage=30');
-  res.status(200).json({ results: data, count, top, talks, matchedTopics, matchedNiggunim, clips, ...(talksError ? { talksError } : {}) });
+  res.status(200).json({ results: data, count, top, talks, matchedTopics, matchedNiggunim, clips, textHits, ...(talksError ? { talksError } : {}) });
 }
