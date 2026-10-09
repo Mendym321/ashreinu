@@ -513,6 +513,20 @@ body.audio-paused .eq i{animation-play-state:paused}
 .year-tile.followed{box-shadow:inset 0 0 0 2px var(--gold)}
 .year-tile .yt-badge{align-self:flex-start;margin-top:3px;font-size:9.5px;line-height:1.35;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#1a140c;background:var(--gold);border-radius:6px;padding:1px 6px;opacity:1}
 .pane-note{font-size:12px;font-weight:600;color:var(--ink-light);margin-left:6px}
+.text-snip{font-family:'David Libre',serif;font-size:15.5px;line-height:1.55;color:var(--ink-mid);margin:-6px 0 12px 58px;padding:8px 12px;border-radius:10px;background:var(--hover)}
+.text-snip mark{background:none;color:var(--gold);font-weight:700}
+.welcome{border-radius:16px;background:var(--hover);padding:14px 16px 8px;margin-bottom:22px}
+.wl-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.wl-head h3{font-size:17px;font-weight:800;margin:0}
+.wl-sub{font-size:13px;color:var(--ink-light);margin:2px 0 6px}
+.wl-item{display:flex;align-items:center;gap:12px;width:100%;padding:9px 0;border:0;border-top:1px solid var(--border-soft);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.wl-item b{display:block;font-size:14.5px}
+.wl-item em{display:block;font-style:normal;font-size:12.5px;color:var(--ink-light)}
+.wl-ico{width:28px;flex-shrink:0;color:var(--gold);display:flex;justify-content:center}
+.wl-ico svg{width:21px;height:21px}
+.tip{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-mid);background:var(--hover);border-radius:12px;padding:9px 12px;margin:-4px 0 14px}
+.tip span{flex:1}
+.tip-x{border:0;background:none;color:var(--gold);font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
 .pl-credit{font-size:12.5px;color:var(--ink-light);margin:18px 2px 4px}
 .nig-letter{font-size:13px;font-weight:800;color:var(--gold);padding:14px 4px 2px;border-bottom:1px solid var(--border-soft)}
 .nig-kinds{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
@@ -1207,9 +1221,10 @@ async function search(fromHistory) {
     const talks = (j.talks || []).filter(t => !t.loose).filter(fresh);
     const clipHits = (j.clips || []).filter(fresh);
     const related = (j.talks || []).filter(t => t.loose).filter(fresh).slice(0, 10);
+    const textRows = (j.textHits?.rows || []).filter(fresh).slice(0, 12);
     const results = (j.results || []).filter(r => r.type === 'Farbrengen' || !shownIds.has(String(r.id)));
     const collectionName = currentDates ? document.getElementById('rmeta').dataset.collectionName : null;
-    const nTalks = top.length + talks.length + clipHits.length + related.length;
+    const nTalks = top.length + talks.length + clipHits.length + related.length + textRows.length;
     const summary = (nTalks ? nTalks + ' talk' + (nTalks !== 1 ? 's' : '') + ' · ' : '') +
       results.length + ' track' + (results.length !== 1 ? 's' : '') + ' by name or date' +
       (results.length >= 200 ? ' (first 200)' : '') +
@@ -1229,6 +1244,9 @@ async function search(fromHistory) {
       + (top.length ? '<h3 class="res-heading">Top result' + (top.length > 1 ? 's' : '') + '</h3><div class="top-hits">' + top.map(t => trackRowHtml(t.matched_desc ? { ...t, summary_en: t.ashreinu_desc } : t, true, true)).join('') + '</div>' : '')
       + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '')
       + (clipHits.length ? '<h3 class="res-heading">Moments from JEM\'s playlists</h3>' + clipHits.map(c => trackRowHtml(c, true, false)).join('') : '')
+      + (textRows.length ? '<h3 class="res-heading">Found in the text</h3><div class="res-note">'
+          + (j.textHits.typed ? 'In Ashreinu\'s outlines and hanachos' : 'Searched the Hebrew text for <span lang="he" dir="rtl">' + esc(j.textHits.terms.join(' · ')) + '</span>') + '</div>'
+          + textRows.map(r => trackRowHtml(r, true, false) + snippetHtml(r.text_snippet)).join('') : '')
       + (related.length ? '<h3 class="res-heading">Related talks</h3><div class="res-note">Mention some of your words</div>' + related.map(t => trackRowHtml(t, true, true)).join('') : '');
     renderCards(results, before);
   } catch (e) {
@@ -1807,6 +1825,7 @@ async function renderYear(year) {
         meta: j.events.length + ' events' + (farb ? ' · ' + farb + ' farbrengen' + (farb !== 1 ? 's' : '') : '')
           + '',
         extra: !talksEvents.length && !following ? '' : '<button class="follow-btn' + (following ? ' on' : '') + '" id="followBtn" onclick="toggleFollowYear(' + year + ')" title="Listen along with this year, week by week, on your home page">' + (following ? '✓ Following' : 'Follow') + '</button>' })
+      + (!followedYear() && talksEvents.length ? tipHtml('tip-follow', 'Tip: tap <b>Follow</b> to listen along with ' + year + ' week by week. Your progress shows on the home page.') : '')
       + (following || heardN ? '<div class="year-progress"><span id="yearProgress" data-year="' + year + '">' + heardN + ' of ' + talksEvents.length + ' farbrengens heard</span>'
           + (following ? ' · tap ○ to tick ones you\'ve heard' + (earlierUnheardCount(j.events) ? ' · <button class="see-all" onclick="markEarlier(' + year + ')">Mark everything before this week</button>' : '') : '') + '</div>' : '')
       + (farb >= 2 ? '<div class="home-section"><div class="home-section-head"><h3>Farbrengens</h3></div><div class="shelf">' + farbs.map(cardHtml).join('') + '</div></div>' : '')
@@ -2084,10 +2103,46 @@ function refreshJumpSection() {
   const html = jumpSectionHtml();
   el.innerHTML = html; el.hidden = !html;
 }
+// ── Finding your way: rotating search examples, a one-time welcome card,
+// one-time tips. Each is shown until dismissed, then never again. ──
+const SEARCH_EXAMPLES = ['Try: Every Jew is a Soldier', 'Try: Daled Bavos', 'Try: ahavas yisroel', 'Try: 5736', 'Try: Lag BaOmer',
+  'Try: אהבת ישראל', 'Try: Moshiach', 'Try: Rebbe Maharash', 'Try: tefillin campaign'];
+(function rotateSearchHint() {
+  const q = document.getElementById('q');
+  let i = 0;
+  setInterval(() => {
+    if (document.activeElement === q || q.value) return;
+    q.placeholder = SEARCH_EXAMPLES[i++ % SEARCH_EXAMPLES.length];
+  }, 3500);
+})();
+const SEEN_KEY = 'ashreinu-seen';
+function seen(what) { return !!readJSON(SEEN_KEY, {})[what]; }
+function markSeen(what) { const all = readJSON(SEEN_KEY, {}); all[what] = Date.now(); writeJSON(SEEN_KEY, all); }
+function dismissTip(what, el) { markSeen(what); el.closest('.tip, .welcome')?.remove(); }
+const WL_ICONS = {
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>',
+  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+};
+function welcomeHtml() {
+  if (seen('welcome')) return '';
+  const item = (icon, title, sub, action) => '<button class="wl-item" onclick="' + action + '"><span class="wl-ico">' + icon + '</span><span><b>' + title + '</b><em>' + sub + '</em></span></button>';
+  return '<div class="welcome"><div class="wl-head"><h3>Welcome to the Rebbe\'s audio archive</h3><button class="icon-btn sm" onclick="dismissTip(\'welcome\', this)" aria-label="Close">✕</button></div>'
+    + '<div class="wl-sub">Thousands of farbrengens, sichos and niggunim, searchable and browsable.</div>'
+    + item(WL_ICONS.search, 'Search anything', 'A topic, a phrase, a year, a niggun, even Hebrew', "document.getElementById('q').focus()")
+    + item(WL_ICONS.grid, 'Browse', 'Topics, occasions, years, niggunim and JEM\'s playlists', "openBrowseSheet('topics')")
+    + item(calIcon, 'Follow a year', 'Listen along with one year of farbrengens, week by week', "openBrowseSheet('years')")
+    + item(ICON_BOOK, 'Read along', 'Open the text of a talk while you listen', "document.getElementById('q').focus()")
+    + '</div>';
+}
+function tipHtml(what, text) {
+  return seen(what) ? '' : '<div class="tip"><span>' + text + '</span><button class="tip-x" onclick="dismissTip(\'' + what + '\', this)" aria-label="Got it">Got it</button></div>';
+}
+
 async function showLanding() {
   document.getElementById('rmeta').textContent = '';
   document.getElementById('res').innerHTML =
-    '<div class="home-section" id="jumpSection"' + (jumpSectionHtml() ? '' : ' hidden') + '>' + jumpSectionHtml() + '</div>'
+    welcomeHtml()
+    + '<div class="home-section" id="jumpSection"' + (jumpSectionHtml() ? '' : ' hidden') + '>' + jumpSectionHtml() + '</div>'
     + '<div class="home-section" id="followSection" hidden></div>'
     + '<div class="home-section" id="todaySection" style="display:none"></div>'
     + '<div class="home-section" id="exploreSection" style="display:none">'
@@ -2332,6 +2387,12 @@ function trackRowHtml(row, loose, withSummary) {
     + '</div>';
 }
 
+// A line of the Hebrew/Yiddish text around a search match (the database
+// marks the matched words with ⟦ ⟧).
+function snippetHtml(s) {
+  if (!s) return '';
+  return '<div class="text-snip" dir="rtl" lang="he">…' + esc(s).replace(/⟦/g, '<mark>').replace(/⟧/g, '</mark>') + '…</div>';
+}
 // Whether a track has text to read: a matched or catalogued entry, Ashreinu's
 // own outline or hanacha, or (for a JEM clip) its written text. The book
 // icon shows only then, so it never leads to "no text".
