@@ -27,7 +27,7 @@ async function loadTopics(supabase) {
 // Same filters as the main list (type chips, year, month, occasion dates).
 function applyFilters(query, { type, year, month, dates }) {
   if (type === 'sicha') query = query.ilike('type', '%sicha%');
-  else if (type === 'maamar') query = query.or(`type.ilike.%ma'amar%,type.ilike.%maamar%`);
+  else if (type === 'maamar') query = query.or('type.ilike.%ma_amar%,type.ilike.%maamar%'); // _ = any one letter: ' or ’
   else if (type === 'farbrengen') query = query.eq('type', 'Farbrengen');
   else if (type === 'nigun') query = query.ilike('type', '%nigun%');
   if (year) query = query.eq('hebrew_year', parseInt(year, 10));
@@ -609,7 +609,7 @@ export default async function handler(req, res) {
   // Type matching: Ashreinu's real field spellings are "Nigun" (one g) and
   // "Ma'amar" (with an apostrophe) — plain substring checks were missing both.
   if (type === 'sicha') query = query.ilike('type', '%sicha%');
-  else if (type === 'maamar') query = query.or(`type.ilike.%ma'amar%,type.ilike.%maamar%`);
+  else if (type === 'maamar') query = query.or('type.ilike.%ma_amar%,type.ilike.%maamar%'); // _ = any one letter: ' or ’
   else if (type === 'farbrengen') query = query.eq('type', 'Farbrengen');
   else if (type === 'nigun') query = query.ilike('type', '%nigun%');
 
