@@ -482,6 +482,16 @@ body.audio-paused .eq i{animation-play-state:paused}
 .pl-tile.skel-cover::before{display:none}
 .top-hits{background:var(--hover);border-radius:14px;padding:4px 12px;margin:0 -4px 6px}
 .res-note{font-size:12.5px;color:var(--ink-light);margin:-6px 0 6px}
+.follow-card{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--hover);cursor:pointer}
+.fc-cover{width:56px;height:56px;border-radius:9px;flex-shrink:0}
+.fc-body{flex:1;min-width:0}
+.fc-kicker{font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--gold)}
+.fc-title{font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.fc-sub{font-size:12.5px;color:var(--ink-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.fc-bar{height:3px;border-radius:2px;background:var(--border);margin-top:7px;overflow:hidden}
+.fc-bar i{display:block;height:100%;background:var(--gold)}
+.fc-play{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:0;background:var(--gold);color:#1a140c;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.fc-play svg{width:18px;height:18px;margin-left:2px}
 .mark-btn{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--ink-light);background:transparent;color:transparent;font-size:14px;font-weight:800;cursor:pointer;margin-left:6px}
 .mark-btn.on{background:var(--gold);border-color:var(--gold);color:#1a140c}
 .year-progress{font-size:13px;color:var(--ink-light);margin:-4px 0 14px}
@@ -1724,16 +1734,22 @@ async function loadFollowSection() {
       next = events.find(e => e.hebrew_month === h.m && e.hebrew_day === h.d) || null;
     }
     const heard = events.filter(eventHeard).length;
-    const card = e => cardHtml(e).replace('<div class="shelf-title">', '<div class="shelf-title">' + (eventHeard(e) ? HEARD_TICK : ''));
-    box.innerHTML = '<div class="home-section-head"><h3>' + year + ' · This week</h3><button class="see-all" onclick="openYear(' + year + ')">The year</button></div>'
-      + '<div class="home-sub">' + heard + ' of ' + events.length + ' heard' + (sameCalendar(year, cy) ? ' · same calendar as this year' : '') + '</div>'
-      + (thisWeek.length
-        ? (thisWeek.every(eventHeard) ? '<div class="follow-done">✓ You\'re up to date this week</div>' : '')
-          + '<div class="shelf">' + thisWeek.map(card).join('') + '</div>'
-        : '<div class="follow-note">Nothing recorded this week in ' + year + '.' + (next ? ' Next:' : '') + '</div>'
-          + (next ? '<div class="shelf">' + card(next) + '</div>' : ''))
-      + (missed.length ? '<div class="follow-note">Catch up from the last two weeks</div><div class="shelf">' + missed.map(card).join('') + '</div>' : '')
-      + (earlierUnheardCount(events) > 2 ? '<button class="see-all follow-mark" onclick="markEarlier(' + year + ')">Joined partway? Mark the earlier ones as heard</button>' : '');
+    // One compact "up next" card: the first unheard farbrengen of this week,
+    // else one to catch up on, else the next one coming. The year page holds
+    // the full list.
+    const upNext = thisWeek.find(e => !eventHeard(e)), catchUp = missed[0];
+    const pick = upNext || catchUp || (thisWeek.length ? null : next);
+    const status = upNext ? 'This week' : catchUp ? 'Catch up' : thisWeek.length ? '✓ Up to date this week' : 'Coming up';
+    const extra = [heard + ' of ' + events.length + ' heard', missed.length && pick !== catchUp ? missed.length + ' to catch up' : ''].filter(Boolean).join(' · ');
+    if (pick) { pick._dayCover = true; rowsById[String(pick.id)] = pick; }
+    box.innerHTML = '<div class="follow-card" onclick="openYear(' + year + ')">'
+      + (pick ? coverHtml('fc-cover', pick, false) : '<div class="fc-cover cover cover-date era-' + eraIndex(year) + '"><span class="cv-year">' + year + '</span></div>')
+      + '<div class="fc-body"><div class="fc-kicker">Following ' + year + ' · ' + esc(status) + '</div>'
+        + '<div class="fc-title">' + esc(pick ? trackTitle(pick) : 'Nothing recorded this week') + '</div>'
+        + '<div class="fc-sub">' + esc(extra) + '</div>'
+        + '<div class="fc-bar"><i style="width:' + (events.length ? (heard / events.length * 100).toFixed(1) : 0) + '%"></i></div></div>'
+      + (pick ? '<button class="fc-play" onclick="event.stopPropagation();' + cardAction(pick) + '" aria-label="Listen">' + ICON_PLAY + '</button>' : '')
+    + '</div>';
     box.hidden = false;
   } catch (e) { /* leave hidden */ }
 }
