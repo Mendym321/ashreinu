@@ -226,20 +226,31 @@ async function attachConfirmedTitles(supabase, rows, keep) {
 // ── JEM's curated playlists (imported by the pipeline page; see
 // supabase/005_playlists.sql). A clip is an excerpt of a recording with its
 // own human-written title; it plays from start_ms to end_ms. ──
-const PLAYLIST_LANGUAGE = new Set([352, 666, 885, 1969]); // English, Hebrew, Russian, French
+// Sections by meaning, chosen by hand from JEM's 123 playlists (their own
+// types - playlist, timeline, "interactive article" - say nothing about
+// content). Playlists for an occasion or a season go under "Through the
+// year", which the app orders from today; anything else falls back by name.
+const PLAYLIST_SECTION = {
+  'The Rebbeim': [772, 1697, 2743, 3412, 3285, 4237, 2420, 2541, 2829],
+  'Moshiach & Geulah': [934, 993, 1094, 1096, 1097, 1137, 1302],
+  'Niggunim': [2, 1382],
+  'Stories & moments': [5, 3877, 1901, 2570, 2686, 2377],
+  'Guidance for life': [1, 1588, 1179, 3999, 3059, 1867, 3162, 3135, 2317, 1159, 1851],
+  'Historic events': [1782, 3571, 2080, 1067, 3391, 3279, 3705],
+  'Other languages': [352, 666, 885, 1969],
+  'More': [6, 3696],
+};
+const SECTION_OF = Object.fromEntries(Object.entries(PLAYLIST_SECTION).flatMap(([sec, ids]) => ids.map(id => [id, sec])));
 function playlistGroup(p) {
-  const n = p.name || '';
+  if (SECTION_OF[p.id]) return SECTION_OF[p.id];
   if (p.taxonomy === 'book') return 'Books';
-  if (p.taxonomy === 'timeline' || p.taxonomy === 'date_based_timeline') return 'Timelines';
-  if (p.taxonomy === 'interactive_article' || /^stories$/i.test(n)) return 'Stories & moments';
-  if (PLAYLIST_LANGUAGE.has(p.id)) return 'Languages';
-  if (/podcast/i.test(n)) return 'Podcasts';
-  if (/unknown dates|^current$/i.test(n)) return 'More';
-  if (!/[a-z]/i.test(n)) return 'In Hebrew';
-  if (/highlights|lessons|playlist|celebrations|nigunim|purim|pesach|shavuos|chanukah|sukkos|omer|tishrei|elul|kislev|shevat|nissan|tammuz|\bav\b|adar|teves|cheshvan|iyar|sivan/i.test(n)) return 'Seasons & occasions';
-  return 'Themes';
+  if (/podcast/i.test(p.name || '')) return 'Podcasts';
+  if (!/[a-z]/i.test(p.name || '')) return 'In Hebrew';
+  return 'Through the year'; // the rest are occasion playlists ("Chanukah Lessons")
 }
-const PLAYLIST_GROUPS = ['Seasons & occasions', 'Themes', 'Stories & moments', 'Timelines', 'Podcasts', 'In Hebrew', 'Languages', 'Books', 'More'];
+// Sections the app may move into "Through the year" when it recognises the
+// playlist's occasion or season (by hand-picked sections stay put).
+const PLAYLIST_GROUPS = ['Through the year', 'The Rebbeim', 'Moshiach & Geulah', 'Niggunim', 'Stories & moments', 'Guidance for life', 'Historic events', 'Podcasts', 'In Hebrew', 'Other languages', 'Books', 'More'];
 // Clips as track rows the app can play: the clip's own title, the recording
 // it comes from, and (when we have that recording) its date and farbrengen.
 async function clipRows(supabase, clips, playlistName) {
@@ -321,7 +332,7 @@ export default async function handler(req, res) {
     }
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=604800');
     return res.status(200).json({ groups: PLAYLIST_GROUPS, playlists: data.map(p => ({ id: p.id, name: p.name, hebrew_name: p.hebrew_name, picture: p.picture,
-      count: p.clip_count, total_ms: p.total_ms, group: playlistGroup(p),
+      count: p.clip_count, total_ms: p.total_ms, group: playlistGroup(p), fixed: !!SECTION_OF[p.id], season: p.extra?.season || null,
       years: p.extra?.timeline_event_year_start ? [p.extra.timeline_event_year_start, p.extra.timeline_event_year_end] : null })) });
   }
   if (req.query.playlist) {

@@ -482,6 +482,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 .pl-tile.skel-cover::before{display:none}
 .top-hits{background:var(--hover);border-radius:14px;padding:4px 12px;margin:0 -4px 6px}
 .res-note{font-size:12.5px;color:var(--ink-light);margin:-6px 0 6px}
+.pane-note{font-size:12px;font-weight:600;color:var(--ink-light);margin-left:6px}
 .pl-credit{font-size:12.5px;color:var(--ink-light);margin:18px 2px 4px}
 .nig-letter{font-size:13px;font-weight:800;color:var(--gold);padding:14px 4px 2px;border-bottom:1px solid var(--border-soft)}
 .nig-kinds{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
@@ -1498,6 +1499,7 @@ function fmtHours(ms) {
   return m >= 60 ? Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '') : m + ' min';
 }
 const PL_BG = 'linear-gradient(140deg,#5b6f8f,#26324a)';
+const HEB_MONTHS = ['', 'Tishrei', 'Cheshvan', 'Kislev', 'Teves', 'Shevat', 'Adar I', 'Adar', 'Nissan', 'Iyar', 'Sivan', 'Tammuz', 'Av', 'Elul'];
 function playlistBg(p) { return p.picture ? "url('" + esc(p.picture) + "') center/cover" : PL_BG; }
 function playlistCardHtml(p) {
   return '<div class="shelf-card" onclick="openPlaylist(' + p.id + ')">'
@@ -1528,43 +1530,30 @@ function occasionOfPlaylist(p) {
   });
   return (occOfPlaylist[p.id] = best);
 }
-// Home: JEM's playlists for the occasions coming up first, then a mix.
-async function loadPlaylistShelf() {
-  try {
-    const { playlists } = await getPlaylists();
-    const section = document.getElementById('playlistSection');
-    if (!section || !playlists?.length) return;
-    // A playlist tied to a day ("Lag B'Omer Highlights", "The Story of 12
-    // Tammuz") shows only when that day is now or within three weeks; the
-    // rest of the shelf is timeless (themes, stories, timelines of no date).
-    const soon = getUpcomingCollections(12).filter(c => c.now || c.diff <= 21).map(c => COLLECTIONS.findIndex(x => x.name === c.name));
-    // English titles first (the home page is in English); at most four, so
-    // one occasion doesn't fill the shelf. A name with a year in it ("Nichum
-    // Aveilim 5748", "Chazarah ST 5748") is one event, not timeless.
-    const english = p => /[a-z]/i.test(p.name);
-    const oneEvent = p => /\b57\d\d\b|תש|\bST\b/.test(p.name);
-    const seasonal = soon.flatMap(i => playlists.filter(p => occasionOfPlaylist(p) === i))
-      .sort((a, b) => english(b) - english(a)).slice(0, 4);
-    const rest = playlists.filter(p => ['Themes', 'Stories & moments', 'Timelines'].includes(p.group)
-      && occasionOfPlaylist(p) < 0 && english(p) && !oneEvent(p));
-    for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
-    const list = [...new Set([...seasonal, ...rest])].slice(0, 10);
-    section.innerHTML = '<div class="home-section-head"><h3>From JEM\'s playlists</h3><button class="see-all" onclick="openBrowseSheet(\'playlists\')">See all</button></div>'
-      + '<div class="shelf">' + list.map(playlistCardHtml).join('') + '</div>';
-    section.style.display = 'block';
-  } catch (e) { /* not imported yet */ }
-}
 // Browse → Playlists: every playlist, by group.
 async function loadPlaylistPane() {
   const box = document.getElementById('browsePlaylists');
   if (!playlistData) box.innerHTML = '<div class="pl-grid">' + '<div class="pl-tile skel-cover"></div>'.repeat(6) + '</div>';
   try {
     const { playlists, groups } = await getPlaylists();
+    // An English playlist for an occasion ("Chanukah Lessons") or of one
+    // season (its clips all from one stretch of the year) goes under
+    // "Through the year", ordered from today; the label says when.
+    const when = p => {
+      const i = occasionOfPlaylist(p);
+      if (i >= 0) return { label: COLLECTIONS[i].sub.split(' · ')[0], diff: todayHebrew?.month ? occasionTiming(COLLECTIONS[i]).diff : 0 };
+      if (p.season) return { label: HEB_MONTHS[p.season[0]] || '', diff: todayHebrew?.month
+        ? ((approxOrdinal(p.season[0], p.season[1]) - approxOrdinal(todayHebrew.month, todayHebrew.day)) % 390 + 390) % 390 : 0 };
+      return null;
+    };
+    const sectionOf = p => !p.fixed && /[a-z]/i.test(p.name) && (when(p) || p.group === 'Through the year') ? 'Through the year' : p.group;
+    const tile = (p, extra) => '<div class="pl-tile" data-q="' + esc(filterKey(p.name + ' ' + (p.hebrew_name || '') + ' ' + sectionOf(p) + ' ' + (extra || ''))) + '" style="background:' + playlistBg(p) + '" onclick="closeBrowseSheet();openPlaylist(' + p.id + ')">'
+      + '<strong dir="auto">' + esc(p.name) + '</strong><span>' + esc([extra, p.count + ' clip' + (p.count === 1 ? '' : 's')].filter(Boolean).join(' · ')) + '</span></div>';
     box.innerHTML = playlists.length ? (groups || []).map(g => {
-      const ps = playlists.filter(p => p.group === g);
-      return ps.length ? '<h4 class="pane-sub filter-hide">' + esc(g) + '</h4><div class="pl-grid">' + ps.map(p =>
-        '<div class="pl-tile" data-q="' + esc(filterKey(p.name + ' ' + (p.hebrew_name || '') + ' ' + g)) + '" style="background:' + playlistBg(p) + '" onclick="closeBrowseSheet();openPlaylist(' + p.id + ')">'
-        + '<strong dir="auto">' + esc(p.name) + '</strong><span>' + p.count + ' clip' + (p.count === 1 ? '' : 's') + (p.years ? ' · ' + p.years.filter(Boolean).join('–') : '') + '</span></div>').join('') + '</div>' : '';
+      let ps = playlists.filter(p => sectionOf(p) === g);
+      if (g === 'Through the year') ps = ps.map(p => ({ p, w: when(p) })).sort((a, b) => (a.w ? a.w.diff : 999) - (b.w ? b.w.diff : 999)).map(x => x.p);
+      return ps.length ? '<h4 class="pane-sub filter-hide">' + esc(g) + (g === 'Through the year' ? ' <span class="pane-note">from today</span>' : '') + '</h4><div class="pl-grid">'
+        + ps.map(p => tile(p, g === 'Through the year' ? when(p)?.label : '')).join('') + '</div>' : '';
     }).join('') + '<p class="pl-credit">Curated by JEM for Ashreinu.</p>' : '<div class="shelf-empty">No playlists yet.</div>';
     setTimeout(filterBrowse);
   } catch (e) { box.innerHTML = '<div class="shelf-empty">Could not load playlists. <a href="#" onclick="loadPlaylistPane();return false">Try again</a></div>'; }
@@ -1897,7 +1886,6 @@ async function showLanding() {
   document.getElementById('res').innerHTML =
     '<div class="home-section" id="jumpSection"' + (jumpSectionHtml() ? '' : ' hidden') + '>' + jumpSectionHtml() + '</div>'
     + '<div class="home-section" id="todaySection" style="display:none"></div>'
-    + '<div class="home-section" id="playlistSection" style="display:none"></div>'
     + '<div class="home-section" id="exploreSection" style="display:none">'
       + '<div class="home-section-head"><h3>Talks to explore</h3></div>'
       + '<div class="shelf" id="exploreShelf"></div>'
@@ -1908,7 +1896,6 @@ async function showLanding() {
         + '<div class="shelf topic-shelf">' + topicTilesHtml(true) + '</div></div>'
       : '');
   loadToday();
-  loadPlaylistShelf();
   loadExplore();
 }
 
@@ -1937,27 +1924,36 @@ async function loadToday() {
   if (!todayHebrew || !todayHebrew.month) return;
   const upcoming = getUpcomingCollections(8);
   const idxOf = c => COLLECTIONS.findIndex(x => x.name === c.name);
-  const show = (heading, sub, seeAll, found) => {
+  // JEM's own playlists for the occasion lead its shelf ("Lag B'Omer
+  // Highlights" in the week before Lag B'Omer); otherwise no playlists here.
+  const lists = getPlaylists().then(j => j.playlists || []).catch(() => []);
+  const show = async (heading, sub, seeAll, found, occIdx) => {
     const section = document.getElementById('todaySection');
     if (!section) return true; // user navigated away
     const seen = new Set();
     const items = [...found.talks, ...found.rows].filter(r => !seen.has(r.id) && seen.add(r.id)).slice(0, 20);
-    if (!items.length) return false;
+    const pls = occIdx >= 0 ? (await lists).filter(p => occasionOfPlaylist(p) === occIdx && /[a-z]/i.test(p.name)).slice(0, 3) : [];
+    if (!items.length && !pls.length) return false;
     section.innerHTML = '<div class="home-section-head"><h3>' + esc(heading) + '</h3>'
         + (seeAll ? '<button class="see-all" onclick="' + seeAll + '">See all</button>' : '') + '</div>'
       + '<div class="home-sub">' + esc(sub) + '</div>'
-      + '<div class="shelf">' + items.map(cardHtml).join('') + '</div>';
+      + '<div class="shelf">' + pls.map(playlistCardHtml).join('') + items.map(cardHtml).join('') + '</div>';
     section.style.display = 'block';
     return true;
   };
   try {
     for (const c of upcoming.filter(c => c.now)) {
-      if (show(occasionHeading(c), c.sub + ', across the years', 'browseByCollection(' + idxOf(c) + ')', await fetchEventsOn(c.dates, c.tag))) return;
+      if (await show(occasionHeading(c), c.sub + ', across the years', 'browseByCollection(' + idxOf(c) + ')', await fetchEventsOn(c.dates, c.tag), idxOf(c))) return;
+    }
+    // An occasion within a week comes before "On this day": that's when
+    // people get ready for it.
+    for (const c of upcoming.filter(c => !c.now && c.diff <= 7)) {
+      if (await show(occasionHeading(c), c.sub + ', across the years', 'browseByCollection(' + idxOf(c) + ')', await fetchEventsOn(c.dates, c.tag), idxOf(c))) return;
     }
     const day = await fetchEventsOn([[todayHebrew.month, todayHebrew.day]]);
-    if (show('On this day', todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years', null, day)) return;
-    for (const c of upcoming.filter(c => !c.now)) {
-      if (show(occasionHeading(c), c.sub + ', across the years', 'browseByCollection(' + idxOf(c) + ')', await fetchEventsOn(c.dates, c.tag))) return;
+    if (await show('On this day', todayHebrew.day + ' ' + todayHebrew.monthName + ', across the years', null, day, -1)) return;
+    for (const c of upcoming.filter(c => !c.now && c.diff > 7)) {
+      if (await show(occasionHeading(c), c.sub + ', across the years', 'browseByCollection(' + idxOf(c) + ')', await fetchEventsOn(c.dates, c.tag), idxOf(c))) return;
     }
   } catch (e) { /* leave hidden */ }
 }
