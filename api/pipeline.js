@@ -681,6 +681,24 @@ async function importPlaylistList(supabase) {
   if (gone.length) await supabase.from('playlists').delete().in('id', gone);
   return { ids: rows.filter(r => r.published).map(r => r.id), removed: gone.length };
 }
+// A playlist's time of year, read from its clips' dates: when at least 70%
+// of its dated clips (and at least 3) fall within one month-long stretch of
+// the calendar, whatever the year, it belongs to that time ("Unity in
+// Separation": all from the end of Nissan). Returns [month, day] of the
+// stretch's middle, or null for a playlist of no particular season.
+function playlistSeason(dates) {
+  if (dates.length < 3) return null;
+  const ord = ([m, d]) => (m - 1) * 30 + d; // Ashreinu numbers months 1-13 from Tishrei
+  const days = dates.map(ord).sort((a, b) => a - b), YEAR = 390;
+  let best = null;
+  for (const start of days) {
+    const inside = days.filter(x => ((x - start) % YEAR + YEAR) % YEAR <= 30);
+    if (!best || inside.length > best.inside.length) best = { start, inside };
+  }
+  if (best.inside.length / days.length < 0.7) return null;
+  const mid = best.inside[Math.floor(best.inside.length / 2)];
+  return [Math.floor((mid - 1) / 30) + 1, ((mid - 1) % 30) + 1];
+}
 async function importPlaylist(supabase, id) {
   const p = (await getJson(`${ASHREINU}/playlist/${id}`))?.data;
   if (!p) throw new Error(`Ashreinu has no playlist ${id}`);
@@ -697,10 +715,10 @@ async function importPlaylist(supabase, id) {
   }));
   // Our track for each recording, matched by its audio file.
   const uris = [...new Set(clips.map(c => c.audio_recording?.assets?.[0]?.uri).filter(Boolean))];
-  const eventOf = {};
+  const eventOf = {}, dateOf = {};
   for (let i = 0; i < uris.length; i += 100) {
-    const { data } = await supabase.from('ashreinu_events').select('id, audio_uri').in('audio_uri', uris.slice(i, i + 100));
-    for (const e of data || []) eventOf[e.audio_uri] = e.id;
+    const { data } = await supabase.from('ashreinu_events').select('id, audio_uri, hebrew_month, hebrew_day').in('audio_uri', uris.slice(i, i + 100));
+    for (const e of data || []) { eventOf[e.audio_uri] = e.id; if (e.hebrew_month && e.hebrew_day) dateOf[e.audio_uri] = [e.hebrew_month, e.hebrew_day]; }
   }
   const rows = clips.map((c, i) => {
     const rec = c.audio_recording || {}, uri = rec.assets?.[0]?.uri || null;
@@ -716,6 +734,8 @@ async function importPlaylist(supabase, id) {
     if (error) throw new Error(playlistError(error));
   }
   const { id: _i, name: _n, description: _d, taxonomy: _t, hebrew_name: _h, published: _p, clips: _c, ...extra } = p;
+  const season = playlistSeason(rows.map(r => dateOf[r.audio_uri]).filter(Boolean));
+  if (season) extra.season = season;
   const total = rows.reduce((a, r) => a + Math.max(0, (r.end_ms || 0) - (r.start_ms || 0)), 0);
   const { error } = await supabase.from('playlists').update({
     clip_count: rows.length, total_ms: total, extra: Object.keys(extra).length ? extra : null, updated_at: new Date().toISOString(),
