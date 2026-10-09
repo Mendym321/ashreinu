@@ -818,7 +818,7 @@ body.audio-paused .eq i{animation-play-state:paused}
   <div class="np-scroll" id="readerScroll"><div class="reader-inner" id="readerBody"></div></div>
 
   <div class="reader-bar" id="readerBar">
-    <button class="reader-bar-play" onclick="togglePlayPause()" aria-label="Play or pause">
+    <button class="reader-bar-play" onclick="readerBarPlay()" aria-label="Play or pause">
       <svg id="readerPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
     </button>
     <div class="reader-bar-title" id="readerBarTitle"></div>
@@ -3192,6 +3192,9 @@ async function openReader(eventId, farbrengenId) {
   // "The whole farbrengen" only for a real farbrengen: a standalone event
   // (private audience, Kos Shel Brachah...) is its own parent but is one talk.
   const whole = eventId === String(farbrengenId) && (!row || row.type === 'Farbrengen' || !row.audio_uri);
+  // Nothing playing yet: the bar offers this track (it doesn't start on
+  // its own; opening the text is a choice to read, not to listen).
+  readerTrackId = row?.audio_uri ? eventId : null;
   const reader = document.getElementById('reader');
   if (!readerIsOpen()) {
     if (!history.state?.reader) history.pushState({ reader: true }, '');
@@ -3257,12 +3260,21 @@ function closeReader(fromBackButton) {
   document.getElementById('readerBackdrop').classList.remove('open');
   if (!fromBackButton) popOwnHistory('reader');
 }
-// The small play bar at the bottom of the Reader, for reading along.
+// The small play bar at the bottom of the Reader, for reading along: what's
+// playing, or (when nothing is) the track being read, ready to play.
+let readerTrackId = null;
 function syncReaderBar() {
   const bar = document.getElementById('readerBar');
-  const row = currentTrackId ? rowsById[currentTrackId] : null;
+  const offer = !currentTrackId && readerTrackId;
+  const row = rowsById[currentTrackId || readerTrackId];
   bar.classList.toggle('show', !!row);
-  if (row) document.getElementById('readerBarTitle').textContent = trackTitle(row);
+  if (!row) return;
+  document.getElementById('readerBarTitle').textContent = trackTitle(row);
+  if (offer) document.getElementById('readerBarTime').textContent = 'Listen while you read';
+}
+function readerBarPlay() {
+  if (!currentTrackId && readerTrackId) playFromOrder(readerTrackId);
+  else togglePlayPause();
 }
 
 // ── Footnotes: tap a number, the note slides up from the bottom ──
