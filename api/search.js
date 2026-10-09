@@ -127,7 +127,7 @@ async function topLevelRows(supabase, narrow) {
 async function audioRows(supabase, narrow) {
   const out = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await narrow(supabase.from('ashreinu_events').select('id, parent_id')
+    const { data, error } = await narrow(supabase.from('ashreinu_events').select('id, parent_id, type')
       .not('audio_uri', 'is', null)).order('id').range(from, from + 999);
     if (error) throw new Error(error.message);
     out.push(...data);
@@ -536,11 +536,16 @@ export default async function handler(req, res) {
     try {
       const tops = await topLevelRows(supabase, q => q.eq('hebrew_year', year));
       const tracks = {}; // event id -> audio tracks inside it; own audio counts as present
+      // The talks in each event (not davening or niggunim): what "Follow a
+      // year" counts when it marks a farbrengen as heard.
+      const talks = {};
+      const NOT_A_TALK = /nigun|shacharis|minchah|ma.?ariv|maftir|prayer|kidush levanah|hataras|havdalah|kos shel/i;
       for (let i = 0; i < tops.length; i += 150) {
         const ids = tops.slice(i, i + 150).map(t => t.id).join(',');
         for (const r of await audioRows(supabase, q => q.or(`id.in.(${ids}),parent_id.in.(${ids})`))) {
           const ev = r.parent_id ?? r.id;
           tracks[ev] = (tracks[ev] || 0) + (r.parent_id ? 1 : 0);
+          if (!NOT_A_TALK.test(r.type || '') && r.type !== 'Farbrengen') (talks[ev] = talks[ev] || []).push(r.id);
         }
       }
       const ids = Object.keys(tracks).map(Number);
@@ -551,7 +556,7 @@ export default async function handler(req, res) {
         rows.push(...data);
       }
       await attachConfirmedTitles(supabase, rows);
-      for (const r of rows) r.track_count = tracks[r.id] || 0;
+      for (const r of rows) { r.track_count = tracks[r.id] || 0; r.talk_ids = talks[r.id] || []; }
       rows.sort((a, b) => (a.hebrew_month || 0) - (b.hebrew_month || 0) || (a.hebrew_day || 0) - (b.hebrew_day || 0) || a.id - b.id);
       res.setHeader('Cache-Control', 's-maxage=600');
       return res.status(200).json({ year, events: rows });

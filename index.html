@@ -482,6 +482,12 @@ body.audio-paused .eq i{animation-play-state:paused}
 .pl-tile.skel-cover::before{display:none}
 .top-hits{background:var(--hover);border-radius:14px;padding:4px 12px;margin:0 -4px 6px}
 .res-note{font-size:12.5px;color:var(--ink-light);margin:-6px 0 6px}
+.heard-tick{display:inline-block;margin-left:6px;color:var(--gold);font-weight:800;font-size:.85em}
+.follow-btn{height:34px;padding:0 16px;border-radius:17px;border:1.5px solid var(--ink-light);background:transparent;color:var(--ink);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+.follow-btn.on{border-color:var(--gold);color:var(--gold)}
+.follow-done{font-size:13px;font-weight:700;color:var(--gold);margin:-2px 0 8px}
+.follow-note{font-size:13px;color:var(--ink-light);margin:10px 0 8px}
+.year-same{font-size:13px;color:var(--ink-light);margin:0 0 12px}
 .pane-note{font-size:12px;font-weight:600;color:var(--ink-light);margin-left:6px}
 .pl-credit{font-size:12.5px;color:var(--ink-light);margin:18px 2px 4px}
 .nig-letter{font-size:13px;font-weight:800;color:var(--gold);padding:14px 4px 2px;border-bottom:1px solid var(--border-soft)}
@@ -1075,8 +1081,13 @@ async function loadBrowseSheetContent() {
     : '<div class="shelf-empty">Topics will appear once the catalogue is set up.</div>';
   // Every year with recordings, in order; each opens its own Year page.
   const years = await getYears();
+  // Years with this year's calendar (same weekdays, Shabbosim, parshiyos)
+  // and the year you follow, noted above the grid.
+  const cy = todayHebrew?.year, same = cy ? years.filter(y => sameCalendar(y, cy)) : [], fy = followedYear();
+  const yearNote = (same.length ? 'Same calendar as ' + cy + ': ' + same.map(y => '<a href="#" onclick="closeBrowseSheet();openYear(' + y + ');return false">' + y + '</a>').join(', ') : '')
+    + (fy ? (same.length ? ' · ' : '') + 'Following <a href="#" onclick="closeBrowseSheet();openYear(' + fy + ');return false">' + fy + '</a>' : '');
   document.getElementById('browseYears').innerHTML = years.length
-    ? '<div class="year-grid">' + years.map(y =>
+    ? (yearNote ? '<p class="year-same filter-hide">' + yearNote + '</p>' : '') + '<div class="year-grid">' + years.map(y =>
           '<button class="year-tile era-' + eraIndex(y) + '" data-q="' + esc(filterKey(y + ' ' + hebrewYearLetters(y) + ' ' + (y - 3761) + ' ' + (y - 3760))) + '" onclick="closeBrowseSheet();openYear(' + y + ')"><strong>' + y + ' <em lang="he">' + hebrewYearLetters(y) + '</em></strong>'
           + '<span>' + secularSpan(y) + '</span>' + (yearCounts[y] ? '<span>' + yearCounts[y] + ' event' + (yearCounts[y] !== 1 ? 's' : '') + '</span>' : '') + '</button>').join('')
         + '</div>'
@@ -1582,6 +1593,99 @@ async function renderPlaylist(id) {
   }
 }
 
+// ── Follow a year: listen along with one year of the Rebbe's farbrengens,
+// week by week, in step with today's Hebrew date. What you've heard and the
+// year you follow are kept on this device. ──
+// The Hebrew calendar: days from creation to Rosh Hashanah of year y (with
+// the postponements), so a year's length and weekday give its kvius.
+function hebLeap(y) { return (7 * y + 1) % 19 < 7; }
+function hebElapsed(y) {
+  const m = 235 * Math.floor((y - 1) / 19) + 12 * ((y - 1) % 19) + Math.floor((7 * ((y - 1) % 19) + 1) / 19);
+  const pe = 204 + 793 * (m % 1080), he = 5 + 12 * m + 793 * Math.floor(m / 1080) + Math.floor(pe / 1080);
+  let day = 1 + 29 * m + Math.floor(he / 24);
+  const parts = 1080 * (he % 24) + pe % 1080;
+  if (parts >= 19440 || (day % 7 === 2 && parts >= 9924 && !hebLeap(y)) || (day % 7 === 1 && parts >= 16789 && hebLeap(y - 1))) day++;
+  if ([0, 3, 5].includes(day % 7)) day++;
+  return day;
+}
+function hebYearLength(y) { return hebElapsed(y + 1) - hebElapsed(y); }
+// Same weekday for Rosh Hashanah and same length: every date falls on the
+// same weekday, with the same Shabbosim and parshiyos.
+function kviusKey(y) { return (hebElapsed(y) % 7) + ':' + hebYearLength(y); }
+function sameCalendar(a, b) { return kviusKey(a) === kviusKey(b); }
+// Month lengths in Ashreinu's numbering (1 Tishrei … 6 Adar I, 7 Adar/Adar II … 13 Elul).
+function hebMonthLength(y, m) {
+  const len = hebYearLength(y) % 10; // 3 short, 4 regular, 5 full
+  if (m === 2) return len === 5 ? 30 : 29;
+  if (m === 3) return len === 3 ? 29 : 30;
+  if (m === 6) return hebLeap(y) ? 30 : 0;
+  return [0, 30, 0, 0, 29, 30, 0, 29, 30, 29, 30, 29, 30, 29][m];
+}
+function hebAddDays(y, m, d, n) {
+  d += n;
+  while (d > hebMonthLength(y, m)) { d -= hebMonthLength(y, m); m++; if (m === 6 && !hebLeap(y)) m++; if (m > 13) { m = 1; y++; } }
+  while (d < 1) { m--; if (m === 6 && !hebLeap(y)) m--; if (m < 1) { m = 13; y--; } d += hebMonthLength(y, m); }
+  return { y, m, d };
+}
+// "Heard": a track you've played to 90%. A farbrengen: 80% of its talks.
+const HEARD_KEY = 'ashreinu-heard', FOLLOW_KEY = 'ashreinu-follow';
+function isHeard(id) { return !!readJSON(HEARD_KEY, {})[id]; }
+function markHeard(id) {
+  const all = readJSON(HEARD_KEY, {});
+  if (all[id]) return;
+  all[id] = Date.now(); writeJSON(HEARD_KEY, all);
+  document.querySelectorAll('[data-rid="' + id + '"] .track-title').forEach(t => { if (!t.querySelector('.heard-tick')) t.insertAdjacentHTML('beforeend', HEARD_TICK); });
+}
+function eventHeard(ev) {
+  const ids = ev.talk_ids || [];
+  return ids.length > 0 && ids.filter(isHeard).length / ids.length >= 0.8;
+}
+const HEARD_TICK = '<span class="heard-tick" title="Heard">✓</span>';
+function followedYear() { const y = readJSON(FOLLOW_KEY, null); return Number.isInteger(y) ? y : null; }
+function toggleFollowYear(year) {
+  writeJSON(FOLLOW_KEY, followedYear() === year ? null : year);
+  const b = document.getElementById('followBtn');
+  if (b) { const on = followedYear() === year; b.classList.toggle('on', on); b.innerHTML = on ? '✓ Following' : 'Follow'; }
+  toast(followedYear() === year ? 'Following ' + year + ': it\'s on your home page' : 'Stopped following ' + year);
+}
+const yearEventsCache = {};
+function fetchYearEvents(year) {
+  if (!yearEventsCache[year]) yearEventsCache[year] = fetch('/api/search?year_events=' + year).then(r => r.json())
+    .then(j => { if (j.error) throw new Error(j.error); return j.events || []; }).catch(e => { delete yearEventsCache[year]; throw e; });
+  return yearEventsCache[year];
+}
+// Home: the followed year's recordings from this week (Sunday to Shabbos,
+// matched by Hebrew date), what you missed last fortnight, and your progress.
+async function loadFollowSection() {
+  const year = followedYear(), box = document.getElementById('followSection');
+  if (!year || !box || !todayHebrew?.month) return;
+  try {
+    const events = (await fetchYearEvents(year)).filter(e => (e.talk_ids || []).length);
+    const cy = todayHebrew.year, dow = new Date().getDay();
+    const keyOf = (m, d) => m + '-' + d;
+    const days = (from, to) => { const k = new Set(); for (let i = from; i <= to; i++) { const h = hebAddDays(cy, todayHebrew.month, todayHebrew.day, i); k.add(keyOf(h.m, h.d)); } return k; };
+    const week = days(-dow, 6 - dow), before = days(-dow - 14, -dow - 1);
+    const thisWeek = events.filter(e => week.has(keyOf(e.hebrew_month, e.hebrew_day)));
+    const missed = events.filter(e => before.has(keyOf(e.hebrew_month, e.hebrew_day)) && !eventHeard(e)).slice(-4);
+    let next = null;
+    if (!thisWeek.length) for (let i = 7 - dow; i < 7 - dow + 120 && !next; i++) {
+      const h = hebAddDays(cy, todayHebrew.month, todayHebrew.day, i);
+      next = events.find(e => e.hebrew_month === h.m && e.hebrew_day === h.d) || null;
+    }
+    const heard = events.filter(eventHeard).length;
+    const card = e => cardHtml(e).replace('<div class="shelf-title">', '<div class="shelf-title">' + (eventHeard(e) ? HEARD_TICK : ''));
+    box.innerHTML = '<div class="home-section-head"><h3>' + year + ' · This week</h3><button class="see-all" onclick="openYear(' + year + ')">The year</button></div>'
+      + '<div class="home-sub">' + heard + ' of ' + events.length + ' heard' + (sameCalendar(year, cy) ? ' · same calendar as this year' : '') + '</div>'
+      + (thisWeek.length
+        ? (thisWeek.every(eventHeard) ? '<div class="follow-done">✓ You\'re up to date this week</div>' : '')
+          + '<div class="shelf">' + thisWeek.map(card).join('') + '</div>'
+        : '<div class="follow-note">Nothing recorded this week in ' + year + '.' + (next ? ' Next:' : '') + '</div>'
+          + (next ? '<div class="shelf">' + card(next) + '</div>' : ''))
+      + (missed.length ? '<div class="follow-note">Catch up from the last two weeks</div><div class="shelf">' + missed.map(card).join('') + '</div>' : '');
+    box.hidden = false;
+  } catch (e) { /* leave hidden */ }
+}
+
 function openYear(year) { go({ p: 'year', y: +year }); }
 async function renderYear(year) {
   closeReader(); closeNowPlaying(); closeBrowseSheet();
@@ -1591,11 +1695,14 @@ async function renderYear(year) {
   window.scrollTo(0, 0);
   showSkeletons();
   try {
-    const j = await (await fetch('/api/search?year_events=' + year)).json();
-    if (j.error) throw new Error(j.error);
+    const j = { events: await fetchYearEvents(year) };
+    const talksEvents = j.events.filter(e => (e.talk_ids || []).length), heardN = talksEvents.filter(eventHeard).length;
+    const same = todayHebrew?.year && year !== todayHebrew.year && sameCalendar(year, todayHebrew.year);
+    const following = followedYear() === year;
     const months = [];
     for (const ev of j.events) {
       ev._dayCover = true;
+      ev._heard = eventHeard(ev);
       const last = months[months.length - 1];
       if (last && last.num === ev.hebrew_month) last.events.push(ev);
       else months.push({ num: ev.hebrew_month, name: ev.hebrew_month_name || 'Undated', events: [ev] });
@@ -1608,8 +1715,10 @@ async function renderYear(year) {
       pageHeroHtml({
         cover: pic ? photoCoverHtml(pic.photo_lg || pic.photo) : '<div class="ph-cover ph-art" style="background:' + ERA_BG[eraIndex(year)] + '"><span class="big-year">' + year + '</span></div>',
         wash: pic ? photoWash(pic.photo) : ERA_BG[eraIndex(year)], photoWash: !!pic,
-        kicker: 'Year · ' + secularSpan(year), title: String(year), he: hebrewYearLetters(year),
-        meta: j.events.length + ' events' + (farb ? ' · ' + farb + ' farbrengen' + (farb !== 1 ? 's' : '') : '') })
+        kicker: 'Year · ' + secularSpan(year) + (same ? ' · Same calendar as this year' : ''), title: String(year), he: hebrewYearLetters(year),
+        meta: j.events.length + ' events' + (farb ? ' · ' + farb + ' farbrengen' + (farb !== 1 ? 's' : '') : '')
+          + (following || heardN ? ' · ' + heardN + ' of ' + talksEvents.length + ' heard' : ''),
+        extra: '<button class="follow-btn' + (following ? ' on' : '') + '" id="followBtn" onclick="toggleFollowYear(' + year + ')" title="Listen along with this year, week by week, on your home page">' + (following ? '✓ Following' : 'Follow') + '</button>' })
       + (farb >= 2 ? '<div class="home-section"><div class="home-section-head"><h3>Farbrengens</h3></div><div class="shelf">' + farbs.map(cardHtml).join('') + '</div></div>' : '')
       + (months.length > 1 ? '<div class="chip-scroll month-jump" style="margin:0 -16px 6px;--hdr:' + document.getElementById('appHeader').offsetHeight + 'px">' + months.map((m, i) =>
           '<button class="chip" onclick="document.getElementById(\'ym-' + i + '\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">' + esc(m.name) + '</button>').join('') + '</div>' : '')
@@ -1628,7 +1737,7 @@ function eventRowHtml(row) {
   rowsById[String(row.id)] = row;
   return '<div class="track event-row" onclick="openFarbrengen(' + row.id + ')">'
     + coverHtml('track-cover', row, false)
-    + '<div class="track-info"><div class="track-title">' + esc(trackTitle(row)) + '</div>'
+    + '<div class="track-info"><div class="track-title">' + esc(trackTitle(row)) + (row._heard ? HEARD_TICK : '') + '</div>'
       + '<div class="track-sub">' + esc([hebDate(row), row.track_count ? row.track_count + ' track' + (row.track_count !== 1 ? 's' : '') : ''].filter(Boolean).join(' · ')) + '</div></div>'
     + '<svg class="row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
   + '</div>';
@@ -1885,6 +1994,7 @@ async function showLanding() {
   document.getElementById('rmeta').textContent = '';
   document.getElementById('res').innerHTML =
     '<div class="home-section" id="jumpSection"' + (jumpSectionHtml() ? '' : ' hidden') + '>' + jumpSectionHtml() + '</div>'
+    + '<div class="home-section" id="followSection" hidden></div>'
     + '<div class="home-section" id="todaySection" style="display:none"></div>'
     + '<div class="home-section" id="exploreSection" style="display:none">'
       + '<div class="home-section-head"><h3>Talks to explore</h3></div>'
@@ -1896,6 +2006,7 @@ async function showLanding() {
         + '<div class="shelf topic-shelf">' + topicTilesHtml(true) + '</div></div>'
       : '');
   loadToday();
+  loadFollowSection();
   loadExplore();
 }
 
@@ -2117,7 +2228,7 @@ function trackRowHtml(row, loose, withSummary) {
       + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
       + coverHtml('track-cover', row, false, '<span class="eq"><i></i><i></i><i></i></span>')
       + '<div class="track-info">'
-        + '<div class="track-title">' + ROW_HEART + esc(trackTitle(row)) + '</div>'
+        + '<div class="track-title">' + ROW_HEART + esc(trackTitle(row)) + (row._heard || isHeard(rid) ? HEARD_TICK : '') + '</div>'
         + '<div class="track-sub">' + sub.filter(Boolean).map(part => part === row.parent_name && row.parent_id
             ? farbrengenLinkHtml(row) : esc(part)).join(' · ') + '</div>'
         + (withSummary && row.summary_en ? '<div class="track-summary">' + esc(row.summary_en) + '</div>' : '')
@@ -2330,7 +2441,7 @@ function setPlayIcon(playing) {
 // controls keep the on-screen buttons in sync too.
 audioEl.addEventListener('play', () => { setPlayIcon(true); document.body.classList.remove('audio-paused'); });
 audioEl.addEventListener('pause', () => { setPlayIcon(false); document.body.classList.add('audio-paused'); });
-audioEl.addEventListener('ended', () => { setPlayIcon(false); savePosition(currentTrackId, 0); playNext(); });
+audioEl.addEventListener('ended', () => { setPlayIcon(false); savePosition(currentTrackId, 0); if (currentTrackId) markHeard(currentTrackId); playNext(); });
 
 function closePlayer() {
   audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load();
@@ -2420,6 +2531,8 @@ audioEl.addEventListener('timeupdate', () => {
     audioEl.pause(); savePosition(currentTrackId, 0); setPlayIcon(false); playNext(); return;
   }
   if (!isSeeking) renderProgress(posNow());
+  const total = trackDuration();
+  if (currentTrackId && total > 0 && posNow() >= total * 0.9) markHeard(currentTrackId);
   // Save your place every few seconds, for "Continue listening".
   if (currentTrackId && Date.now() - lastPositionSave > 5000) {
     lastPositionSave = Date.now();
