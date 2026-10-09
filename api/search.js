@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { understandQuery } from '../lib/searchQuery.js';
 import { groupNiggunim, niggunKey, niggunTitle, niggunNames, niggunKind } from '../lib/niggunim.js';
 import { textQuery } from '../lib/hebrewTerms.js';
+import { shabbosParsha } from '../lib/parshaCalendar.js';
 
 // Fields the app needs for a track row (not raw_data, which is large).
 const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri, has_transcript, has_ld:raw_data->>has_long_description, pics:raw_data->pictures, desc:raw_data->>description';
@@ -147,9 +148,37 @@ async function rowsForIds(supabase, ids, filters) {
   return rows;
 }
 
+// The words of a query as shabbosParsha() reads them.
+const wordsOf = q => String(q || '').toLowerCase().replace(/[’‘'`"״׳]/g, '').split(/[^a-z\u05d0-\u05ea0-9]+/).filter(Boolean);
+// [[year, month, day], …] as a PostgREST or() filter.
+const onDatesFilter = (dates, extra = '') => dates.map(([y, m, d]) => `and(${extra}hebrew_year.eq.${+y},hebrew_month.eq.${+m},hebrew_day.eq.${+d})`).join(',');
+
+// Catalogued talks said on any of these exact dates, earliest first.
+async function talksOnDates(supabase, dates) {
+  const { data, error } = await supabase.from('ashreinu_events').select('id')
+    .not('audio_uri', 'is', null).not('parent_id', 'is', null).or(onDatesFilter(dates))
+    .order('hebrew_year').order('id').limit(500);
+  if (error) throw new Error(error.message);
+  const ids = data.map(r => r.id);
+  if (!ids.length) return [];
+  const { data: meta, error: e2 } = await supabase.from('track_metadata').select('ashreinu_event_id').eq('status', 'enriched').in('ashreinu_event_id', ids);
+  if (e2) throw new Error(e2.message);
+  const done = new Set(meta.map(r => r.ashreinu_event_id));
+  return ids.filter(id => done.has(id)).slice(0, 30);
+}
+
 // Ranked catalogue search ("Talks"): precise first (every concept must
 // match); if that finds little, widen to any concept and add those below.
-async function searchTalks(supabase, q, topics, filters) {
+async function searchTalks(supabase, q, topics, filters, sp) {
+  // "Shabbos Bereishis": the talks said on that Shabbos (any year) come
+  // first; the rest of the search is for the parsha itself and whatever
+  // else was typed, not the word "Shabbos".
+  let onShabbos = [];
+  if (sp) {
+    onShabbos = await talksOnDates(supabase, sp.dates);
+    const rest = wordsOf(q).filter(w => !sp.words.includes(w));
+    q = [sp.name, ...rest].join(' ');
+  }
   const u = understandQuery(q, topics);
   if (!u) return { talks: [], matchedTopics: [] };
   const call = (tsq) => supabase.rpc('search_catalogue', { q_simple: tsq, q_english: tsq, q_raw: u.raw, topic_slugs: u.topicSlugs, max_results: 60 });
@@ -164,7 +193,8 @@ async function searchTalks(supabase, q, topics, filters) {
     more.forEach(h => loose.add(h.ashreinu_event_id));
     hits = [...hits, ...more];
   }
-  const talks = await rowsForIds(supabase, hits.map(h => h.ashreinu_event_id), filters);
+  const first = new Set(onShabbos);
+  const talks = await rowsForIds(supabase, [...onShabbos, ...hits.map(h => h.ashreinu_event_id).filter(id => !first.has(id))], filters);
   for (const t of talks) if (loose.has(t.id)) t.loose = true;
   const matchedTopics = topics.filter(t => u.topicSlugs.includes(t.slug));
   return { talks: talks.slice(0, 40), matchedTopics };
@@ -564,6 +594,10 @@ export default async function handler(req, res) {
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
+  // "Shabbos Bereishis", "Motzei Shabbos Noach"...: a Shabbos named by its
+  // parsha, found by date (Ashreinu names most farbrengens by date).
+  const sp = q ? shabbosParsha(q) : null;
+
   // Home shelves (toplevel) need only the row fields, not the large raw_data.
   let query = supabase.from('ashreinu_events').select(toplevel ? ROW_FIELDS : '*', { count: 'exact' }).limit(Math.min(parseInt(limit, 10) || 200, 300));
 
@@ -603,6 +637,8 @@ export default async function handler(req, res) {
       clauses.push(`id.in.(${idList})`, `parent_id.in.(${idList})`);
     }
     if (confirmedEventIds.length) clauses.push(`id.in.(${confirmedEventIds.join(',')})`);
+    // The farbrengens (and other events) held on that Shabbos, every year.
+    if (sp) clauses.push(onDatesFilter(sp.dates, 'parent_id.is.null,'));
     query = query.or(clauses.join(','));
   }
 
@@ -656,7 +692,7 @@ export default async function handler(req, res) {
         .then(talks => ({ talks, matchedTopics: [] }))
         .catch(e => ({ talks: [], matchedTopics: [], talksError: e.message }))
     : q
-    ? loadTopics(supabase).then(topics => searchTalks(supabase, q, topics, { type, year, month, dates }))
+    ? loadTopics(supabase).then(topics => searchTalks(supabase, q, topics, { type, year, month, dates }, sp))
         // catalogue not set up yet: the list still works, but say why Talks is empty
         .catch(e => ({ talks: [], matchedTopics: [], talksError: e.message }))
     : Promise.resolve({ talks: [], matchedTopics: [] });
@@ -676,7 +712,9 @@ export default async function handler(req, res) {
   // אהבת ישראל). Each hit comes with a snippet around the match.
   const textPromise = q && q.trim().length >= 2
     ? loadTopics(supabase).then(async topics => {
-        const tq = textQuery(q, topics);
+        // Not for a Shabbos named by parsha: "שבת" and "בראשית" are in every text.
+        const textQ = sp ? wordsOf(q).filter(w => !sp.words.includes(w)).join(' ') : q;
+        const tq = textQ ? textQuery(textQ, topics) : null;
         if (!tq) return null;
         let { data: hits, error: e } = await supabase.rpc('search_texts', { q: tq.tsq, max_results: 20 });
         if (e) return null; // not set up yet
@@ -710,5 +748,5 @@ export default async function handler(req, res) {
   }
 
   res.setHeader('Cache-Control', 's-maxage=30');
-  res.status(200).json({ results: data, count, top, talks, matchedTopics, matchedNiggunim, clips, textHits, ...(talksError ? { talksError } : {}) });
+  res.status(200).json({ results: data, count, top, talks, matchedTopics, matchedNiggunim, clips, textHits, ...(sp ? { shabbos: { name: sp.name, he: sp.he } } : {}), ...(talksError ? { talksError } : {}) });
 }

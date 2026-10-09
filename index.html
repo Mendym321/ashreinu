@@ -1248,7 +1248,8 @@ async function search(fromHistory) {
           + (j.textHits.typed ? 'In Ashreinu\'s outlines and hanachos' : 'Searched the Hebrew text for <span lang="he" dir="rtl">' + esc(j.textHits.terms.join(' · ')) + '</span>') + '</div>'
           + textRows.map(r => trackRowHtml(r, true, false) + snippetHtml(r.text_snippet)).join('') : '')
       + (related.length ? '<h3 class="res-heading">Related talks</h3><div class="res-note">Mention some of your words</div>' + related.map(t => trackRowHtml(t, true, true)).join('') : '');
-    renderCards(results, before);
+    // "Shabbos Bereishis": the farbrengens held on that Shabbos, every year.
+    renderCards(results, before, j.shabbos ? 'Shabbos ' + j.shabbos.name + ', every year' : '');
   } catch (e) {
     document.getElementById('searchIcon').classList.remove('loading');
     document.getElementById('rmeta').textContent = 'Search failed: ' + e.message;
@@ -2430,7 +2431,7 @@ function albumHtml(fid, head, tracks) {
   + '</section>';
 }
 
-function renderCards(items, before) {
+function renderCards(items, before, heading) {
   const el = document.getElementById('res');
   if (!items.length && !before) { el.innerHTML = '<div class="empty">No matches found in the archive.</div>'; currentOrder = []; return; }
   if (!items.length) { el.innerHTML = before; rebuildOrder(); return; }
@@ -2452,7 +2453,7 @@ function renderCards(items, before) {
     }
   }
 
-  el.innerHTML = (before ? before + '<h3 class="res-heading">Farbrengens &amp; tracks</h3>' : '') + groups.map(g => {
+  el.innerHTML = (before || '') + (heading ? '<h3 class="res-heading">' + esc(heading) + '</h3>' : before ? '<h3 class="res-heading">Farbrengens &amp; tracks</h3>' : '') + groups.map(g => {
     // A lone track with no farbrengen context renders as a single row;
     // grouping only adds value with 2+ items or the farbrengen's own info.
     if (g.items.length === 1 && !g.farbrengenRow) return '<div class="loose">' + trackRowHtml(g.items[0], true, !!g.items[0].summary_en) + '</div>';
