@@ -482,16 +482,24 @@ body.audio-paused .eq i{animation-play-state:paused}
 .pl-tile.skel-cover::before{display:none}
 .top-hits{background:var(--hover);border-radius:14px;padding:4px 12px;margin:0 -4px 6px}
 .res-note{font-size:12.5px;color:var(--ink-light);margin:-6px 0 6px}
-.follow-card{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--hover);cursor:pointer}
-.fc-cover{width:56px;height:56px;border-radius:9px;flex-shrink:0}
-.fc-body{flex:1;min-width:0}
-.fc-kicker{font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--gold)}
-.fc-title{font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-.fc-sub{font-size:12.5px;color:var(--ink-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-.fc-bar{height:3px;border-radius:2px;background:var(--border);margin-top:7px;overflow:hidden}
-.fc-bar i{display:block;height:100%;background:var(--gold)}
-.fc-play{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:0;background:var(--gold);color:#1a140c;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.fc-play svg{width:18px;height:18px;margin-left:2px}
+.follow-panel{border-radius:16px;background:var(--hover);padding:14px 16px 8px}
+.fp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.fp-kicker{font-size:17px;font-weight:800;color:var(--ink)}
+.fp-sub{font-size:12.5px;color:var(--ink-light);margin-top:2px}
+.fp-bar{height:4px;border-radius:2px;background:var(--border);margin:10px 0 4px;overflow:hidden}
+.fp-bar i{display:block;height:100%;background:var(--gold)}
+.fp-label{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-light);margin:12px 0 2px}
+.fp-ok{color:var(--gold);letter-spacing:0;text-transform:none;font-weight:700;margin-left:6px}
+.fp-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--border-soft);cursor:pointer}
+.fp-label+.fp-row{border-top:0}
+.fp-date{flex-shrink:0;width:56px;font-size:12.5px;font-weight:700;color:var(--gold)}
+.fp-title{flex:1;min-width:0;font-size:14.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fp-title em{font-style:normal;font-size:12px;color:var(--ink-light);font-weight:600}
+.fp-row.done .fp-title{color:var(--ink-light)}
+.fp-play{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--gold);color:#1a140c;display:flex;align-items:center;justify-content:center}
+.fp-play svg{width:15px;height:15px;margin-left:2px}
+.fp-done{flex-shrink:0;width:32px;text-align:center;color:var(--gold);font-weight:800}
+.fp-empty{font-size:13.5px;color:var(--ink-light);padding:6px 0 2px}
 .mark-btn{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--ink-light);background:transparent;color:transparent;font-size:14px;font-weight:800;cursor:pointer;margin-left:6px}
 .mark-btn.on{background:var(--gold);border-color:var(--gold);color:#1a140c}
 .year-progress{font-size:13px;color:var(--ink-light);margin:-4px 0 14px}
@@ -1734,21 +1742,27 @@ async function loadFollowSection() {
       next = events.find(e => e.hebrew_month === h.m && e.hebrew_day === h.d) || null;
     }
     const heard = events.filter(eventHeard).length;
-    // One compact "up next" card: the first unheard farbrengen of this week,
-    // else one to catch up on, else the next one coming. The year page holds
-    // the full list.
-    const upNext = thisWeek.find(e => !eventHeard(e)), catchUp = missed[0];
-    const pick = upNext || catchUp || (thisWeek.length ? null : next);
-    const status = upNext ? 'This week' : catchUp ? 'Catch up' : thisWeek.length ? '✓ Up to date this week' : 'Coming up';
-    const extra = [heard + ' of ' + events.length + ' heard', missed.length && pick !== catchUp ? missed.length + ' to catch up' : ''].filter(Boolean).join(' · ');
-    if (pick) { pick._dayCover = true; rowsById[String(pick.id)] = pick; }
-    box.innerHTML = '<div class="follow-card" onclick="openYear(' + year + ')">'
-      + (pick ? coverHtml('fc-cover', pick, false) : '<div class="fc-cover cover cover-date era-' + eraIndex(year) + '"><span class="cv-year">' + year + '</span></div>')
-      + '<div class="fc-body"><div class="fc-kicker">Following ' + year + ' · ' + esc(status) + '</div>'
-        + '<div class="fc-title">' + esc(pick ? trackTitle(pick) : 'Nothing recorded this week') + '</div>'
-        + '<div class="fc-sub">' + esc(extra) + '</div>'
-        + '<div class="fc-bar"><i style="width:' + (events.length ? (heard / events.length * 100).toFixed(1) : 0) + '%"></i></div></div>'
-      + (pick ? '<button class="fc-play" onclick="event.stopPropagation();' + cardAction(pick) + '" aria-label="Listen">' + ICON_PLAY + '</button>' : '')
+    // A small panel: this week's farbrengens as rows (date, title, ▶ or ✓),
+    // then up to two to catch up on; at most four rows. "See all" opens the
+    // year page with everything and the ticks.
+    const row = (e, label) => {
+      rowsById[String(e.id)] = e;
+      const done = eventHeard(e);
+      return '<div class="fp-row' + (done ? ' done' : '') + '" onclick="' + cardAction(e) + '">'
+        + '<span class="fp-date">' + esc(e.hebrew_day + ' ' + (e.hebrew_month_name || '').slice(0, 4)) + '</span>'
+        + '<span class="fp-title">' + esc(trackTitle(e)) + (label ? ' <em>' + esc(label) + '</em>' : '') + '</span>'
+        + (done ? '<span class="fp-done" title="Heard">✓</span>' : '<span class="fp-play" aria-label="Listen">' + ICON_PLAY + '</span>') + '</div>';
+    };
+    const weekRows = thisWeek.slice(0, 4), catchRows = missed.filter(e => !weekRows.includes(e)).slice(0, Math.max(0, Math.min(2, 4 - weekRows.length)));
+    box.innerHTML = '<div class="follow-panel">'
+      + '<div class="fp-head"><div><div class="fp-kicker">Following ' + year + '</div><div class="fp-sub">' + heard + ' of ' + events.length + ' heard'
+        + (sameCalendar(year, cy) ? ' · same calendar as this year' : '') + '</div></div>'
+        + '<button class="see-all" onclick="openYear(' + year + ')">See all</button></div>'
+      + '<div class="fp-bar"><i style="width:' + (events.length ? (heard / events.length * 100).toFixed(1) : 0) + '%"></i></div>'
+      + '<div class="fp-label">This week' + (weekRows.length && weekRows.every(eventHeard) ? ' <span class="fp-ok">✓ up to date</span>' : '') + '</div>'
+      + (weekRows.length ? weekRows.map(e => row(e)).join('')
+        : '<div class="fp-empty">Nothing recorded this week in ' + year + (next ? '. The next one:' : '.') + '</div>' + (next ? row(next) : ''))
+      + (catchRows.length ? '<div class="fp-label">Catch up</div>' + catchRows.map(e => row(e)).join('') : '')
     + '</div>';
     box.hidden = false;
   } catch (e) { /* leave hidden */ }
@@ -1853,7 +1867,7 @@ function occasionHeading(c) {
 // Stored only on this device (localStorage). Every read/write is wrapped,
 // because storage can be blocked (private browsing) — the app must still work.
 const RECENT_KEY = 'ashreinu-recent', POS_KEY = 'ashreinu-pos';
-const RECENT_FIELDS = ['id','name','type','ashreinu_desc','clip_id','event_id','start_ms','end_ms','has_document','playlist_id','playlist_name','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
+const RECENT_FIELDS = ['id','name','type','ashreinu_desc','has_transcript','has_ld','title_source','clip_id','event_id','start_ms','end_ms','has_document','playlist_id','playlist_name','parent_id','parent_name','hebrew_year','hebrew_month','hebrew_day','hebrew_month_name',
   'secular_year','secular_month','secular_day','duration_ms','audio_uri','confirmed_title','main_topic','summary_en','photo','photo_lg'];
 function readJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
@@ -2309,10 +2323,18 @@ function trackRowHtml(row, loose, withSummary) {
         + (withSummary && row.summary_en ? '<div class="track-summary">' + esc(row.summary_en) + '</div>' : '')
       + '</div>'
       + (row._mark ? markBtnHtml(row) : '')
-      + (isNigun || (row.clip_id && !row.has_document && !row.event_id) ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
+      + (!hasSourceText(row) ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
     + '</div>';
 }
 
+// Whether a track has text to read: a matched or catalogued entry, Ashreinu's
+// own outline or hanacha, or (for a JEM clip) its written text. The book
+// icon shows only then, so it never leads to "no text".
+function hasSourceText(row) {
+  if (typeKey(row.type) === 'niggun') return false;
+  if (row.clip_id) return !!row.has_document;
+  return !!(row.has_transcript || row.has_ld === 'true' || row.title_source === 'verified' || row.title_source === 'catalogue');
+}
 // A farbrengen rendered like an album: cover, title, date, actions, then
 // its tracks. `head` is the farbrengen's own row when the search returned it.
 function albumHtml(fid, head, tracks) {
@@ -3060,6 +3082,7 @@ async function loadTextPreview(rid) {
 // Where an entry came from: a human confirmed it, or Claude wrote it from
 // Ashreinu's own outline for this track.
 function sourceBadge(j, long) {
+  if (j.ashreinu) return '<span class="rd-badge neutral">' + (long ? 'Ashreinu\'s own text for this track (not summarised yet)' : 'Ashreinu\'s text') + '</span>';
   if (j.jem) return '<span class="rd-badge neutral">' + (long ? 'Written by JEM for this clip' : 'From JEM') + '</span>';
   if (j.precise) return '<span class="rd-badge">' + ICON_CHECK + (long ? 'Verified match for this track' : 'Verified match') + '</span>';
   if (j.catalogued) return '<span class="rd-badge neutral">' + (long ? 'Summary written with AI from Ashreinu\'s outline' : 'AI summary of Ashreinu\'s outline') + '</span>';

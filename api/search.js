@@ -3,7 +3,7 @@ import { understandQuery } from '../lib/searchQuery.js';
 import { groupNiggunim, niggunKey, niggunTitle, niggunNames, niggunKind } from '../lib/niggunim.js';
 
 // Fields the app needs for a track row (not raw_data, which is large).
-const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri, pics:raw_data->pictures, desc:raw_data->>description';
+const ROW_FIELDS = 'id, parent_id, parent_name, name, type, hebrew_year, hebrew_month, hebrew_day, hebrew_month_name, secular_year, secular_month, secular_day, duration_ms, audio_uri, has_transcript, has_ld:raw_data->>has_long_description, pics:raw_data->pictures, desc:raw_data->>description';
 
 // JEM photos from the event itself (Ashreinu has them for about a quarter of
 // farbrengens), as covers: 300px for cards, 900px for the big player. The
