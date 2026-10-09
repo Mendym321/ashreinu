@@ -21,6 +21,15 @@ function findBoundary(haystack, snippet, searchFrom) {
   return -1;
 }
 
+const ASHREINU_API = 'https://5qlaecnhel.execute-api.us-east-1.amazonaws.com/prod/ashreinu/api/v1';
+// Ashreinu's HTML (outline, hanacha) as plain text with paragraph breaks.
+function htmlToText(html) {
+  return String(html || '')
+    .replace(/<\s*br\s*\/?>/gi, '\n').replace(/<\/\s*(p|div|li|h\d)\s*>/gi, '\n').replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n\n').trim();
+}
+
 export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -169,6 +178,34 @@ export default async function handler(req, res) {
               occasions: cat.occasions || [], people: cat.people || [],
               outline_he: cat.outline_he, source_text: cat.transcript || null, transcript_kind: cat.transcript_kind,
             }]
+          });
+        }
+      }
+
+      // Not catalogued yet, but Ashreinu has its own outline or hanacha for
+      // this exact track: show that (already collected by the pipeline, or
+      // fetched from Ashreinu now). No summary, just the archive's text.
+      {
+        const { data: tm } = await supabase.from('track_metadata')
+          .select('outline_he, transcript, transcript_kind').eq('ashreinu_event_id', eventId).maybeSingle();
+        let outline = tm?.outline_he || '', transcript = tm?.transcript || '', kind = tm?.transcript_kind || null;
+        if (!outline && !transcript) {
+          const { data: ev } = await supabase.from('ashreinu_events')
+            .select('has_transcript, has_ld:raw_data->>has_long_description').eq('id', eventId).maybeSingle();
+          const get = async (path) => { try { const r = await fetch(ASHREINU_API + path); return r.ok ? (await r.json())?.data : null; } catch { return null; } };
+          const [ld, tr] = await Promise.all([
+            ev?.has_ld === 'true' ? get(`/event/${eventId}/long-description`) : null,
+            ev?.has_transcript ? get(`/event/${eventId}/transcript`) : null,
+          ]);
+          outline = htmlToText(ld);
+          const t = tr && typeof tr === 'object' ? tr : null;
+          transcript = htmlToText(t?.content); kind = t?.type || null;
+        }
+        if (outline || transcript) {
+          res.setHeader('Cache-Control', 's-maxage=3600');
+          return res.status(200).json({
+            hasText: true, precise: false, ashreinu: true,
+            segments: [{ outline_he: outline || null, source_text: transcript || null, transcript_kind: kind }],
           });
         }
       }
