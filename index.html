@@ -482,6 +482,10 @@ body.audio-paused .eq i{animation-play-state:paused}
 .pl-tile.skel-cover::before{display:none}
 .top-hits{background:var(--hover);border-radius:14px;padding:4px 12px;margin:0 -4px 6px}
 .res-note{font-size:12.5px;color:var(--ink-light);margin:-6px 0 6px}
+.mark-btn{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--ink-light);background:transparent;color:transparent;font-size:14px;font-weight:800;cursor:pointer;margin-left:6px}
+.mark-btn.on{background:var(--gold);border-color:var(--gold);color:#1a140c}
+.year-progress{font-size:13px;color:var(--ink-light);margin:-4px 0 14px}
+.follow-mark{display:block;margin:10px 0 0;padding:0}
 .heard-tick{display:inline-block;margin-left:6px;color:var(--gold);font-weight:800;font-size:.85em}
 .follow-btn{height:34px;padding:0 16px;border-radius:17px;border:1.5px solid var(--ink-light);background:transparent;color:var(--ink);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
 .follow-btn.on{border-color:var(--gold);color:var(--gold)}
@@ -1637,8 +1641,55 @@ function markHeard(id) {
   document.querySelectorAll('[data-rid="' + id + '"] .track-title').forEach(t => { if (!t.querySelector('.heard-tick')) t.insertAdjacentHTML('beforeend', HEARD_TICK); });
 }
 function eventHeard(ev) {
+  if (readJSON(MARKED_KEY, {})[ev.id]) return true; // ticked by hand
   const ids = ev.talk_ids || [];
   return ids.length > 0 && ids.filter(isHeard).length / ids.length >= 0.8;
+}
+// Farbrengens you tick by hand (heard elsewhere, or before you started
+// following), kept apart from what you've listened to here, so un-ticking
+// only undoes your own tick.
+const MARKED_KEY = 'ashreinu-marked';
+function toggleMarked(id) {
+  const all = readJSON(MARKED_KEY, {});
+  if (all[id]) delete all[id]; else all[id] = Date.now();
+  writeJSON(MARKED_KEY, all);
+  const row = rowsById[String(id)];
+  if (row) row._heard = eventHeard(row);
+  document.querySelectorAll('[data-mark="' + id + '"]').forEach(b => b.classList.toggle('on', !!all[id]));
+  document.querySelectorAll('[data-evrow="' + id + '"] .track-title').forEach(t => {
+    const tick = t.querySelector('.heard-tick');
+    if (row?._heard && !tick) t.insertAdjacentHTML('beforeend', HEARD_TICK);
+    if (!row?._heard && tick) tick.remove();
+  });
+  refreshYearProgress();
+}
+// The first day (Sunday) of this week, as a sortable [month, day] number.
+function weekStartOrd() {
+  const s = hebAddDays(todayHebrew.year, todayHebrew.month, todayHebrew.day, -new Date().getDay());
+  return s.m * 31 + s.d;
+}
+// Joined partway through the year? Tick every farbrengen before this week.
+async function markEarlier(year) {
+  const start = weekStartOrd();
+  const earlier = (await fetchYearEvents(year)).filter(e => (e.talk_ids || []).length && e.hebrew_month * 31 + e.hebrew_day < start && !eventHeard(e));
+  if (!earlier.length) return;
+  if (!confirm('Mark the ' + earlier.length + ' farbrengens before this week in ' + year + ' as heard? You can un-tick any of them on the year page.')) return;
+  const all = readJSON(MARKED_KEY, {});
+  for (const e of earlier) all[e.id] = Date.now();
+  writeJSON(MARKED_KEY, all);
+  toast(earlier.length + ' marked as heard');
+  if (history.state?.page?.p === 'year') { const y = window.scrollY; await renderYear(year); window.scrollTo(0, y); } else loadFollowSection();
+}
+function earlierUnheardCount(events) {
+  const start = weekStartOrd();
+  return events.filter(e => (e.talk_ids || []).length && e.hebrew_month * 31 + e.hebrew_day < start && !eventHeard(e)).length;
+}
+// Keep the year page's "N of M heard" in step with ticks.
+function refreshYearProgress() {
+  const el = document.getElementById('yearProgress');
+  if (!el) return;
+  const evs = Object.values(rowsById).filter(r => r.hebrew_year === +el.dataset.year && !r.parent_id && (r.talk_ids || []).length);
+  el.textContent = evs.filter(eventHeard).length + ' of ' + evs.length + ' heard';
 }
 const HEARD_TICK = '<span class="heard-tick" title="Heard">✓</span>';
 function followedYear() { const y = readJSON(FOLLOW_KEY, null); return Number.isInteger(y) ? y : null; }
@@ -1681,7 +1732,8 @@ async function loadFollowSection() {
           + '<div class="shelf">' + thisWeek.map(card).join('') + '</div>'
         : '<div class="follow-note">Nothing recorded this week in ' + year + '.' + (next ? ' Next:' : '') + '</div>'
           + (next ? '<div class="shelf">' + card(next) + '</div>' : ''))
-      + (missed.length ? '<div class="follow-note">Catch up from the last two weeks</div><div class="shelf">' + missed.map(card).join('') + '</div>' : '');
+      + (missed.length ? '<div class="follow-note">Catch up from the last two weeks</div><div class="shelf">' + missed.map(card).join('') + '</div>' : '')
+      + (earlierUnheardCount(events) > 2 ? '<button class="see-all follow-mark" onclick="markEarlier(' + year + ')">Joined partway? Mark the earlier ones as heard</button>' : '');
     box.hidden = false;
   } catch (e) { /* leave hidden */ }
 }
@@ -1703,6 +1755,7 @@ async function renderYear(year) {
     for (const ev of j.events) {
       ev._dayCover = true;
       ev._heard = eventHeard(ev);
+      ev._mark = following && (ev.talk_ids || []).length > 0;
       const last = months[months.length - 1];
       if (last && last.num === ev.hebrew_month) last.events.push(ev);
       else months.push({ num: ev.hebrew_month, name: ev.hebrew_month_name || 'Undated', events: [ev] });
@@ -1717,8 +1770,10 @@ async function renderYear(year) {
         wash: pic ? photoWash(pic.photo) : ERA_BG[eraIndex(year)], photoWash: !!pic,
         kicker: 'Year · ' + secularSpan(year) + (same ? ' · Same calendar as this year' : ''), title: String(year), he: hebrewYearLetters(year),
         meta: j.events.length + ' events' + (farb ? ' · ' + farb + ' farbrengen' + (farb !== 1 ? 's' : '') : '')
-          + (following || heardN ? ' · ' + heardN + ' of ' + talksEvents.length + ' heard' : ''),
+          + '',
         extra: '<button class="follow-btn' + (following ? ' on' : '') + '" id="followBtn" onclick="toggleFollowYear(' + year + ')" title="Listen along with this year, week by week, on your home page">' + (following ? '✓ Following' : 'Follow') + '</button>' })
+      + (following || heardN ? '<div class="year-progress"><span id="yearProgress" data-year="' + year + '">' + heardN + ' of ' + talksEvents.length + ' heard</span>'
+          + (following ? ' · tap ○ to tick ones you\'ve heard' + (earlierUnheardCount(j.events) ? ' · <button class="see-all" onclick="markEarlier(' + year + ')">Mark everything before this week</button>' : '') : '') + '</div>' : '')
       + (farb >= 2 ? '<div class="home-section"><div class="home-section-head"><h3>Farbrengens</h3></div><div class="shelf">' + farbs.map(cardHtml).join('') + '</div></div>' : '')
       + (months.length > 1 ? '<div class="chip-scroll month-jump" style="margin:0 -16px 6px;--hdr:' + document.getElementById('appHeader').offsetHeight + 'px">' + months.map((m, i) =>
           '<button class="chip" onclick="document.getElementById(\'ym-' + i + '\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">' + esc(m.name) + '</button>').join('') + '</div>' : '')
@@ -1735,12 +1790,16 @@ async function renderYear(year) {
 function eventRowHtml(row) {
   if (!opensAsAlbum(row)) return trackRowHtml(row, false, !!row.summary_en);
   rowsById[String(row.id)] = row;
-  return '<div class="track event-row" onclick="openFarbrengen(' + row.id + ')">'
+  return '<div class="track event-row" data-evrow="' + row.id + '" onclick="openFarbrengen(' + row.id + ')">'
     + coverHtml('track-cover', row, false)
     + '<div class="track-info"><div class="track-title">' + esc(trackTitle(row)) + (row._heard ? HEARD_TICK : '') + '</div>'
       + '<div class="track-sub">' + esc([hebDate(row), row.track_count ? row.track_count + ' track' + (row.track_count !== 1 ? 's' : '') : ''].filter(Boolean).join(' · ')) + '</div></div>'
-    + '<svg class="row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+    + (row._mark ? markBtnHtml(row) : '<svg class="row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>')
   + '</div>';
+}
+function markBtnHtml(row) {
+  const on = !!readJSON(MARKED_KEY, {})[row.id];
+  return '<button class="mark-btn' + (on ? ' on' : '') + '" data-mark="' + row.id + '" onclick="event.stopPropagation();toggleMarked(' + row.id + ')" aria-label="Mark as heard" title="Tick if you\'ve heard it">✓</button>';
 }
 function browseByYear(year) {
   currentDates = null;
@@ -2224,7 +2283,7 @@ function trackRowHtml(row, loose, withSummary) {
       ? [label, row.parent_name, hebDate(row), dur(row.duration_ms)]
       : [label, dur(row.duration_ms)];
   const isNigun = typeKey(row.type) === 'niggun';
-  return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + (isSaved(rid) ? ' saved' : '') + '" id="card-' + rid + '" data-rid="' + rid + '"'
+  return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + (isSaved(rid) ? ' saved' : '') + '" id="card-' + rid + '" data-rid="' + rid + '" data-evrow="' + rid + '"'
       + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
       + coverHtml('track-cover', row, false, '<span class="eq"><i></i><i></i><i></i></span>')
       + '<div class="track-info">'
@@ -2233,6 +2292,7 @@ function trackRowHtml(row, loose, withSummary) {
             ? farbrengenLinkHtml(row) : esc(part)).join(' · ') + '</div>'
         + (withSummary && row.summary_en ? '<div class="track-summary">' + esc(row.summary_en) + '</div>' : '')
       + '</div>'
+      + (row._mark ? markBtnHtml(row) : '')
       + (isNigun || (row.clip_id && !row.has_document && !row.event_id) ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
     + '</div>';
 }
