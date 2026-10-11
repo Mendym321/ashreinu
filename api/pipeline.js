@@ -715,17 +715,6 @@ async function saveMappedSource(supabase, assignments) {
 }
 
 // ── Stories-only scan over already-catalogued tracks (cheap) ──
-const STORY_ITEM = {
-  type: 'object', additionalProperties: false,
-  required: ['title_en', 'retelling_en', 'who', 'hebrew_quote'],
-  properties: {
-    title_en: { type: 'string', description: 'A short plain English title for the story, 2-6 words' },
-    retelling_en: { type: 'string', description: '2-4 plain sentences retelling the story, from the material only' },
-    who: { type: 'array', items: { type: 'string' }, description: 'The people the story is about, in common Chabad English' },
-    hebrew_quote: { type: 'string', description: 'A short Hebrew phrase from the material where the story is told (empty if none)' },
-  },
-};
-const STORIES_SCHEMA = { type: 'object', additionalProperties: false, required: ['stories'], properties: { stories: { type: 'array', items: STORY_ITEM } } };
 const STORY_SYSTEM = `You read a Hebrew/Yiddish transcript or outline of a talk by the Lubavitcher Rebbe and pull out the self-contained stories it TELLS (sippurim) — the kind a listener would want to find and share ("the story about the Rebbe Rashab and the camera at Tashlich").
 - A story is a narrated event (often opens with מעשה / סיפור / "פעם"): someone does or says something, with a beginning and a point. Not an idea, a law, a verse or a teaching.
 - If the material tells no story, return an empty list. Do not force one.
@@ -744,15 +733,27 @@ async function extractStoriesOnly(src) {
     src.outline ? `\n<outline>\n${src.outline}\n</outline>` : null,
     src.transcript ? `\n<hanacha>\n${src.transcript}\n</hanacha>` : null,
   ].filter(Boolean).join('\n');
+  // Plain JSON in the prompt (not a structured-output schema), parsed
+  // leniently — robust on the cheap model without a beta format setting.
   const response = await client.messages.create({
-    model: MODEL_CHEAP, max_tokens: 2000,
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: STORIES_SCHEMA } },
-    system: STORY_SYSTEM,
+    model: MODEL_CHEAP, max_tokens: 3000,
+    output_config: { effort: 'low' },
+    system: STORY_SYSTEM + '\n\nReturn ONLY a JSON object, no other text: {"stories":[{"title_en":"...","retelling_en":"...","who":["..."],"hebrew_quote":"..."}]}. If the material tells no story, return {"stories":[]}.',
     messages: [{ role: 'user', content: material }],
   });
-  const text = response.content.find(b => b.type === 'text')?.text;
-  const stories = text ? (JSON.parse(text).stories || []) : [];
-  return { stories, usage: response.usage || {} };
+  const text = response.content.find(b => b.type === 'text')?.text || '';
+  return { stories: parseStoriesJson(text), usage: response.usage || {} };
+}
+// Pull the stories array out of the model's reply, tolerating code fences or
+// stray text around the JSON.
+function parseStoriesJson(text) {
+  try {
+    let t = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const i = t.indexOf('{'), j = t.lastIndexOf('}');
+    if (i >= 0 && j > i) t = t.slice(i, j + 1);
+    const o = JSON.parse(t);
+    return Array.isArray(o.stories) ? o.stories : [];
+  } catch { return []; }
 }
 
 // Next window of catalogued tracks whose stored text hasn't been scanned for
