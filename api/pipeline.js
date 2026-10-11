@@ -24,6 +24,7 @@ import { timingSafeEqual } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { OCCASIONS, PARSHIYOS, audienceFor, normalize, hebrewSearchForms, occasionsOn } from '../lib/vocab.js';
+import { mapHanacha } from '../lib/hanachaSplit.js';
 
 const ASHREINU = 'https://5qlaecnhel.execute-api.us-east-1.amazonaws.com/prod/ashreinu/api/v1';
 const MODEL = 'claude-opus-5-5';
@@ -93,11 +94,11 @@ const SYSTEM = `You catalogue recordings of the Lubavitcher Rebbe's talks (sicho
 
 The core rule: use the material to understand WHAT the talk says, then say it the way a good teacher would explain it to a friend. Explain, don't translate. A literal rendering of the shorthand reads as gibberish.
 
-Writing style (title, summary and key points) — read as a plain-spoken person, not as polished AI copy:
-- Short, direct sentences. Everyday words. Say the thing simply.
-- No em dashes (—) and no semicolons. Use a full stop or a comma, or make two sentences.
-- No dramatic flourishes: avoid "not X, but Y", a one-word punch ("…, one word."), trailing "…", and piled-up clauses.
-- Don't preach or sell. State what the talk says and stop.
+Writing style (title, summary and key points) — sound like a person explaining it, not like polished AI copy:
+- Clear, natural, direct. Plain words. Let sentences flow and vary in length; don't chop them into clipped fragments.
+- No em dashes (—) and no semicolons. A full stop, a comma, or two sentences does the job.
+- Skip the AI-copy tics: "not X, but Y", a one-word punch ("…, one word."), trailing "…", and long piled-up clauses.
+- Don't preach or sell. Say what the talk says, warmly and without flourish.
 
 Accuracy:
 - Every idea in your entry must come from the material. Don't add lessons, claims, stories or conclusions that aren't there.
@@ -626,6 +627,47 @@ async function setText(supabase, id, body) {
   if (error) throw new Error(error.message);
   return { id, saved: true, outline_chars: (row.outline_he || '').length, text_chars: (row.transcript || '').length, text_kind: row.transcript_kind, already_catalogued: tm?.status === 'enriched' };
 }
+// Paste a whole Toras Menachem farbrengen hanacha, split it into its sichos
+// and line them up with the farbrengen's tracks (lib/hanachaSplit.js), for
+// review before saving. Read-only.
+async function previewMapSource(farbrengenId, text) {
+  if (!text || text.trim().length < 50) throw new Error('Paste the farbrengen text first');
+  const ev = (await getJson(`${ASHREINU}/event/${farbrengenId}`))?.data;
+  if (!ev?.id) throw new Error(`Farbrengen #${farbrengenId} not found on Ashreinu`);
+  const sub = ev.sub_events || [];
+  const r = mapHanacha(text, sub);
+  if (!r.tracks.length) throw new Error(`#${farbrengenId} has no sicha/ma'amar tracks — is it a farbrengen id?`);
+  return {
+    farbrengen: { id: ev.id, name: ev.name },
+    track_count: r.tracks.length,
+    block_count: r.blocks.length,
+    tracks: r.tracks.map(t => ({ id: t.id, name: t.name, type: t.type, kind: t.kind })),
+    assignments: r.assignments.map(a => ({
+      track_id: a.track_id, name: a.name, type: a.type, kind: a.kind,
+      labels: a.labels, chars: a.text.length,
+      preview: a.text.replace(/\s+/g, ' ').slice(0, 140),
+      text: a.text,
+    })),
+  };
+}
+
+// Save a reviewed mapping: each track's segment becomes its hanacha text, so
+// the normal enrich step rewrites that track's entry from it.
+async function saveMappedSource(supabase, assignments) {
+  if (!Array.isArray(assignments) || !assignments.length) throw new Error('Nothing to save');
+  const results = [];
+  for (const a of assignments) {
+    const id = parseInt(a.track_id, 10);
+    const text = String(a.text || '').trim();
+    if (!id || !text) continue;
+    try {
+      const r = await setText(supabase, id, { text, kind: 'Toras Menachem (hanacha)' });
+      results.push({ id, saved: true, chars: r.text_chars });
+    } catch (e) { results.push({ id, saved: false, error: e.message }); }
+  }
+  return { saved: results.filter(r => r.saved).length, total: results.length, results };
+}
+
 // Put back a catalogue entry a fix had taken out (or, if Claude never wrote
 // one, let the track be catalogued like any other).
 async function unskip(supabase, id, tm) {
@@ -938,6 +980,14 @@ export default async function handler(req, res) {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       return res.status(200).json(await setText(supa(), parseInt(id, 10), body));
+    }
+    if (mode === 'mapsource') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      return res.status(200).json(await previewMapSource(parseInt(id, 10), String(body.text || '')));
+    }
+    if (mode === 'savesource') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      return res.status(200).json(await saveMappedSource(supa(), body.assignments));
     }
     if (mode === 'fix') return res.status(200).json(await getFix(supa(), parseInt(id, 10)));
     if (mode === 'setfix') return res.status(200).json(await setFix(supa(), parseInt(id, 10), String(req.query.kind || ''), req.query.title, req.query.note, req.query.same_as));

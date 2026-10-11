@@ -149,6 +149,17 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
   </section>
 
   <section style="margin:0 0 34px">
+    <h2 style="font-size:18px;font-weight:800">Import a farbrengen hanacha</h2>
+    <p class="lead" style="margin-bottom:12px">Paste a whole farbrengen's hanacha (e.g. a Toras Menachem page from chabad.org). It splits into sichos and lines them up with that farbrengen's tracks for you to check. Save to store each sicha's text, then catalogue those tracks as usual. Use the farbrengen's number (the one event that holds the sichos).</p>
+    <div class="row">
+      <input class="field" id="mapId" placeholder="farbrengen number, e.g. 7085" style="width:220px" inputmode="numeric" aria-label="Farbrengen number">
+      <button class="btn primary" onclick="previewMap()">Split &amp; match</button>
+    </div>
+    <textarea class="field" id="mapText" placeholder="Paste the full farbrengen hanacha here…" style="width:100%;min-height:150px;margin-top:10px;font-family:inherit"></textarea>
+    <div id="mapPanel"></div>
+  </section>
+
+  <section style="margin:0 0 34px">
     <h2 style="font-size:18px;font-weight:800">Archive coverage</h2>
     <p class="lead" style="margin-bottom:12px">Every audio track in the archive by kind: how many hours, how many have Ashreinu's own outline or hanacha (so Claude can catalogue them now), and how many are done. The rest are the gaps.</p>
     <div class="row"><button class="btn" onclick="loadCoverage()">Show coverage (free)</button></div>
@@ -628,6 +639,52 @@ async function saveText(id) {
     plog('✓ #' + id + ' source text saved' + (from ? ' (copied from #' + from + ')' : '') + ': outline ' + r.outline_chars + ' + text ' + r.text_chars + ' characters');
     await lookupFix();
     document.getElementById('textMsg').textContent = 'Saved. Now press "' + (r.already_catalogued ? 'Re-catalogue' : 'Catalogue') + ' with Claude" to write its entry.';
+  } catch (e) { msg.textContent = 'Error: ' + e.message; }
+}
+// Import a farbrengen hanacha: split and match to tracks, review, save.
+let mapPreview = null;
+async function previewMap() {
+  const id = parseIds(document.getElementById('mapId').value)[0];
+  const text = document.getElementById('mapText').value.trim();
+  const panel = document.getElementById('mapPanel');
+  if (!id) { panel.innerHTML = '<p class="lead">Type the farbrengen number first.</p>'; return; }
+  if (text.length < 50) { panel.innerHTML = '<p class="lead">Paste the farbrengen text first.</p>'; return; }
+  panel.innerHTML = '<p class="lead">Splitting and matching…</p>';
+  try {
+    const j = mapPreview = await apiPost({ mode: 'mapsource', id }, { text });
+    const opts = (sel) => j.tracks.map(t => '<option value="' + t.id + '"' + (t.id === sel ? ' selected' : '') + '>' + esc(t.name) + ' (' + esc(t.type) + ')</option>').join('');
+    panel.innerHTML = '<div class="card" style="margin-top:12px;padding:16px 18px">'
+      + '<div style="font-weight:800;margin-bottom:4px">' + esc(j.farbrengen.name) + '</div>'
+      + '<p class="lead" style="margin-bottom:12px">Split into ' + j.block_count + ' sichos, matched to ' + j.track_count + ' tracks. Check each row, fix the track if a match is off, then save.</p>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:14px">'
+      + '<tr style="text-align:right;color:var(--muted)"><th style="padding:6px 8px">סעיפים</th><th style="padding:6px 8px">goes to track</th><th style="padding:6px 8px">chars</th><th style="padding:6px 8px">opening</th></tr>'
+      + j.assignments.map((a, i) => '<tr style="border-top:1px solid var(--line)">'
+          + '<td style="padding:6px 8px;white-space:nowrap">' + esc(a.labels || '—') + '</td>'
+          + '<td style="padding:6px 8px"><select class="field" data-i="' + i + '" style="padding:4px 8px">' + opts(a.track_id) + '</select></td>'
+          + '<td style="padding:6px 8px;text-align:right">' + a.chars + '</td>'
+          + '<td style="padding:6px 8px;direction:rtl;text-align:right">' + esc(a.preview) + '…</td>'
+        + '</tr>').join('')
+      + '</table>'
+      + '<div class="row" style="margin-top:14px"><button class="btn primary" onclick="saveMap()">Save these texts</button></div>'
+      + '<div class="fix-out" id="mapMsg"></div></div>';
+  } catch (e) { panel.innerHTML = '<p class="lead">' + esc(e.message) + '</p>'; }
+}
+async function saveMap() {
+  if (!mapPreview) return;
+  const msg = document.getElementById('mapMsg');
+  // Group each assignment's text by the track now chosen in its dropdown.
+  const byTrack = {};
+  document.querySelectorAll('#mapPanel select[data-i]').forEach(sel => {
+    const a = mapPreview.assignments[+sel.dataset.i];
+    const tid = parseInt(sel.value, 10);
+    byTrack[tid] = (byTrack[tid] ? byTrack[tid] + '\n\n' : '') + a.text;
+  });
+  const assignments = Object.entries(byTrack).map(([track_id, text]) => ({ track_id, text }));
+  msg.textContent = 'Saving ' + assignments.length + ' tracks…';
+  try {
+    const r = await apiPost({ mode: 'savesource', id: mapPreview.farbrengen.id }, { assignments });
+    plog('✓ farbrengen #' + mapPreview.farbrengen.id + ': saved hanacha to ' + r.saved + '/' + r.total + ' tracks');
+    msg.textContent = 'Saved to ' + r.saved + ' tracks. Catalogue them from "Pending" or the per-track tool.';
   } catch (e) { msg.textContent = 'Error: ' + e.message; }
 }
 async function catalogueNow(id) {
