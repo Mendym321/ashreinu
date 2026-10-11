@@ -32,7 +32,7 @@ const MODEL = 'claude-opus-5-5';
 const MODEL_CHEAP = 'claude-haiku-5-5';
 // Free pre-filter: text that mentions a story, so we only pay to extract from
 // tracks that plausibly contain one ("the story about…", "once…", "it is told").
-const STORY_MARKERS = /הסיפור|סיפור|מסופר|סיפ(?:ר|רו|רה)\b|פעם אחת|מעשה ש|מעשה רב|ידוע המעשה|אירע מעשה/;
+const STORY_MARKERS = /סיפור|מסופר|סיפר|מעשה ב|מעשה ש|מעשה רב|מעשה נורא|פעם אחת|פעם אחד|ידוע המעשה|מסופר|אירע/;
 
 // Bump when the prompt or schema changes meaningfully; entries made with an
 // older version can then be re-run ("upgrade") without touching locked ones.
