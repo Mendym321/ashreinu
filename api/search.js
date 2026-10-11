@@ -334,7 +334,7 @@ export default async function handler(req, res) {
     const n = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 40, 100));
     const q = (req.query.q || '').trim();
     // The plain browse list (no query) rarely changes: keep it warm for 5 min.
-    if (!q && storyBrowseCache && Date.now() - storyBrowseAt < 300000) {
+    if (!q && storyBrowseCache && Date.now() - storyBrowseAt < 60000) {
       res.setHeader('Cache-Control', 's-maxage=120');
       return res.status(200).json({ stories: storyBrowseCache });
     }
