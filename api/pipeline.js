@@ -57,7 +57,7 @@ function buildSchema(topicSlugs) {
     type: 'object',
     additionalProperties: false,
     required: ['title_en', 'title_he', 'summary_en', 'key_points', 'main_topic', 'other_topics', 'suggested_new_topics',
-               'occasions', 'parsha', 'people', 'sources', 'phrases', 'confidence', 'confidence_reason', 'evergreen', 'evergreen_reason'],
+               'occasions', 'parsha', 'people', 'sources', 'phrases', 'stories', 'confidence', 'confidence_reason', 'evergreen', 'evergreen_reason'],
     properties: {
       title_en: { type: 'string', description: 'Short, catchy English title, like an episode title: 2-6 words, at most ~40 characters. A title, not a sentence.' },
       title_he: { type: 'string', description: 'Short Hebrew heading (the outline\'s own heading when it has one)' },
@@ -71,6 +71,20 @@ function buildSchema(topicSlugs) {
       people: { type: 'array', items: { type: 'string' }, description: 'People the talk meaningfully discusses' },
       sources: { type: 'array', items: { type: 'string' }, description: 'Works cited, at book level' },
       phrases: { type: 'array', items: { type: 'string' }, description: 'Famous sayings the talk quotes or centres on (often empty)' },
+      stories: {
+        type: 'array',
+        description: 'Self-contained stories or anecdotes the talk tells (see the Stories rules). Empty when there are none.',
+        items: {
+          type: 'object', additionalProperties: false,
+          required: ['title_en', 'retelling_en', 'who', 'hebrew_quote'],
+          properties: {
+            title_en: { type: 'string', description: 'A short, plain English title for the story, 2-6 words' },
+            retelling_en: { type: 'string', description: '2-4 plain sentences retelling the story, from the material only' },
+            who: { type: 'array', items: { type: 'string' }, description: 'The people the story is about, in common Chabad English (e.g. the Rebbe Rashab, the Tzemach Tzedek)' },
+            hebrew_quote: { type: 'string', description: 'A short Hebrew phrase from the material where the story is told (empty if none)' },
+          },
+        },
+      },
       confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
       confidence_reason: { type: 'string', description: 'One short sentence: why this confidence' },
       ...EVERGREEN_PROPS,
@@ -138,6 +152,13 @@ Classification. These power browsing and search, so consistency matters more tha
 - people: at most 4 people the talk is really ABOUT or tells a story about (e.g. Avraham Avinu, Mordechai, Rashbi, the Alter Rebbe, the Previous Rebbe), in common Chabad English. Not people only quoted or cited in passing ("as the Tzemach Tzedek writes").
 - sources: at most 4 works the talk actually builds on, at book level ("Tanya", "Zohar", "Rambam, Hilchos Teshuvah", "Bamidbar"). Not every citation or footnote, and not standard commentaries mentioned in passing (Rashi on a verse).
 - phrases: famous sayings or expressions the talk quotes or centres on, as people remember them ("lechatchila ariber", "nahama dekisufa", "ufaratzta"). Usually empty.
+
+Stories: self-contained stories the talk TELLS, the kind a listener would want to find and share ("the story about the Rebbe Rashab and the camera at Tashlich"). Look for a narrated event (often opens with מעשה / סיפור / "פעם"): a Rebbe, a chossid or a figure doing or saying something, with a beginning and a point.
+- Only a real narrated story, not an idea, a law, a verse or a teaching. If the talk tells no story, return an empty list. Most tracks have none; don't force one.
+- retelling_en: 2-4 plain sentences, told simply as you would to a friend, using only what the material says. Don't add detail that isn't there. Don't tack on the lesson unless the story itself includes it.
+- title_en: short and plain, naming the story ("The Camera at the River"), not the lesson.
+- who: the people the story is about, in common Chabad English.
+- hebrew_quote: a short phrase from the material where the story is told, or empty.
 
 confidence: high if the material clearly covers the talk; medium if brief or partial; low if very thin or unclear.
 
@@ -385,7 +406,7 @@ async function collectNext(supabase, limit) {
 async function enrichStored(supabase, id, note) {
   const [{ data: tm, error: e1 }, { data: ev, error: e2 }] = await Promise.all([
     supabase.from('track_metadata').select('*').eq('ashreinu_event_id', id).maybeSingle(),
-    supabase.from('ashreinu_events').select('id, name, type, parent_name, hebrew_day, hebrew_month, hebrew_month_name, hebrew_year, duration_ms, description:raw_data->>description').eq('id', id).maybeSingle(),
+    supabase.from('ashreinu_events').select('id, parent_id, name, type, parent_name, hebrew_day, hebrew_month, hebrew_month_name, hebrew_year, duration_ms, description:raw_data->>description').eq('id', id).maybeSingle(),
   ]);
   if (e1 || e2) throw new Error((e1 || e2).message);
   if (!tm) throw new Error(`Track ${id} hasn't been collected yet`);
@@ -424,6 +445,7 @@ async function enrichStored(supabase, id, note) {
       ({ error } = await supabase.from('track_metadata').update(row).eq('ashreinu_event_id', id));
     }
     if (error) throw new Error(error.message);
+    await writeStories(supabase, id, ev?.parent_id ?? null, m.stories);
     return { id, saved: true, metadata: m, previous_title: tm.status === 'enriched' ? tm.title_en : null, audience, warnings: r.warnings, usage: r.usage };
   } catch (e) {
     // A failed redo must not take a good entry out of the app.
@@ -666,6 +688,28 @@ async function saveMappedSource(supabase, assignments) {
     } catch (e) { results.push({ id, saved: false, error: e.message }); }
   }
   return { saved: results.filter(r => r.saved).length, total: results.length, results };
+}
+
+// Replace a track's stories with the ones Claude just extracted (supabase/
+// 008_stories.sql). Best-effort: if the table isn't there yet, enrichment
+// still succeeds.
+async function writeStories(supabase, id, farbrengenId, stories) {
+  try {
+    await supabase.from('stories').delete().eq('ashreinu_event_id', id);
+    const rows = (Array.isArray(stories) ? stories : [])
+      .filter(s => s && s.title_en && s.retelling_en)
+      .slice(0, 8)
+      .map((s, i) => ({
+        ashreinu_event_id: id, farbrengen_id: farbrengenId, position: i,
+        title_en: String(s.title_en).slice(0, 120),
+        retelling_en: String(s.retelling_en).slice(0, 1200),
+        who: (Array.isArray(s.who) ? s.who : []).map(w => String(w).slice(0, 60)).slice(0, 6),
+        hebrew_quote: s.hebrew_quote ? String(s.hebrew_quote).slice(0, 400) : null,
+        updated_at: new Date().toISOString(),
+      }));
+    if (rows.length) await supabase.from('stories').insert(rows);
+    return rows.length;
+  } catch (e) { return 0; }
 }
 
 // Put back a catalogue entry a fix had taken out (or, if Claude never wrote

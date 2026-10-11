@@ -148,6 +148,20 @@ async function rowsForIds(supabase, ids, filters) {
   return rows;
 }
 
+// Stories the Rebbe tells, extracted while cataloguing (supabase/008_stories.sql).
+// Each comes back with its track row so a card can play it and link to the talk.
+async function loadStories(supabase, q, limit) {
+  let query = supabase.from('stories').select('*').limit(limit);
+  if (q && q.trim()) query = query.textSearch('search_tsv', q.trim(), { type: 'websearch', config: 'simple' });
+  else query = query.order('id', { ascending: false });
+  const { data, error } = await query;
+  if (error || !data?.length) return [];
+  const ids = [...new Set(data.map(s => s.ashreinu_event_id))];
+  const rows = await rowsForIds(supabase, ids, {});
+  const byId = Object.fromEntries(rows.map(r => [r.id, r]));
+  return data.map(s => ({ ...s, track: byId[s.ashreinu_event_id] || null })).filter(s => s.track);
+}
+
 // The words of a query as shabbosParsha() reads them.
 const wordsOf = q => String(q || '').toLowerCase().replace(/[’‘'`"״׳]/g, '').split(/[^a-z\u05d0-\u05ea0-9]+/).filter(Boolean);
 // [[year, month, day], …] as a PostgREST or() filter.
@@ -314,6 +328,14 @@ export default async function handler(req, res) {
   const { q = '', type = '', year = '', month = '', limit = '200', dates = '', distinct = '', parentId = '', occasion = '', toplevel = '' } = req.query;
 
   // Newest catalogued talks (home "Newly catalogued" shelf).
+  // Stories browse ("Stories" section): recent stories, or ones matching q.
+  if (req.query.stories !== undefined) {
+    const n = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 40, 100));
+    const stories = await loadStories(supabase, req.query.q || '', n).catch(() => []);
+    res.setHeader('Cache-Control', stories.length ? 's-maxage=120' : 'no-store');
+    return res.status(200).json({ stories });
+  }
+
   if (req.query.recent) {
     const n = Math.max(1, Math.min(parseInt(req.query.recent, 10) || 12, 40));
     const { data, error } = await supabase.from('track_metadata').select('ashreinu_event_id')
@@ -726,7 +748,9 @@ export default async function handler(req, res) {
         return { rows, terms: tq.terms, typed: tq.typed };
       }).catch(() => null)
     : Promise.resolve(null);
-  const [{ data, error, count }, { talks, matchedTopics, talksError }, matchedNiggunim, clips, textHits] = await Promise.all([query, talksPromise, niggunPromise, clipsPromise, textPromise]);
+  // Stories whose title/retelling/people match the query.
+  const storyPromise = q && q.trim().length >= 3 ? loadStories(supabase, q, 6).catch(() => []) : Promise.resolve([]);
+  const [{ data, error, count }, { talks, matchedTopics, talksError }, matchedNiggunim, clips, textHits, storyHits] = await Promise.all([query, talksPromise, niggunPromise, clipsPromise, textPromise, storyPromise]);
   if (error) return res.status(500).json({ error: error.message });
 
   await attachConfirmedTitles(supabase, data);
@@ -748,5 +772,5 @@ export default async function handler(req, res) {
   }
 
   res.setHeader('Cache-Control', 's-maxage=30');
-  res.status(200).json({ results: data, count, top, talks, matchedTopics, matchedNiggunim, clips, textHits, ...(sp ? { shabbos: { name: sp.name, he: sp.he } } : {}), ...(talksError ? { talksError } : {}) });
+  res.status(200).json({ results: data, count, top, talks, matchedTopics, matchedNiggunim, clips, textHits, storyHits, ...(sp ? { shabbos: { name: sp.name, he: sp.he } } : {}), ...(talksError ? { talksError } : {}) });
 }
