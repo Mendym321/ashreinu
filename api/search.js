@@ -150,6 +150,7 @@ async function rowsForIds(supabase, ids, filters) {
 
 // Stories the Rebbe tells, extracted while cataloguing (supabase/008_stories.sql).
 // Each comes back with its track row so a card can play it and link to the talk.
+let storyBrowseCache = null, storyBrowseAt = 0;
 async function loadStories(supabase, q, limit) {
   let query = supabase.from('stories').select('*').limit(limit);
   if (q && q.trim()) query = query.textSearch('search_tsv', q.trim(), { type: 'websearch', config: 'simple' });
@@ -331,7 +332,14 @@ export default async function handler(req, res) {
   // Stories browse ("Stories" section): recent stories, or ones matching q.
   if (req.query.stories !== undefined) {
     const n = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 40, 100));
-    const stories = await loadStories(supabase, req.query.q || '', n).catch(() => []);
+    const q = (req.query.q || '').trim();
+    // The plain browse list (no query) rarely changes: keep it warm for 5 min.
+    if (!q && storyBrowseCache && Date.now() - storyBrowseAt < 300000) {
+      res.setHeader('Cache-Control', 's-maxage=120');
+      return res.status(200).json({ stories: storyBrowseCache });
+    }
+    const stories = await loadStories(supabase, q, n).catch(() => []);
+    if (!q) { storyBrowseCache = stories; storyBrowseAt = Date.now(); }
     res.setHeader('Cache-Control', stories.length ? 's-maxage=120' : 'no-store');
     return res.status(200).json({ stories });
   }
