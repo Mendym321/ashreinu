@@ -267,6 +267,7 @@ function buildMaterial(src, budget, heading) {
     src.outline ? `\n<outline>\n${src.outline}\n</outline>` : null,
     src.transcript ? `\n<hanacha kind="${src.transcript_kind || 'unknown'}">\n${src.transcript}\n</hanacha>` : null,
     heading ? `\nThe outline's own heading (written by the archive's editors): «${heading}». Use it as title_he (verbatim or lightly shortened). It tells you the subject; phrase title_en naturally, not as a literal translation.` : null,
+    src.sibling_titles?.length ? `\nThis farbrengen has other parts, already titled: ${src.sibling_titles.map(t => `"${t}"`).join(', ')}. This track is a DIFFERENT part — often the same teaching continues across several tracks. Give it a title clearly distinct from those: don't repeat their wording, and name what THIS part specifically adds (the new question it raises, the next step in the argument, its own example).` : null,
     `\nLength limits for this track: summary at most ${budget.summaryWords} words; ` +
       (budget.points > 1 ? `at most ${budget.points} key points (one per main part of the talk).` : 'no key points.'),
   ].filter(Boolean).join('\n');
@@ -408,6 +409,19 @@ async function collectNext(supabase, limit) {
   };
 }
 
+// The titles already given to the other catalogued tracks of the same
+// farbrengen (so a continuous teaching doesn't repeat its title).
+async function siblingTitlesFor(supabase, parentId, selfId) {
+  if (!parentId) return [];
+  try {
+    const { data: sibs } = await supabase.from('ashreinu_events').select('id').eq('parent_id', parentId).neq('id', selfId);
+    const ids = (sibs || []).map(s => s.id);
+    if (!ids.length) return [];
+    const { data: meta } = await supabase.from('track_metadata').select('title_en').in('ashreinu_event_id', ids).eq('status', 'enriched').not('title_en', 'is', null);
+    return [...new Set((meta || []).map(m => m.title_en).filter(Boolean))].slice(0, 20);
+  } catch { return []; }
+}
+
 async function enrichStored(supabase, id, note) {
   const [{ data: tm, error: e1 }, { data: ev, error: e2 }] = await Promise.all([
     supabase.from('track_metadata').select('*').eq('ashreinu_event_id', id).maybeSingle(),
@@ -421,12 +435,17 @@ async function enrichStored(supabase, id, note) {
   if (tm.locked && !note) return { id, skipped: 'locked (edited by a person), so re-runs leave it alone' };
   const topics = await loadTopics(supabase);
   const audience = audienceFor(ev?.name, ev?.type);
+  // Other parts of the same farbrengen, so a long teaching split across
+  // tracks doesn't get the same title four times. In a batch each track is
+  // saved before the next, so later ones see the earlier ones' new titles.
+  const siblingTitles = await siblingTitlesFor(supabase, ev?.parent_id, id);
   const src = {
     id, name: ev?.name, type: ev?.type, parent_name: ev?.parent_name,
     hebrew_date: ev?.hebrew_day ? `${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` : null,
     date_occasions: occasionsOn(ev?.hebrew_month, ev?.hebrew_day),
     duration_ms: ev?.duration_ms, outline: tm.outline_he || '', transcript: tm.transcript || '', transcript_kind: tm.transcript_kind,
     description: /nigun/i.test(ev?.type || '') ? '' : (ev?.description || '').trim(),
+    sibling_titles: siblingTitles,
     feedback: note && tm.status === 'enriched' ? { rejected: { title_en: tm.title_en, summary_en: tm.summary_en }, note } : null,
   };
   try {
