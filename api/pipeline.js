@@ -28,6 +28,11 @@ import { mapHanacha } from '../lib/hanachaSplit.js';
 
 const ASHREINU = 'https://5qlaecnhel.execute-api.us-east-1.amazonaws.com/prod/ashreinu/api/v1';
 const MODEL = 'claude-opus-5-5';
+// Cheap model for the stories-only scan over already-catalogued tracks.
+const MODEL_CHEAP = 'claude-haiku-5-5';
+// Free pre-filter: text that mentions a story, so we only pay to extract from
+// tracks that plausibly contain one ("the story about…", "once…", "it is told").
+const STORY_MARKERS = /הסיפור|סיפור|מסופר|סיפ(?:ר|רו|רה)\b|פעם אחת|מעשה ש|מעשה רב|ידוע המעשה|אירע מעשה/;
 
 // Bump when the prompt or schema changes meaningfully; entries made with an
 // older version can then be re-run ("upgrade") without touching locked ones.
@@ -690,6 +695,89 @@ async function saveMappedSource(supabase, assignments) {
   return { saved: results.filter(r => r.saved).length, total: results.length, results };
 }
 
+// ── Stories-only scan over already-catalogued tracks (cheap) ──
+const STORY_ITEM = {
+  type: 'object', additionalProperties: false,
+  required: ['title_en', 'retelling_en', 'who', 'hebrew_quote'],
+  properties: {
+    title_en: { type: 'string', description: 'A short plain English title for the story, 2-6 words' },
+    retelling_en: { type: 'string', description: '2-4 plain sentences retelling the story, from the material only' },
+    who: { type: 'array', items: { type: 'string' }, description: 'The people the story is about, in common Chabad English' },
+    hebrew_quote: { type: 'string', description: 'A short Hebrew phrase from the material where the story is told (empty if none)' },
+  },
+};
+const STORIES_SCHEMA = { type: 'object', additionalProperties: false, required: ['stories'], properties: { stories: { type: 'array', items: STORY_ITEM } } };
+const STORY_SYSTEM = `You read a Hebrew/Yiddish transcript or outline of a talk by the Lubavitcher Rebbe and pull out the self-contained stories it TELLS (sippurim) — the kind a listener would want to find and share ("the story about the Rebbe Rashab and the camera at Tashlich").
+- A story is a narrated event (often opens with מעשה / סיפור / "פעם"): someone does or says something, with a beginning and a point. Not an idea, a law, a verse or a teaching.
+- If the material tells no story, return an empty list. Do not force one.
+- retelling_en: 2-4 plain, natural sentences, using only what the material says. Don't add detail or tack on a lesson that isn't there.
+- title_en: short and plain, naming the story ("The Camera at the River"), not the lesson.
+- who: the people the story is about, in common Chabad English (the Rebbe Rashab, the Tzemach Tzedek, the Alter Rebbe).
+- hebrew_quote: a short phrase from the material where the story is told, or empty.
+Write plainly, like a person, no flourish.`;
+
+// One cheap Haiku call: the stories in one track's stored text.
+async function extractStoriesOnly(src) {
+  const client = new Anthropic();
+  const material = [
+    `Track: ${src.name || ''} (${src.type || ''})`,
+    src.hebrew_date ? `Date: ${src.hebrew_date}` : null,
+    src.outline ? `\n<outline>\n${src.outline}\n</outline>` : null,
+    src.transcript ? `\n<hanacha>\n${src.transcript}\n</hanacha>` : null,
+  ].filter(Boolean).join('\n');
+  const response = await client.messages.create({
+    model: MODEL_CHEAP, max_tokens: 2000,
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: STORIES_SCHEMA } },
+    system: STORY_SYSTEM,
+    messages: [{ role: 'user', content: material }],
+  });
+  const text = response.content.find(b => b.type === 'text')?.text;
+  const stories = text ? (JSON.parse(text).stories || []) : [];
+  return { stories, usage: response.usage || {} };
+}
+
+// Next window of catalogued tracks whose stored text hasn't been scanned for
+// stories. Read-only unless mark=true, which stamps the ones with no story
+// marker as scanned (free) so the scan moves past them.
+async function storyCandidates(supabase, limit, mark) {
+  const { data: rows, error } = await supabase.from('track_metadata')
+    .select('ashreinu_event_id, outline_he, transcript')
+    .eq('status', 'enriched').is('stories_scanned_at', null)
+    .or('outline_he.not.is.null,transcript.not.is.null')
+    .order('ashreinu_event_id').limit(limit);
+  if (error) throw new Error(error.message);
+  const hit = r => STORY_MARKERS.test((r.transcript || '') + ' ' + (r.outline_he || ''));
+  const extract = rows.filter(hit).map(r => r.ashreinu_event_id);
+  const skip = rows.filter(r => !hit(r)).map(r => r.ashreinu_event_id);
+  if (mark && skip.length) await supabase.from('track_metadata').update({ stories_scanned_at: new Date().toISOString() }).in('ashreinu_event_id', skip);
+  const { count: remaining } = await supabase.from('track_metadata').select('ashreinu_event_id', { count: 'exact', head: true })
+    .eq('status', 'enriched').is('stories_scanned_at', null).or('outline_he.not.is.null,transcript.not.is.null');
+  return { extract, skipped: skip.length, remaining: remaining ?? null };
+}
+
+// A free count of how many of the next window have a story marker.
+async function scanStoriesCount(supabase, limit) {
+  const r = await storyCandidates(supabase, limit, false);
+  // Haiku: ~$0.10/1M in, ~$0.50/1M out; a track is ~8k in + ~300 out ≈ $0.001.
+  return { batch: r.extract.length + r.skipped, candidates: r.extract.length, remaining: r.remaining, est_cost_usd: +(r.extract.length * 0.0011).toFixed(3) };
+}
+
+// Extract and store the stories for one track, then stamp it scanned.
+async function storyExtractOne(supabase, id) {
+  const { data: tm } = await supabase.from('track_metadata').select('outline_he, transcript').eq('ashreinu_event_id', id).maybeSingle();
+  const { data: ev } = await supabase.from('ashreinu_events').select('parent_id, name, type, hebrew_day, hebrew_month_name, hebrew_year').eq('id', id).maybeSingle();
+  if (!tm) throw new Error(`#${id} not collected`);
+  const { stories, usage } = await extractStoriesOnly({
+    name: ev?.name, type: ev?.type,
+    hebrew_date: ev?.hebrew_day ? `${ev.hebrew_day} ${ev.hebrew_month_name} ${ev.hebrew_year}` : null,
+    outline: tm.outline_he || '', transcript: tm.transcript || '',
+  });
+  const saved = await writeStories(supabase, id, ev?.parent_id ?? null, stories);
+  await supabase.from('track_metadata').update({ stories_scanned_at: new Date().toISOString() }).eq('ashreinu_event_id', id);
+  const cost = (usage.input_tokens || 0) * 0.1e-6 + (usage.output_tokens || 0) * 0.5e-6;
+  return { id, stories: saved, usage, cost_usd: +cost.toFixed(5) };
+}
+
 // Replace a track's stories with the ones Claude just extracted (supabase/
 // 008_stories.sql). Best-effort: if the table isn't there yet, enrichment
 // still succeeds.
@@ -1033,6 +1121,9 @@ export default async function handler(req, res) {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       return res.status(200).json(await saveMappedSource(supa(), body.assignments));
     }
+    if (mode === 'storyscan') return res.status(200).json(await scanStoriesCount(supa(), Math.min(parseInt(req.query.limit, 10) || 100, 500)));
+    if (mode === 'storycandidates') return res.status(200).json(await storyCandidates(supa(), Math.min(parseInt(req.query.limit, 10) || 50, 200), true));
+    if (mode === 'storyextract') return res.status(200).json(await storyExtractOne(supa(), parseInt(id, 10)));
     if (mode === 'fix') return res.status(200).json(await getFix(supa(), parseInt(id, 10)));
     if (mode === 'setfix') return res.status(200).json(await setFix(supa(), parseInt(id, 10), String(req.query.kind || ''), req.query.title, req.query.note, req.query.same_as));
     if (mode === 'stats') return res.status(200).json(await stats(supa()));

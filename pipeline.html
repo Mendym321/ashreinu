@@ -160,6 +160,18 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
   </section>
 
   <section style="margin:0 0 34px">
+    <h2 style="font-size:18px;font-weight:800">Find stories in catalogued tracks</h2>
+    <p class="lead" style="margin-bottom:12px">Tracks catalogued before Stories existed weren't checked for them. This reads their stored hanacha for story markers (free) and extracts the stories it finds with the cheap model (about a tenth of a cent each, not the ~$0.07 of a full re-catalogue). Run <code>008_stories.sql</code> and <code>009_stories_scanned.sql</code> first. Resumable: run it again to continue.</p>
+    <div class="row">
+      <button class="btn" onclick="storyScanCount()">Count candidates (free)</button>
+      <input class="field" id="storyScanN" type="number" min="1" max="200" value="50" style="width:90px" aria-label="How many to scan">
+      <button class="btn primary" onclick="storyScanRun()">Scan this many</button>
+      <button class="btn" id="storyScanStop" onclick="storyScanStop=true" disabled>Stop</button>
+    </div>
+    <div class="log" id="storyScanLog"></div>
+  </section>
+
+  <section style="margin:0 0 34px">
     <h2 style="font-size:18px;font-weight:800">Archive coverage</h2>
     <p class="lead" style="margin-bottom:12px">Every audio track in the archive by kind: how many hours, how many have Ashreinu's own outline or hanacha (so Claude can catalogue them now), and how many are done. The rest are the gaps.</p>
     <div class="row"><button class="btn" onclick="loadCoverage()">Show coverage (free)</button></div>
@@ -686,6 +698,39 @@ async function saveMap() {
     plog('✓ farbrengen #' + mapPreview.farbrengen.id + ': saved hanacha to ' + r.saved + '/' + r.total + ' tracks');
     msg.textContent = 'Saved to ' + r.saved + ' tracks. Catalogue them from "Pending" or the per-track tool.';
   } catch (e) { msg.textContent = 'Error: ' + e.message; }
+}
+// Find stories in already-catalogued tracks: free count, then a cheap batch.
+let storyScanStop = false;
+async function storyScanCount() {
+  const log = document.getElementById('storyScanLog');
+  log.textContent = 'Counting…';
+  try {
+    const j = await api({ mode: 'storyscan', limit: 200 });
+    log.textContent = `Of the next ${j.batch} unscanned tracks, ${j.candidates} mention a story. ${j.remaining} tracks left to scan in all. Scanning those candidates would cost about $${j.est_cost_usd}.`;
+  } catch (e) { log.textContent = 'Error: ' + e.message; }
+}
+async function storyScanRun() {
+  const log = document.getElementById('storyScanLog');
+  const n = Math.min(+document.getElementById('storyScanN').value || 50, 200);
+  const stopBtn = document.getElementById('storyScanStop');
+  storyScanStop = false; stopBtn.disabled = false;
+  log.textContent = 'Finding candidates in the next ' + n + '…\n';
+  try {
+    const { extract, skipped, remaining } = await api({ mode: 'storycandidates', limit: n });
+    log.textContent += `Skipped ${skipped} with no story. ${extract.length} to check. ${remaining} left after this batch.\n`;
+    let found = 0, cost = 0, done = 0;
+    for (const id of extract) {
+      if (storyScanStop) { log.textContent += 'Stopped.\n'; break; }
+      try {
+        const r = await api({ mode: 'storyextract', id });
+        done++; found += r.stories; cost += r.cost_usd;
+        log.textContent += `✓ #${id}: ${r.stories} ${r.stories === 1 ? 'story' : 'stories'}\n`;
+      } catch (e) { log.textContent += `✗ #${id}: ${e.message}\n`; }
+      log.scrollTop = log.scrollHeight;
+    }
+    log.textContent += `Done. Checked ${done}, found ${found} stories, cost about $${cost.toFixed(3)}. Run again to continue.`;
+  } catch (e) { log.textContent += 'Error: ' + e.message; }
+  finally { stopBtn.disabled = true; }
 }
 async function catalogueNow(id) {
   const msg = document.getElementById('textMsg');
