@@ -703,6 +703,7 @@ async function saveMap() {
 let storyScanStop = false;
 async function storyScanCount() {
   const log = document.getElementById('storyScanLog');
+  log.style.display = 'block';
   log.textContent = 'Counting…';
   try {
     const j = await api({ mode: 'storyscan', limit: 200 });
@@ -714,6 +715,7 @@ async function storyScanRun() {
   const n = Math.min(+document.getElementById('storyScanN').value || 50, 200);
   const stopBtn = document.getElementById('storyScanStop');
   storyScanStop = false; stopBtn.disabled = false;
+  log.style.display = 'block';
   log.textContent = 'Finding candidates in the next ' + n + '…\n';
   try {
     const { extract, skipped, remaining } = await api({ mode: 'storycandidates', limit: n });
