@@ -556,16 +556,16 @@ body.audio-paused .eq i{animation-play-state:paused}
 .res-heading{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin:22px 0 10px}
 .res-heading:first-child{margin-top:4px}
 .res-sub{font-size:13px;color:var(--ink-light);margin:-6px 0 10px}
-.story-card{display:flex;gap:12px;padding:14px 16px;background:var(--gold-bg);border-radius:14px;margin:0 0 10px}
-.story-card[data-playable]{cursor:pointer}
-.story-card[data-playable]:hover{filter:brightness(1.03)}
-.story-ic{color:var(--gold);flex-shrink:0;margin-top:1px}
-.story-ic svg{width:20px;height:20px}
-.story-title{font-weight:800;font-size:15.5px;margin-bottom:4px;color:var(--ink)}
-.story-text{font-size:14px;color:var(--ink-mid);line-height:1.55}
-.story-meta{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.story-who{font-size:12px;background:var(--track);border-radius:10px;padding:2px 9px;color:var(--ink-mid)}
-.story-from{margin-left:auto;font-size:12.5px;color:var(--gold);font-weight:700;white-space:nowrap}
+.story-card{display:block;padding:17px 18px;background:var(--elevated);border:1px solid var(--line);border-radius:16px;margin:0 0 12px}
+.story-card[role=button]{cursor:pointer;transition:border-color .12s}
+.story-card[role=button]:hover,.story-card[role=button]:focus-visible{border-color:var(--gold);outline:none}
+.story-kicker{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
+.story-title{font-size:17px;font-weight:800;line-height:1.3;margin:0 0 7px;color:var(--ink)}
+.story-text{font-size:14.5px;color:var(--ink-mid);line-height:1.6;margin:0}
+.story-foot{margin-top:13px;display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink-light);min-width:0}
+.story-foot .label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.story-play{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--gold);color:#1a1408;flex-shrink:0}
+.story-play svg{width:13px;height:13px;margin-left:1px}
 .track-summary{font-size:13px;color:var(--ink-mid);line-height:1.45;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .topic-hero{border-radius:18px;padding:22px 20px 20px;color:#fff;background:var(--tg);margin-bottom:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .topic-hero .kicker{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
@@ -2421,18 +2421,24 @@ function storyCardHtml(s) {
   if (row) rowsById[String(row.id)] = row;
   const rid = row ? String(row.id) : null;
   const playable = row && !!getAudioUrl(row);
-  const who = (s.who || []).filter(Boolean).map(w => '<span class="story-who">' + esc(w) + '</span>').join('');
-  const from = row ? esc(trackTitle(row)) : '';
+  const who = (s.who || []).filter(Boolean).join(' · ');
+  const date = row ? hebDate(row) : '';
+  const foot = [row ? trackTitle(row) : '', date].filter(Boolean).join(' · ');
   const q = filterKey([s.title_en, s.retelling_en, ...(s.who || [])].join(' '));
-  return '<div class="story-card" data-q="' + esc(q) + '"' + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
-    + '<div class="story-ic">' + ICON_BOOK + '</div>'
-    + '<div style="flex:1;min-width:0">'
-      + '<div class="story-title">' + esc(s.title_en) + '</div>'
-      + '<div class="story-text">' + esc(s.retelling_en) + '</div>'
-      + (who || from ? '<div class="story-meta">' + who
-          + (from ? '<span class="story-from">' + (playable ? '▶ ' : '') + from + '</span>' : '') + '</div>' : '')
-    + '</div>'
-  + '</div>';
+  return '<article class="story-card" data-q="' + esc(q) + '"'
+      + (playable ? ' tabindex="0" role="button" onclick="playStory(\'' + rid + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();playStory(\'' + rid + '\')}"' : '') + '>'
+    + (who ? '<div class="story-kicker">' + esc(who) + '</div>' : '')
+    + '<h4 class="story-title">' + esc(s.title_en) + '</h4>'
+    + '<p class="story-text">' + esc(s.retelling_en) + '</p>'
+    + (foot ? '<div class="story-foot">' + (playable ? '<span class="story-play">' + ICON_PLAY + '</span>' : '')
+        + '<span class="label">' + esc(foot) + '</span></div>' : '')
+  + '</article>';
+}
+// Play a story's track. From the Browse sheet, close it first so the player
+// bar at the bottom is visible.
+function playStory(rid) {
+  if (browseIsOpen()) closeBrowseSheet();
+  playFromOrder(rid);
 }
 
 // A line of the Hebrew/Yiddish text around a search match (the database
