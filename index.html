@@ -556,6 +556,16 @@ body.audio-paused .eq i{animation-play-state:paused}
 .res-heading{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);margin:22px 0 10px}
 .res-heading:first-child{margin-top:4px}
 .res-sub{font-size:13px;color:var(--ink-light);margin:-6px 0 10px}
+.story-card{display:flex;gap:12px;padding:14px 16px;background:var(--gold-bg);border-radius:14px;margin:0 0 10px}
+.story-card[data-playable]{cursor:pointer}
+.story-card[data-playable]:hover{filter:brightness(1.03)}
+.story-ic{color:var(--gold);flex-shrink:0;margin-top:1px}
+.story-ic svg{width:20px;height:20px}
+.story-title{font-weight:800;font-size:15.5px;margin-bottom:4px;color:var(--ink)}
+.story-text{font-size:14px;color:var(--ink-mid);line-height:1.55}
+.story-meta{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.story-who{font-size:12px;background:var(--track);border-radius:10px;padding:2px 9px;color:var(--ink-mid)}
+.story-from{margin-left:auto;font-size:12.5px;color:var(--gold);font-weight:700;white-space:nowrap}
 .track-summary{font-size:13px;color:var(--ink-mid);line-height:1.45;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .topic-hero{border-radius:18px;padding:22px 20px 20px;color:#fff;background:var(--tg);margin-bottom:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .topic-hero .kicker{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
@@ -855,12 +865,14 @@ body.audio-paused .eq i{animation-play-state:paused}
       <button class="chip" data-pane="collections" onclick="switchBrowseTab('collections')">Occasions</button>
       <button class="chip" data-pane="years" onclick="switchBrowseTab('years')">Years</button>
       <button class="chip" data-pane="niggunim" onclick="switchBrowseTab('niggunim')">Niggunim</button>
+      <button class="chip" data-pane="stories" onclick="switchBrowseTab('stories')">Stories</button>
       <button class="chip" data-pane="playlists" onclick="switchBrowseTab('playlists')">Playlists</button>
     </div>
     <div class="browse-pane active" id="pane-topics"><div class="tile-grid" id="browseTopics"></div><div class="chip-wrap" id="browseTopicMatches" hidden></div></div>
     <div class="browse-pane" id="pane-collections"><div id="occNext"></div><div class="occ-grid" id="browseCollectionsGrid"></div></div>
     <div class="browse-pane" id="pane-years"><div id="browseYears"><div class="shelf-empty">Loading…</div></div></div>
     <div class="browse-pane" id="pane-niggunim"><div id="browseNiggunim"><div class="shelf-empty">Loading…</div></div></div>
+    <div class="browse-pane" id="pane-stories"><div id="browseStories"><div class="shelf-empty">Loading…</div></div></div>
     <div class="browse-pane" id="pane-playlists"><div id="browsePlaylists"></div></div>
   </div>
 </div>
@@ -1085,9 +1097,10 @@ function filterBrowse() {
 }
 function switchBrowseTab(pane) {
   if (pane === 'niggunim') loadNiggunList();
+  if (pane === 'stories') loadStoriesPane();
   if (pane === 'playlists') loadPlaylistPane();
   const f = document.getElementById('browseFilter');
-  f.placeholder = { topics: 'Find a topic', collections: 'Find an occasion or date', years: 'Find a year: 5747, 1987 or Hebrew', niggunim: 'Find a niggun', playlists: 'Find a playlist' }[pane] || 'Find';
+  f.placeholder = { topics: 'Find a topic', collections: 'Find an occasion or date', years: 'Find a year: 5747, 1987 or Hebrew', niggunim: 'Find a niggun', stories: 'Find a story', playlists: 'Find a playlist' }[pane] || 'Find';
   setTimeout(filterBrowse);
   document.querySelectorAll('.browse-tabs .chip').forEach(t => t.classList.toggle('active', t.dataset.pane === pane));
   document.querySelectorAll('.browse-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + pane));
@@ -1243,6 +1256,7 @@ async function search(fromHistory) {
     const before = (topicHits.length || niggunHits || occasionHits ? '<div class="chip-scroll" style="margin:0 -16px 6px">' + occasionHits + niggunHits + topicHits.map(topicChipHtml).join('') + '</div>' : '')
       + (top.length ? '<h3 class="res-heading">Top result' + (top.length > 1 ? 's' : '') + '</h3><div class="top-hits">' + top.map(t => trackRowHtml(t.matched_desc ? { ...t, summary_en: t.ashreinu_desc } : t, true, true)).join('') + '</div>' : '')
       + (talks.length ? '<h3 class="res-heading">Talks</h3>' + talks.map(t => trackRowHtml(t, true, true)).join('') : '')
+      + ((j.storyHits || []).length ? '<h3 class="res-heading">Stories</h3>' + j.storyHits.map(storyCardHtml).join('') : '')
       + (clipHits.length ? '<h3 class="res-heading">Moments from JEM\'s playlists</h3>' + clipHits.map(c => trackRowHtml(c, true, false)).join('') : '')
       + (textRows.length ? '<h3 class="res-heading">Found in the text</h3><div class="res-note">'
           + (j.textHits.typed ? 'In Ashreinu\'s outlines and hanachos' : 'Searched the Hebrew text for <span lang="he" dir="rtl">' + esc(j.textHits.terms.join(' · ')) + '</span>') + '</div>'
@@ -1457,6 +1471,18 @@ function fetchNiggunList() {
     return niggunList;
   }).catch(e => { niggunFetch = null; throw e; });
   return niggunFetch;
+}
+let storiesPaneLoaded = false;
+async function loadStoriesPane() {
+  if (storiesPaneLoaded) return;
+  const el = document.getElementById('browseStories');
+  try {
+    const j = await (await fetch('/api/search?stories=1&limit=60')).json();
+    const list = j.stories || [];
+    if (!list.length) { el.innerHTML = '<div class="shelf-empty">Stories will appear here as talks are catalogued from their hanacha.</div>'; return; }
+    storiesPaneLoaded = true;
+    el.innerHTML = list.map(storyCardHtml).join('');
+  } catch (e) { el.innerHTML = '<div class="shelf-empty">Could not load stories.</div>'; }
 }
 async function loadNiggunList() {
   const box = document.getElementById('browseNiggunim');
@@ -2386,6 +2412,27 @@ function trackRowHtml(row, loose, withSummary) {
       + (row._mark ? markBtnHtml(row) : '')
       + (!hasSourceText(row) ? '' : '<button class="icon-btn sm" id="readbtn-' + rid + '" onclick="event.stopPropagation();openReader(\'' + rid + '\',' + farbrengenId + ')" aria-label="Read source text" title="Read source text">' + ICON_BOOK + '</button>')
     + '</div>';
+}
+
+// A story the Rebbe tells, as a card: title, a plain retelling, who it's
+// about, and (tap to play) the track it comes from.
+function storyCardHtml(s) {
+  const row = s.track;
+  if (row) rowsById[String(row.id)] = row;
+  const rid = row ? String(row.id) : null;
+  const playable = row && !!getAudioUrl(row);
+  const who = (s.who || []).filter(Boolean).map(w => '<span class="story-who">' + esc(w) + '</span>').join('');
+  const from = row ? esc(trackTitle(row)) : '';
+  const q = filterKey([s.title_en, s.retelling_en, ...(s.who || [])].join(' '));
+  return '<div class="story-card" data-q="' + esc(q) + '"' + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
+    + '<div class="story-ic">' + ICON_BOOK + '</div>'
+    + '<div style="flex:1;min-width:0">'
+      + '<div class="story-title">' + esc(s.title_en) + '</div>'
+      + '<div class="story-text">' + esc(s.retelling_en) + '</div>'
+      + (who || from ? '<div class="story-meta">' + who
+          + (from ? '<span class="story-from">' + (playable ? '▶ ' : '') + from + '</span>' : '') + '</div>' : '')
+    + '</div>'
+  + '</div>';
 }
 
 // A line of the Hebrew/Yiddish text around a search match (the database
