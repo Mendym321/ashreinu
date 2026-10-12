@@ -730,14 +730,15 @@ async function extractStoriesOnly(src) {
   const material = [
     `Track: ${src.name || ''} (${src.type || ''})`,
     src.hebrew_date ? `Date: ${src.hebrew_date}` : null,
-    src.outline ? `\n<outline>\n${src.outline}\n</outline>` : null,
-    src.transcript ? `\n<hanacha>\n${src.transcript}\n</hanacha>` : null,
+    src.outline ? `\n<outline>\n${src.outline.slice(0, 20000)}\n</outline>` : null,
+    src.transcript ? `\n<hanacha>\n${src.transcript.slice(0, 20000)}\n</hanacha>` : null,
   ].filter(Boolean).join('\n');
   // Plain JSON in the prompt (not a structured-output schema), parsed
-  // leniently — robust on the cheap model without a beta format setting.
+  // leniently. Thinking off: extraction is simple, and it keeps the call fast
+  // so a long hanacha doesn't run past the function's time limit.
   const response = await client.messages.create({
     model: MODEL_CHEAP, max_tokens: 3000,
-    output_config: { effort: 'low' },
+    thinking: { type: 'disabled' },
     system: STORY_SYSTEM + '\n\nReturn ONLY a JSON object, no other text: {"stories":[{"title_en":"...","retelling_en":"...","who":["..."],"hebrew_quote":"..."}]}. If the material tells no story, return {"stories":[]}.',
     messages: [{ role: 'user', content: material }],
   });

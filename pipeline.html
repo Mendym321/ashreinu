@@ -723,11 +723,14 @@ async function storyScanRun() {
     let found = 0, cost = 0, done = 0;
     for (const id of extract) {
       if (storyScanStop) { log.textContent += 'Stopped.\n'; break; }
-      try {
-        const r = await api({ mode: 'storyextract', id });
-        done++; found += r.stories; cost += r.cost_usd;
-        log.textContent += `✓ #${id}: ${r.stories} ${r.stories === 1 ? 'story' : 'stories'}\n`;
-      } catch (e) { log.textContent += `✗ #${id}: ${e.message}\n`; }
+      let r, err;
+      for (let attempt = 0; attempt < 2; attempt++) {  // one retry if the request drops
+        try { r = await api({ mode: 'storyextract', id }); err = null; break; }
+        catch (e) { err = e; await new Promise(res => setTimeout(res, 1500)); }
+      }
+      if (r) { done++; found += r.stories; cost += r.cost_usd;
+        log.textContent += `✓ #${id}: ${r.stories} ${r.stories === 1 ? 'story' : 'stories'}\n`; }
+      else log.textContent += `✗ #${id}: ${err.message} (will retry next run)\n`;
       log.scrollTop = log.scrollHeight;
     }
     log.textContent += `Done. Checked ${done}, found ${found} stories, cost about $${cost.toFixed(3)}. Run again to continue.`;
