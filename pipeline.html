@@ -198,6 +198,17 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
   </section>
 
   <section style="margin:0 0 34px">
+    <h2 style="font-size:18px;font-weight:800">Re-tag a track</h2>
+    <p class="lead" style="margin-bottom:12px">Fix a talk's topics by hand when the title and summary are right but the topic is off (say a public-society talk tagged under Jewish Education). This changes only the topics — the title, summary and rating stay — rebuilds the entry's search words, and locks it so batch re-runs leave the correction alone. No cost.</p>
+    <div class="row">
+      <input class="field" id="retagId" placeholder="track number, e.g. 4078" style="width:200px" inputmode="numeric" aria-label="Track number">
+      <button class="btn" onclick="retagLoad()">Load</button>
+    </div>
+    <div id="retagBox" style="display:none;margin-top:14px"></div>
+    <div class="log" id="retagLog"></div>
+  </section>
+
+  <section style="margin:0 0 34px">
     <h2 style="font-size:18px;font-weight:800">Review catalogued</h2>
     <p class="lead" style="margin-bottom:12px">The latest entries saved to the database, each next to its outline. "Open in app" shows it the way listeners will.</p>
     <div class="row"><input class="field" id="reviewFind" placeholder="Find: track numbers (47, 2203) or words in a title" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter')loadReview(0)" aria-label="Find catalogued tracks">
@@ -766,6 +777,53 @@ async function importOneTrack() {
     if (r.skipped) { log.textContent = 'Text saved, but this entry is locked (edited by hand). Use "Redo whole entry" to replace it.'; return; }
     log.textContent = '✓ #' + id + ' catalogued as: ' + r.metadata.title_en;
     plog('✓ #' + id + ' catalogued from pasted text: ' + r.metadata.title_en);
+  } catch (e) { log.textContent = 'Error: ' + e.message; }
+}
+// Re-tag a track by hand (topics only; keeps title/summary). Loads the entry
+// and the topic menu, shows a picker, saves the chosen topics.
+let retagData = null;
+async function retagLoad() {
+  const id = parseIds(document.getElementById('retagId').value)[0];
+  const box = document.getElementById('retagBox'), log = document.getElementById('retagLog');
+  log.style.display = 'block'; box.style.display = 'none';
+  if (!id) { log.textContent = 'Type the track number first.'; return; }
+  log.textContent = 'Loading #' + id + '…';
+  try {
+    const j = retagData = await api({ mode: 'retag', id });
+    const byGroup = {}; j.leaves.forEach(l => (byGroup[l.group] = byGroup[l.group] || []).push(l));
+    const leafBy = Object.fromEntries(j.leaves.map(l => [l.slug, l]));
+    const nameOf = s => (leafBy[s] || {}).name || s;
+    const others = new Set(j.other_topics);
+    const mainOpts = j.groups.map(g => (byGroup[g.slug] || []).length
+      ? '<optgroup label="' + esc(g.name) + '">' + byGroup[g.slug].map(l =>
+          '<option value="' + esc(l.slug) + '"' + (l.slug === j.main_topic ? ' selected' : '') + '>' + esc(l.name) + '</option>').join('') + '</optgroup>'
+      : '').join('');
+    const checks = j.groups.map(g => (byGroup[g.slug] || []).length
+      ? '<div style="margin:9px 0 2px;font-weight:700;font-size:12px;color:var(--ink-light)">' + esc(g.name) + '</div>'
+        + byGroup[g.slug].map(l => '<label style="display:inline-flex;align-items:center;gap:6px;margin:3px 14px 3px 0;font-size:13px">'
+          + '<input type="checkbox" value="' + esc(l.slug) + '"' + (others.has(l.slug) ? ' checked' : '') + ' data-other> ' + esc(l.name) + '</label>').join('')
+      : '').join('');
+    box.innerHTML = '<div class="card" style="padding:16px 18px">'
+      + '<div style="font-weight:700;margin-bottom:4px">#' + j.id + ' — ' + esc(j.title || '(no title)') + '</div>'
+      + '<div style="font-size:13px;color:var(--ink-light);margin-bottom:14px">now: <b>' + esc(nameOf(j.main_topic) || '—') + '</b>'
+        + (j.other_topics.length ? ' · also: ' + j.other_topics.map(nameOf).map(esc).join(', ') : '') + '</div>'
+      + '<label style="font-size:12px;font-weight:700;color:var(--ink-light)">Main topic</label>'
+      + '<select class="field" id="retagMain" style="width:100%;margin:4px 0 14px">' + mainOpts + '</select>'
+      + '<div style="font-size:12px;font-weight:700;color:var(--ink-light);margin-bottom:2px">Also in (up to 3)</div>'
+      + '<div id="retagOthers" style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px 12px">' + checks + '</div>'
+      + '<div class="row" style="margin-top:12px"><button class="btn primary" onclick="retagSave()">Save topics</button></div></div>';
+    box.style.display = 'block'; log.textContent = '';
+  } catch (e) { log.textContent = 'Error: ' + e.message; }
+}
+async function retagSave() {
+  if (!retagData) return;
+  const id = retagData.id, main = document.getElementById('retagMain').value;
+  const others = [...document.querySelectorAll('#retagOthers input[data-other]:checked')].map(c => c.value).filter(v => v !== main).slice(0, 3);
+  const log = document.getElementById('retagLog'); log.style.display = 'block'; log.textContent = 'Saving…';
+  try {
+    const r = await apiPost({ mode: 'retag', id }, { main_topic: main, other_topics: others });
+    plog('✓ #' + r.id + ' re-tagged: main=' + r.main_topic + (r.other_topics.length ? ', also=' + r.other_topics.join(', ') : '') + ' (was ' + (r.previous.main_topic || '—') + ')');
+    log.textContent = 'Saved. Topics updated, search re-indexed, entry locked so re-runs keep it.';
   } catch (e) { log.textContent = 'Error: ' + e.message; }
 }
 async function catalogueNow(id) {
