@@ -627,14 +627,14 @@ body.audio-paused .eq i{animation-play-state:paused}
 .rd-kp{margin:14px 0 0 20px;font-size:15px;line-height:1.6;color:var(--ink-mid)}
 .rd-kp li{margin-bottom:4px}
 .rd-sublabel{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin:0 0 10px}
-.rd-outline{font-family:var(--he-sans);direction:rtl;font-size:calc(var(--rd-size,19px) * .9);line-height:1.9;color:var(--ink-mid);white-space:pre-line;margin-bottom:30px;padding-bottom:22px;border-bottom:1px solid var(--border)}
+.rd-outline{font-family:var(--he-sans);direction:rtl;font-size:calc(var(--rd-size,19px) * .9);line-height:1.6;color:var(--ink-mid);white-space:pre-line;margin-bottom:30px;padding-bottom:22px;border-bottom:1px solid var(--border)}
 .rd-summary{font-size:16.5px;line-height:1.65;color:var(--ink-mid);margin-top:14px}
 .rd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .rd-tags .chip{height:30px;padding:0 12px;font-size:13px}
 .rd-tags .chip.topic-chip{padding-left:26px}
 
 .rd-text{
-  font-family:var(--he-serif);direction:rtl;font-size:var(--rd-size,19px);line-height:2;
+  font-family:var(--he-serif);direction:rtl;font-size:var(--rd-size,19px);line-height:1.75;
   color:var(--ink);text-align:justify;text-align-last:right;
 }
 .rd-text p{margin:0 0 1.05em}
@@ -3245,7 +3245,7 @@ function searchTag(tag) {
 
 // ── Reader: a full-screen reading view ──
 const TEXT_SIZES = [20, 23, 26, 30];
-let textSize = 26; // Vilna reads large and clear, like a printed sefer
+let textSize = 23; // comfortable Vilna reading size without feeling airy
 try { const s = parseInt(localStorage.getItem('ashreinu-text-size'), 10); if (TEXT_SIZES.includes(s)) textSize = s; } catch (e) {}
 function applyTextSize() { document.getElementById('reader').style.setProperty('--rd-size', textSize + 'px'); }
 function cycleTextSize() {
