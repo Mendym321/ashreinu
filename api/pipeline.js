@@ -978,6 +978,45 @@ async function reindexRow(supabase, topics, r) {
   if (error) throw new Error(error.message);
 }
 
+// Re-tag a catalogued track by hand, without re-running Claude — for when the
+// topic is wrong but the title and summary are fine. GET returns the entry's
+// current topics plus the topic menu (for the picker); POST sets the new main
+// and other topics, rebuilds the search words, and locks the entry so batch
+// re-runs leave the correction alone.
+async function retagGet(supabase, id) {
+  const topics = await loadTopics(supabase);
+  const { data: r, error } = await supabase.from('track_metadata')
+    .select('status, title_en, main_topic, topics').eq('ashreinu_event_id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!r || r.status !== 'enriched') throw new Error(`Track ${id} isn't catalogued yet`);
+  return {
+    id, title: r.title_en || '', main_topic: r.main_topic || '', other_topics: r.topics || [],
+    groups: topics.all.filter(t => !t.parent_slug).map(g => ({ slug: g.slug, name: g.name_en })),
+    leaves: topics.leaves.map(t => ({ slug: t.slug, name: t.name_en, group: t.parent_slug })),
+  };
+}
+async function setTopics(supabase, id, body) {
+  const topics = await loadTopics(supabase);
+  const leaf = new Set(topics.leaves.map(t => t.slug));
+  const main = String(body.main_topic || '').trim();
+  if (!leaf.has(main)) throw new Error(`"${main}" isn't a topic on the menu — pick a leaf topic (not a group).`);
+  const others = [...new Set((Array.isArray(body.other_topics) ? body.other_topics : [])
+    .map(s => String(s || '').trim()).filter(s => leaf.has(s) && s !== main))].slice(0, 3);
+  const { data: r, error } = await supabase.from('track_metadata')
+    .select('ashreinu_event_id, status, title_en, title_he, summary_en, key_points, main_topic, topics, occasions, parsha, people, sources, phrases, audience, outline_he')
+    .eq('ashreinu_event_id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!r || r.status !== 'enriched') throw new Error(`Track ${id} isn't catalogued yet`);
+  const previous = { main_topic: r.main_topic, other_topics: r.topics || [] };
+  const { error: e2 } = await supabase.from('track_metadata')
+    .update({ main_topic: main, topics: others, locked: true, updated_at: new Date().toISOString() })
+    .eq('ashreinu_event_id', id);
+  if (e2) throw new Error(e2.message);
+  // Rebuild the search words from the new topics (search_b carries topic names).
+  await reindexRow(supabase, topics, { ...r, main_topic: main, topics: others });
+  return { id, saved: true, title: r.title_en, main_topic: main, other_topics: others, previous, locked: true };
+}
+
 // Opus 5.5 pricing ($ per million tokens), for the running cost estimate.
 const PRICE_IN = 4, PRICE_OUT = 20;
 async function stats(supabase) {
@@ -1074,7 +1113,7 @@ export default async function handler(req, res) {
   if (!process.env.PIPELINE_KEY) return res.status(503).json({ error: 'PIPELINE_KEY is not set in Vercel, so the pipeline is locked.' });
   if (!keyOk(req)) return res.status(401).json({ error: 'Wrong or missing pipeline password.', needKey: true });
   const { mode, id } = req.query;
-  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'fix', 'setfix', 'settext', 'rate', 'setfeatured', 'playlist'].includes(mode);
+  const needsId = ['source', 'preview', 'enrich', 'titles', 'settitle', 'retitle', 'retag', 'fix', 'setfix', 'settext', 'rate', 'setfeatured', 'playlist'].includes(mode);
   if (needsId && (!id || !/^\d+$/.test(id))) return res.status(400).json({ error: 'Missing or invalid ?id=' });
   const limit = Math.max(1, Math.min(parseInt(req.query.limit || '30', 10) || 30, 100));
 
@@ -1141,6 +1180,13 @@ export default async function handler(req, res) {
     if (mode === 'savesource') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
       return res.status(200).json(await saveMappedSource(supa(), body.assignments));
+    }
+    if (mode === 'retag') {
+      if (req.method === 'POST') {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        return res.status(200).json(await setTopics(supa(), parseInt(id, 10), body));
+      }
+      return res.status(200).json(await retagGet(supa(), parseInt(id, 10)));
     }
     if (mode === 'storyscan') return res.status(200).json(await scanStoriesCount(supa(), Math.min(parseInt(req.query.limit, 10) || 100, 500)));
     if (mode === 'storycandidates') return res.status(200).json(await storyCandidates(supa(), Math.min(parseInt(req.query.limit, 10) || 50, 200), true));
