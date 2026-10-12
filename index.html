@@ -275,6 +275,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
 .track .icon-btn{color:var(--ink-light)}
 .track .icon-btn.on{color:var(--gold)}
 .loose{margin-bottom:6px}
+/* Album track list: a track number instead of a cover (like a music app's
+   album view), swapped for the gold equalizer on the track that's playing. */
+.track-index{width:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--ink-light);font-size:14px;font-variant-numeric:tabular-nums}
+.track.playing .track-index{color:var(--gold)}
+.track-index .eq i{background:var(--gold)}
+.track.playing .track-index .idx-num{display:none}
 
 /* Animated equalizer replaces the cover icon on the track that's playing */
 .eq{display:none;gap:3px;align-items:flex-end;height:18px}
@@ -2405,7 +2411,7 @@ const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14
 
 // One track row. `loose` = shown on its own (not under its farbrengen), so
 // the subtitle has to carry the farbrengen name and date itself.
-function trackRowHtml(row, loose, withSummary) {
+function trackRowHtml(row, loose, withSummary, index) {
   const rid = String(row.id);
   rowsById[rid] = row;
   const playable = !!getAudioUrl(row);
@@ -2419,7 +2425,9 @@ function trackRowHtml(row, loose, withSummary) {
   const isNigun = typeKey(row.type) === 'niggun';
   return '<div class="track' + (playable ? '' : ' no-audio') + (rid === currentTrackId ? ' playing' : '') + (isSaved(rid) ? ' saved' : '') + '" id="card-' + rid + '" data-rid="' + rid + '" data-evrow="' + rid + '"'
       + (playable ? ' data-playable onclick="playFromOrder(\'' + rid + '\')"' : '') + '>'
-      + coverHtml('track-cover', row, false, '<span class="eq"><i></i><i></i><i></i></span>')
+      + (index != null
+          ? '<div class="track-index"><span class="idx-num">' + index + '</span><span class="eq"><i></i><i></i><i></i></span></div>'
+          : coverHtml('track-cover', row, false, '<span class="eq"><i></i><i></i><i></i></span>'))
       + '<div class="track-info">'
         + '<div class="track-title">' + ROW_HEART + esc(trackTitle(row)) + (row._heard || isHeard(rid) ? HEARD_TICK : '') + '</div>'
         + '<div class="track-sub">' + sub.filter(Boolean).map(part => part === row.parent_name && row.parent_id
@@ -2495,7 +2503,7 @@ function albumHtml(fid, head, tracks) {
       + '<span class="spacer"></span>'
       + '<button class="play-all" onclick="playAlbum(' + fid + ')" aria-label="Play this farbrengen">' + ICON_PLAY + '</button>'
     + '</div>'
-    + '<div id="album-tracks-' + fid + '">' + tracks.map(r => trackRowHtml(r, false)).join('') + '</div>'
+    + '<div id="album-tracks-' + fid + '">' + tracks.map((r, i) => trackRowHtml(r, false, false, i + 1)).join('') + '</div>'
     + '<button class="show-tracks" id="album-more-' + fid + '" onclick="loadAlbumTracks(' + fid + ')">'
       + (tracks.length ? 'Show the whole farbrengen' : 'Show tracks') + '</button>'
   + '</section>';
@@ -2544,7 +2552,7 @@ async function loadAlbumTracks(fid, thenPlay) {
     const j = await r.json();
     if (j.error) throw new Error(j.error);
     const tracks = (j.results || []).filter(t => t.audio_uri);
-    box.innerHTML = tracks.length ? tracks.map(t => trackRowHtml(t, false)).join('') : '<div class="read-empty">No audio tracks found for this farbrengen.</div>';
+    box.innerHTML = tracks.length ? tracks.map((t, i) => trackRowHtml(t, false, false, i + 1)).join('') : '<div class="read-empty">No audio tracks found for this farbrengen.</div>';
     if (more) more.remove();
     rebuildOrder();
     if (thenPlay && tracks.length) playFromOrder(String(tracks[0].id));
