@@ -28,6 +28,10 @@
   --elevated:#2b261f;--hover:rgba(255,255,255,0.08);--track:rgba(255,255,255,0.18);
   --tint-sicha:#1c2a4d;--tint-maamar:#2c1d45;--tint-farb:#16352a;--tint-niggun:#3d2a12;--tint-other:#2b261f;
   --wash-op:.55;
+  /* The Hebrew reading font for source text (hanacha, outline, footnotes).
+     OT Vilna Basic is the classic Vilna Shas serif (bundled in /fonts).
+     Change it here once and it updates everywhere. */
+  --he-serif:'OTVilna','David Libre',serif;
 }
 :root[data-theme="light"]{
   /* Light theme — the original warm archival palette, opt-in via the toggle. */
@@ -147,6 +151,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);min-he
   font-family: 'DachHeilig';
   src: url('/fonts/Heilig.OTF') format('opentype');
   font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* OT Vilna Basic — the classic Vilna Shas serif, used for the Hebrew
+   source text in the reader. Bundled in /fonts, so it loads from our own
+   site (no external font service). */
+@font-face {
+  font-family: 'OTVilna';
+  src: url('/fonts/OT Vilna Basic-VF.ttf') format('truetype');
+  font-weight: 400 700;
   font-style: normal;
   font-display: swap;
 }
@@ -610,14 +625,14 @@ body.audio-paused .eq i{animation-play-state:paused}
 .rd-kp{margin:14px 0 0 20px;font-size:15px;line-height:1.6;color:var(--ink-mid)}
 .rd-kp li{margin-bottom:4px}
 .rd-sublabel{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin:0 0 10px}
-.rd-outline{font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:calc(var(--rd-size,19px) * .9);line-height:1.9;color:var(--ink-mid);white-space:pre-line;margin-bottom:30px;padding-bottom:22px;border-bottom:1px solid var(--border)}
+.rd-outline{font-family:var(--he-serif);direction:rtl;font-size:calc(var(--rd-size,19px) * .9);line-height:1.9;color:var(--ink-mid);white-space:pre-line;margin-bottom:30px;padding-bottom:22px;border-bottom:1px solid var(--border)}
 .rd-summary{font-size:16.5px;line-height:1.65;color:var(--ink-mid);margin-top:14px}
 .rd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .rd-tags .chip{height:30px;padding:0 12px;font-size:13px}
 .rd-tags .chip.topic-chip{padding-left:26px}
 
 .rd-text{
-  font-family:'DachHeilig','David Libre',serif;direction:rtl;font-size:var(--rd-size,19px);line-height:2;
+  font-family:var(--he-serif);direction:rtl;font-size:var(--rd-size,19px);line-height:2;
   color:var(--ink);text-align:justify;text-align-last:right;
 }
 .rd-text p{margin:0 0 1.05em}
@@ -636,7 +651,7 @@ body.audio-paused .eq i{animation-play-state:paused}
 .rd-notes{margin-top:32px;padding-top:18px;border-top:1px solid var(--border)}
 .rd-notes h4{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin-bottom:12px}
 .rd-notes ol{list-style:none;padding:0;margin:0;direction:rtl}
-.rd-notes li{display:flex;gap:.7em;font-family:'DachHeilig','David Libre',serif;font-size:calc(var(--rd-size,19px) * .8);line-height:1.75;color:var(--ink-mid);margin-bottom:.6em}
+.rd-notes li{display:flex;gap:.7em;font-family:var(--he-serif);font-size:calc(var(--rd-size,19px) * .8);line-height:1.75;color:var(--ink-mid);margin-bottom:.6em}
 .rd-notes li b{font-family:'Inter',sans-serif;font-size:.72em;font-weight:800;color:var(--gold);min-width:1.6em;padding-top:.25em}
 .rd-seg-sep{height:1px;background:var(--border);margin:44px 0 34px}
 .rd-toc{margin:10px 0 36px}
@@ -665,13 +680,13 @@ body.audio-paused .eq i{animation-play-state:paused}
 .fn-sheet.open{transform:none}
 .fn-sheet-head{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .fn-sheet-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light)}
-.fn-sheet-text{overflow-y:auto;font-family:'DachHeilig','David Libre',serif;font-size:calc(var(--rd-size,19px) * .92);line-height:1.85;color:var(--ink);padding:2px 0 4px}
+.fn-sheet-text{overflow-y:auto;font-family:var(--he-serif);font-size:calc(var(--rd-size,19px) * .92);line-height:1.85;color:var(--ink);padding:2px 0 4px}
 .fn-sheet-text.missing{font-family:'Inter',sans-serif;direction:ltr;font-size:14px;color:var(--ink-light)}
 
 /* Preview card in the full player */
 .pv-summary{font-size:15px;line-height:1.6;color:var(--ink-mid);margin-top:10px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .pv-excerpt{
-  font-family:'DachHeilig','David Libre',serif;font-size:18px;line-height:1.9;color:var(--ink);margin-top:16px;
+  font-family:var(--he-serif);font-size:18px;line-height:1.9;color:var(--ink);margin-top:16px;
   max-height:5.7em;overflow:hidden;text-align:justify;
   -webkit-mask-image:linear-gradient(#000 35%,transparent);mask-image:linear-gradient(#000 35%,transparent);
 }
@@ -3227,9 +3242,9 @@ function searchTag(tag) {
 }
 
 // ── Reader: a full-screen reading view ──
-const TEXT_SIZES = [17, 19, 22, 25];
-let textSize = 19;
-try { textSize = parseInt(localStorage.getItem('ashreinu-text-size'), 10) || 19; } catch (e) {}
+const TEXT_SIZES = [20, 23, 26, 30];
+let textSize = 26; // Vilna reads large and clear, like a printed sefer
+try { const s = parseInt(localStorage.getItem('ashreinu-text-size'), 10); if (TEXT_SIZES.includes(s)) textSize = s; } catch (e) {}
 function applyTextSize() { document.getElementById('reader').style.setProperty('--rd-size', textSize + 'px'); }
 function cycleTextSize() {
   textSize = TEXT_SIZES[(TEXT_SIZES.indexOf(textSize) + 1) % TEXT_SIZES.length];
