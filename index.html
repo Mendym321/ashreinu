@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#161310">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=David+Libre:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=David+Libre:wght@400;500;700&family=Assistant:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -28,10 +28,12 @@
   --elevated:#2b261f;--hover:rgba(255,255,255,0.08);--track:rgba(255,255,255,0.18);
   --tint-sicha:#1c2a4d;--tint-maamar:#2c1d45;--tint-farb:#16352a;--tint-niggun:#3d2a12;--tint-other:#2b261f;
   --wash-op:.55;
-  /* The Hebrew reading font for source text (hanacha, outline, footnotes).
-     OT Vilna Basic is the classic Vilna Shas serif (bundled in /fonts).
-     Change it here once and it updates everywhere. */
+  /* The Hebrew reading font for the Rebbe's own words (hanacha, footnotes):
+     OT Vilna Basic, the classic Vilna Shas serif (bundled in /fonts). */
   --he-serif:'OTVilna','David Libre',serif;
+  /* A plainer sans for the archive's own summary (the outline/תוכן), so it
+     reads as a note rather than as source text. */
+  --he-sans:'Assistant','David Libre',sans-serif;
 }
 :root[data-theme="light"]{
   /* Light theme — the original warm archival palette, opt-in via the toggle. */
@@ -625,14 +627,14 @@ body.audio-paused .eq i{animation-play-state:paused}
 .rd-kp{margin:14px 0 0 20px;font-size:15px;line-height:1.6;color:var(--ink-mid)}
 .rd-kp li{margin-bottom:4px}
 .rd-sublabel{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin:0 0 10px}
-.rd-outline{font-family:var(--he-serif);direction:rtl;font-size:calc(var(--rd-size,19px) * .9);line-height:1.9;color:var(--ink-mid);white-space:pre-line;margin-bottom:30px;padding-bottom:22px;border-bottom:1px solid var(--border)}
+.rd-outline{font-family:var(--he-sans);direction:rtl;font-size:calc(var(--rd-size,19px) * .9);line-height:1.6;color:var(--ink-mid);white-space:pre-line;margin-bottom:30px;padding-bottom:22px;border-bottom:1px solid var(--border)}
 .rd-summary{font-size:16.5px;line-height:1.65;color:var(--ink-mid);margin-top:14px}
 .rd-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 .rd-tags .chip{height:30px;padding:0 12px;font-size:13px}
 .rd-tags .chip.topic-chip{padding-left:26px}
 
 .rd-text{
-  font-family:var(--he-serif);direction:rtl;font-size:var(--rd-size,19px);line-height:2;
+  font-family:var(--he-serif);direction:rtl;font-size:var(--rd-size,19px);line-height:1.75;
   color:var(--ink);text-align:justify;text-align-last:right;
 }
 .rd-text p{margin:0 0 1.05em}
@@ -3243,7 +3245,7 @@ function searchTag(tag) {
 
 // ── Reader: a full-screen reading view ──
 const TEXT_SIZES = [20, 23, 26, 30];
-let textSize = 26; // Vilna reads large and clear, like a printed sefer
+let textSize = 23; // comfortable Vilna reading size without feeling airy
 try { const s = parseInt(localStorage.getItem('ashreinu-text-size'), 10); if (TEXT_SIZES.includes(s)) textSize = s; } catch (e) {}
 function applyTextSize() { document.getElementById('reader').style.setProperty('--rd-size', textSize + 'px'); }
 function cycleTextSize() {
