@@ -160,6 +160,18 @@ ul.kp{margin:10px 0 0 18px;font-size:13.5px;line-height:1.55;color:var(--ink-mid
   </section>
 
   <section style="margin:0 0 34px">
+    <h2 style="font-size:18px;font-weight:800">Add a hanacha to one track</h2>
+    <p class="lead" style="margin-bottom:12px">Paste the text for a single track — handy for a ma'amar or one sicha that's missing it. Use the track's own number (the one after <code>?play=</code> in its Share link, or <code>track=</code> in the Open-in-app link). It saves the text and catalogues that track (about $0.07).</p>
+    <div class="row">
+      <input class="field" id="oneId" placeholder="track number, e.g. 2183" style="width:200px" inputmode="numeric" aria-label="Track number">
+      <input class="field" id="oneKind" placeholder="label (optional), e.g. Ma'amar" style="width:220px" aria-label="Text label">
+    </div>
+    <textarea class="field" id="oneText" placeholder="Paste the hanacha / ma'amar text for this track…" style="width:100%;min-height:150px;margin-top:10px;font-family:inherit"></textarea>
+    <div class="row" style="margin-top:10px"><button class="btn primary" onclick="importOneTrack()">Save &amp; catalogue</button></div>
+    <div class="log" id="oneLog"></div>
+  </section>
+
+  <section style="margin:0 0 34px">
     <h2 style="font-size:18px;font-weight:800">Find stories in catalogued tracks</h2>
     <p class="lead" style="margin-bottom:12px">Tracks catalogued before Stories existed weren't checked for them. This reads their stored hanacha for story markers (free) and extracts the stories it finds with the cheap model (about a tenth of a cent each, not the ~$0.07 of a full re-catalogue). Run <code>008_stories.sql</code> and <code>009_stories_scanned.sql</code> first. Resumable: run it again to continue.</p>
     <div class="row">
@@ -736,6 +748,25 @@ async function storyScanRun() {
     log.textContent += `Done. Checked ${done}, found ${found} stories, cost about $${cost.toFixed(3)}. Run again to continue.`;
   } catch (e) { log.textContent += 'Error: ' + e.message; }
   finally { stopBtn.disabled = true; }
+}
+// Add a hanacha to one track and catalogue it (reuses settext + enrich).
+async function importOneTrack() {
+  const id = parseIds(document.getElementById('oneId').value)[0];
+  const text = document.getElementById('oneText').value.trim();
+  const kind = document.getElementById('oneKind').value.trim() || 'Pasted text';
+  const log = document.getElementById('oneLog');
+  log.style.display = 'block';
+  if (!id) { log.textContent = 'Type the track number first.'; return; }
+  if (text.length < 20) { log.textContent = 'Paste the text first.'; return; }
+  log.textContent = 'Saving text to #' + id + '…';
+  try {
+    const s = await apiPost({ mode: 'settext', id }, { text, kind });
+    log.textContent = 'Saved ' + s.text_chars + ' characters. Claude is cataloguing it (about 30 seconds)…';
+    const r = await api({ mode: 'enrich', id });
+    if (r.skipped) { log.textContent = 'Text saved, but this entry is locked (edited by hand). Use "Redo whole entry" to replace it.'; return; }
+    log.textContent = '✓ #' + id + ' catalogued as: ' + r.metadata.title_en;
+    plog('✓ #' + id + ' catalogued from pasted text: ' + r.metadata.title_en);
+  } catch (e) { log.textContent = 'Error: ' + e.message; }
 }
 async function catalogueNow(id) {
   const msg = document.getElementById('textMsg');
