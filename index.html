@@ -1303,17 +1303,35 @@ const HEBCAL_MONTH_MAP = {
   'Sivan':10,'Tamuz':11,'Tammuz':11,'Av':12,'Elul':13
 };
 let todayHebrew = null; // { year, month, day, monthName, displayStr }
-
+const TODAY_KEY = 'ashreinu-hebdate';
+function gregKey() { const n = new Date(); return n.getFullYear() + '-' + (n.getMonth() + 1) + '-' + n.getDate(); }
+function applyTodayHebrew(h) {
+  todayHebrew = h;
+  const el = document.getElementById('todayStrip');
+  if (el && h) el.textContent = h.day + ' ' + h.monthName + ' ' + h.year;
+}
+// Use yesterday-or-earlier's cached conversion only if it's still for today;
+// otherwise the strip keeps its default until the (async) fetch returns.
+function primeTodayFromCache() {
+  const c = readJSON(TODAY_KEY, null);
+  if (c && c.g === gregKey() && c.h) applyTodayHebrew(c.h);
+}
+// Today's Hebrew date. Cached per Gregorian day in localStorage so the
+// external hebcal call happens at most once a day and never blocks first
+// paint. On a fresh fetch, refresh the home sections that need the date.
 async function loadTodayHebrewDate() {
+  const c = readJSON(TODAY_KEY, null);
+  if (c && c.g === gregKey() && c.h) { applyTodayHebrew(c.h); return; }
   try {
     const now = new Date();
     const gy = now.getFullYear(), gm = now.getMonth()+1, gd = now.getDate();
     const r = await fetch(`https://www.hebcal.com/converter?cfg=json&gy=${gy}&gm=${gm}&gd=${gd}&g2h=1`);
     const j = await r.json();
     if (!(j.hd && j.hm && j.hy)) return; // unexpected answer: keep "Archive Search"
-    const monthNum = HEBCAL_MONTH_MAP[j.hm] || null;
-    todayHebrew = { year: j.hy, month: monthNum, day: j.hd, monthName: j.hm };
-    document.getElementById('todayStrip').textContent = j.hd + ' ' + j.hm + ' ' + j.hy;
+    const h = { year: j.hy, month: HEBCAL_MONTH_MAP[j.hm] || null, day: j.hd, monthName: j.hm };
+    applyTodayHebrew(h);
+    writeJSON(TODAY_KEY, { g: gregKey(), h });
+    if (onHome()) { loadToday(); loadFollowSection(); } // now that we have the date
   } catch (e) { /* keep the default "Archive Search" subtitle */ }
 }
 
@@ -2282,11 +2300,26 @@ async function loadExplore() {
 // Open one farbrengen as an album page with all its tracks.
 // ── Topics (the browsing menu) ──
 let TOPICS = [], TOPIC_BY_SLUG = {};
+const TOPICS_KEY = 'ashreinu-topics';
+// Is the home landing on screen? (Its sections only exist there.) Used to
+// decide whether a late-arriving topic list or Hebrew date should refresh.
+function onHome() { return !!document.getElementById('exploreSection'); }
+function applyTopics(list) {
+  TOPICS = list || [];
+  TOPIC_BY_SLUG = Object.fromEntries(TOPICS.map(t => [t.slug, t]));
+}
+// Show last visit's topics instantly from localStorage, so the home page
+// paints its topic shelf without waiting on the network.
+function primeTopicsFromCache() { const c = readJSON(TOPICS_KEY, null); if (c) applyTopics(c); }
 async function loadTopicList() {
   try {
     const j = await (await fetch('/api/search?topics=1')).json();
-    TOPICS = j.topics || [];
-    TOPIC_BY_SLUG = Object.fromEntries(TOPICS.map(t => [t.slug, t]));
+    if (!j.topics) return;
+    const before = TOPICS.map(t => t.slug).join(',');
+    applyTopics(j.topics);
+    writeJSON(TOPICS_KEY, j.topics);
+    // If the list actually changed since what we rendered, refresh the home.
+    if (onHome() && before !== j.topics.map(t => t.slug).join(',')) showLanding();
   } catch (e) { /* topics not set up yet: the app works without them */ }
 }
 function topicName(slug) { return TOPIC_BY_SLUG[slug]?.name_en || ''; }
@@ -3422,7 +3455,14 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   enableDragToClose('browseSheet', 'browseScroll', () => closeBrowseSheet());
   enableDragToClose('reader', 'readerScroll', () => closeReader());
   loadYearOptions();
-  await Promise.all([loadTodayHebrewDate(), loadTopicList()]);
+  // Paint from last visit's cached topics/date instantly; revalidate in the
+  // background so first paint never waits on the network (or on hebcal.com).
+  primeTopicsFromCache();
+  primeTodayFromCache();
+  const hadTopics = TOPICS.length > 0;
+  loadTodayHebrewDate();            // non-blocking: fills in / refreshes when ready
+  const topicsReady = loadTopicList();
+  if (!hadTopics) await topicsReady; // first-ever visit: let the topic shelf show on first paint
   // Links like index.html?q=teshuvah or index.html?track=5009&f=4999 (used by the pipeline review page).
   const params = new URLSearchParams(location.search);
   const occ = COLLECTIONS.findIndex(c => c.name === params.get('occasion'));
