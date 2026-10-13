@@ -335,12 +335,12 @@ export default async function handler(req, res) {
     const q = (req.query.q || '').trim();
     // The plain browse list (no query) rarely changes: keep it warm for 5 min.
     if (!q && storyBrowseCache && Date.now() - storyBrowseAt < 60000) {
-      res.setHeader('Cache-Control', 's-maxage=120');
+      res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=86400');
       return res.status(200).json({ stories: storyBrowseCache });
     }
     const stories = await loadStories(supabase, q, n).catch(() => []);
     if (!q) { storyBrowseCache = stories; storyBrowseAt = Date.now(); }
-    res.setHeader('Cache-Control', stories.length ? 's-maxage=120' : 'no-store');
+    res.setHeader('Cache-Control', stories.length ? 's-maxage=120, stale-while-revalidate=86400' : 'no-store');
     return res.status(200).json({ stories });
   }
 
@@ -349,7 +349,7 @@ export default async function handler(req, res) {
     const { data, error } = await supabase.from('track_metadata').select('ashreinu_event_id')
       .eq('status', 'enriched').order('enriched_at', { ascending: false }).limit(n);
     if (error) return res.status(200).json({ results: [] }); // catalogue not set up yet
-    res.setHeader('Cache-Control', 's-maxage=60');
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=86400');
     return res.status(200).json({ results: await rowsForIds(supabase, data.map(r => r.ashreinu_event_id), {}) });
   }
 
@@ -376,7 +376,7 @@ export default async function handler(req, res) {
     const good = shuffle(rows.filter(r => r.featured === true || (r.featured !== false && r.evergreen >= 4)));
     const unrated = shuffle(rows.filter(r => r.featured == null && r.evergreen == null));
     const ids = [...good, ...(good.length < n ? unrated : [])].slice(0, n).map(r => r.ashreinu_event_id);
-    res.setHeader('Cache-Control', 's-maxage=60');
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=600');
     return res.status(200).json({ results: await rowsForIds(supabase, ids, {}) });
   }
 
@@ -429,7 +429,7 @@ export default async function handler(req, res) {
     const { data, error } = await supabase.from('ashreinu_events').select(ROW_FIELDS).eq('id', parseInt(req.query.event, 10)).maybeSingle();
     if (error) return res.status(500).json({ error: error.message });
     if (data) await attachConfirmedTitles(supabase, [data], true);
-    res.setHeader('Cache-Control', 's-maxage=300');
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
     return res.status(200).json({ result: data || null });
   }
 
@@ -480,7 +480,7 @@ export default async function handler(req, res) {
       data.forEach(r => { counts[r.main_topic] = (counts[r.main_topic] || 0) + 1; });
       if (data.length < 1000) break;
     }
-    res.setHeader('Cache-Control', 's-maxage=300');
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
     return res.status(200).json({ topics: topics.map(t => ({ ...t, count: counts[t.slug] || 0 })) });
   }
 
@@ -504,7 +504,7 @@ export default async function handler(req, res) {
     const filters = { type, year, month, dates };
     const [mainRows, otherRows] = await Promise.all([rowsForIds(supabase, mainIds, filters), rowsForIds(supabase, otherIds, filters)]);
     const chrono = (a, b) => (a.hebrew_year || 0) - (b.hebrew_year || 0) || a.id - b.id;
-    res.setHeader('Cache-Control', 's-maxage=120');
+    res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=86400');
     return res.status(200).json({
       topic, subtopics: topic.parent_slug ? [] : topics.filter(t => t.parent_slug === slug),
       main: mainRows.sort(chrono), related: otherRows.sort(chrono),
@@ -586,7 +586,7 @@ export default async function handler(req, res) {
         if (data.length < 1000) break;
       }
     } catch (e) { /* tiles fall back to colour */ }
-    res.setHeader('Cache-Control', 's-maxage=3600');
+    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
     return res.status(200).json({ years, counts: Object.fromEntries(years.map(y => [y, events[y].size])), photos });
   }
 
