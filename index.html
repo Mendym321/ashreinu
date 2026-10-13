@@ -2334,10 +2334,24 @@ function topicCount(t) {
 }
 // Topics whose name or alias starts with what's typed ("teshu" → Teshuvah).
 function suggestTopics(q) {
-  const n = String(q || '').toLowerCase().trim();
-  if (n.length < 2) return [];
-  return TOPICS.filter(t => t.parent_slug && [t.name_en, t.name_he, ...(t.aliases || [])]
-    .some(a => a && (a.toLowerCase().startsWith(n) || (n.length >= 4 && a.toLowerCase().includes(n))))).slice(0, 6);
+  const raw = String(q || '').toLowerCase().trim();
+  if (raw.length < 2) return [];
+  // Normalise "G-d"/"Gd" to "god" and drop punctuation, so "serving g-d" and
+  // "serving god" both match the "Serving G-d" group. Keeps a raw check too,
+  // so Hebrew topic names still match as before.
+  const norm = s => String(s || '').toLowerCase().replace(/g[-‑\s]?d\b/g, 'god').replace(/[^a-z0-9]+/g, ' ').trim();
+  const nq = norm(q);
+  const hit = t => [t.name_en, t.name_he, ...(t.aliases || [])].some(a => {
+    if (!a) return false;
+    const al = a.toLowerCase();
+    if (al.startsWith(raw) || (raw.length >= 4 && al.includes(raw))) return true;
+    const an = norm(a);
+    return an && nq && (an.startsWith(nq) || (nq.length >= 4 && an.includes(nq)));
+  });
+  // Leaf topics first, then groups. A group ("Serving G-d") opens a page that
+  // gathers the talks of all its topics, so it's a useful destination too.
+  return [...TOPICS.filter(t => t.parent_slug && hit(t)),
+          ...TOPICS.filter(t => !t.parent_slug && hit(t))].slice(0, 6);
 }
 function topicChipHtml(t) {
   return '<button class="chip topic-chip tg-' + groupIndex(t.slug) + '" onclick="openTopic(\'' + t.slug + '\')">' + esc(t.name_en) + '</button>';
