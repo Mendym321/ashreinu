@@ -17,7 +17,7 @@
      read as a distinct identity rather than mimicking Ashreinu's own
      pure-black shell. */
   --ink:#ede7da;--ink-mid:#b3aa98;--ink-light:#8a8270;--ink-faint:#5c5648;
-  --gold:#d9a63f;--gold-dim:#e2b04e;--gold-bg:#3a2f1a;
+  --gold:#ffc233;--gold-dim:#ffd159;--gold-bg:#3a2f1a;
   --burgundy:#c96b6b;
   --bg:#161310;--surface:#211d17;--border:#332e25;--border-soft:#2a251d;
   --shadow-sm:0 1px 2px rgba(0,0,0,0.25),0 1px 1px rgba(0,0,0,0.2);
@@ -308,10 +308,10 @@ body.audio-paused .eq i{animation-play-state:paused}
 /* ═══ Type "covers" — a colored tile per content type stands in for album art ═══ */
 .cover{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
 .cover svg{width:46%;height:46%;opacity:.92}
-.cover-sicha{background:linear-gradient(140deg,#5b86e0,#1f3470)}
-.cover-maamar{background:linear-gradient(140deg,#a66ae0,#43226b)}
-.cover-farb{background:linear-gradient(140deg,#46a872,#1a4c31)}
-.cover-niggun{background:linear-gradient(140deg,#e0a04a,#7a4714)}
+.cover-sicha{background:linear-gradient(140deg,#4f93ff,#16307f)}
+.cover-maamar{background:linear-gradient(140deg,#b06bff,#4a1d86)}
+.cover-farb{background:linear-gradient(140deg,#2fd089,#0c5a34)}
+.cover-niggun{background:linear-gradient(140deg,#ffb13d,#8f4f10)}
 .cover-other{background:linear-gradient(140deg,#8f8775,#3a352c)}
 /* Covers say what's INSIDE, not the format (see coverSpec): a catalogued
    talk shows its title on its topic's color; an event with a JEM photo shows
@@ -560,15 +560,15 @@ body.audio-paused .eq i{animation-play-state:paused}
 .nig-row:hover{color:var(--gold)}
 .topic-tile .tile-art{opacity:.28}
 .topic-tile strong,.topic-tile span,.year-tile strong,.year-tile span{position:relative;z-index:1}
-.tg-0{--tg:linear-gradient(140deg,#e2b456,#8a5a14)}
-.tg-1{--tg:linear-gradient(140deg,#5b86e0,#1f3470)}
-.tg-2{--tg:linear-gradient(140deg,#e07a8a,#7a2236)}
-.tg-3{--tg:linear-gradient(140deg,#46a872,#1a4c31)}
-.tg-4{--tg:linear-gradient(140deg,#e0964a,#7a3f14)}
-.tg-5{--tg:linear-gradient(140deg,#a66ae0,#43226b)}
-.tg-6{--tg:linear-gradient(140deg,#3fb3b0,#14524f)}
-.tg-7{--tg:linear-gradient(140deg,#6f7ee8,#262f80)}
-.tg-8{--tg:linear-gradient(140deg,#8f9aa8,#363c45)}
+.tg-0{--tg:linear-gradient(140deg,#ffc64d,#a85e00)}
+.tg-1{--tg:linear-gradient(140deg,#4f93ff,#16307f)}
+.tg-2{--tg:linear-gradient(140deg,#ff6b84,#8e1530)}
+.tg-3{--tg:linear-gradient(140deg,#2fd089,#0c5a34)}
+.tg-4{--tg:linear-gradient(140deg,#ff9e3d,#8f4310)}
+.tg-5{--tg:linear-gradient(140deg,#b06bff,#4a1d86)}
+.tg-6{--tg:linear-gradient(140deg,#28d6d0,#0a5d59)}
+.tg-7{--tg:linear-gradient(140deg,#6d7bff,#1e2a9e)}
+.tg-8{--tg:linear-gradient(140deg,#9fb0c2,#2d343d)}
 .topic-tile{position:relative;overflow:hidden;border-radius:12px;min-height:84px;padding:13px 14px;color:#fff;cursor:pointer;background:var(--tg);transition:transform .15s;-webkit-tap-highlight-color:transparent}
 .topic-tile:hover{transform:translateY(-2px)}
 .topic-tile:active{transform:scale(.97)}
