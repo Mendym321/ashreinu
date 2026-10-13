@@ -1851,7 +1851,7 @@ async function loadFollowSection() {
         + (sameCalendar(year, cy) ? ' · same calendar as this year' : '') + '</div></div>'
         + '<button class="see-all" onclick="openYear(' + year + ')">See all</button></div>'
       + '<div class="fp-bar"><i style="width:' + (events.length ? (heard / events.length * 100).toFixed(1) : 0) + '%"></i></div>'
-      + '<div class="fp-label">This week' + (weekRows.length && weekRows.every(eventHeard) ? ' <span class="fp-ok">✓ up to date</span>' : '') + '</div>'
+      + '<div class="fp-label">This week' + (weekRows.length && weekRows.every(eventHeard) && earlierUnheardCount(events) === 0 ? ' <span class="fp-ok">✓ up to date</span>' : '') + '</div>'
       + (weekRows.length ? weekRows.map(e => row(e)).join('')
         : '<div class="fp-empty">Nothing recorded this week in ' + year + (next ? '. The next one:' : '.') + '</div>' + (next ? row(next) : ''))
       + (catchRows.length ? '<div class="fp-label">Catch up</div>' + catchRows.map(e => row(e)).join('') : '')
@@ -2440,6 +2440,7 @@ async function renderAlbum(fid) {
       meta: head ? [hebDate(head), head.secular_year ? dstr(head).split(' · ').pop() : ''].filter(Boolean).join(' · ') : '',
       extra: albumHeardBtnHtml(fid) + '<button class="icon-btn" id="readbtn-' + fid + '" onclick="openReader(\'' + fid + '\',' + fid + ')" aria-label="Read the farbrengen\'s text" title="Read the text">' + ICON_BOOK + '</button>'
         + '<a class="icon-btn" href="https://ashreinu.app/player?parentEvent=' + fid + '" target="_blank" rel="noopener" aria-label="Open in Ashreinu" title="Open in Ashreinu">' + ICON_EXT + '</a>',
+      noShuffle: true, // a farbrengen's sichos play in order; no one shuffles them
       play: 'playAlbum(' + fid + ')' })
     + '<section class="album" id="album-' + fid + '"><div id="album-tracks-' + fid + '"></div>'
     + '<button class="show-tracks" id="album-more-' + fid + '" onclick="loadAlbumTracks(' + fid + ')">Show tracks</button></section>';
