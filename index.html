@@ -3473,10 +3473,11 @@ document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter'
   // background so first paint never waits on the network (or on hebcal.com).
   primeTopicsFromCache();
   primeTodayFromCache();
-  const hadTopics = TOPICS.length > 0;
-  loadTodayHebrewDate();            // non-blocking: fills in / refreshes when ready
-  const topicsReady = loadTopicList();
-  if (!hadTopics) await topicsReady; // first-ever visit: let the topic shelf show on first paint
+  // Both revalidate in the background and never block first paint — not even
+  // on a first-ever visit. When topics arrive, loadTopicList re-renders the
+  // home so the topic shelf fills in (like the other home sections do).
+  loadTodayHebrewDate();
+  loadTopicList();
   // Links like index.html?q=teshuvah or index.html?track=5009&f=4999 (used by the pipeline review page).
   const params = new URLSearchParams(location.search);
   const occ = COLLECTIONS.findIndex(c => c.name === params.get('occasion'));
